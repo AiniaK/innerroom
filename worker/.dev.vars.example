@@ -1,0 +1,7 @@
+# 本機執行 `npm run dev` 時用的金鑰。
+# 複製成 .dev.vars 再填入（.dev.vars 已列在 .gitignore，不會進 git）。
+OWNER_EMAILS=you@gmail.com
+GITHUB_TOKEN=github_pat_xxx
+NOTION_TOKEN=ntn_xxx
+NOTION_DATABASE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+HASH_SECRET=請換成一串至少32個字元的亂數

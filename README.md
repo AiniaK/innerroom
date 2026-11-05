@@ -16,6 +16,7 @@
 | `config.js` | 公開設定：Worker 網址、Google 用戶端 ID、GitHub repo 名稱（都不是密碼） |
 | `data/catalog.json` | 後台用的物件清單、預設文字、展品尺寸，由 `tools/build-catalog.mjs` 從房間產生 |
 | `tools/build-catalog.mjs` | 改了 `index.html` 的物件或展品之後，執行 `node tools/build-catalog.mjs` 重新產生 `data/catalog.json` |
+| `worker/` | Cloudflare Worker：後台儲存到 GitHub、留言 API。部署方式見 `worker/README.md` |
 
 ## 搬家計畫（第二階段）
 

@@ -151,9 +151,14 @@ function explain(e) {
     bad_path: '檔名或資料夾不被接受：只能放進 media/，且只能是 MP4、WebM、MP3、M4A 或 JPG。',
     in_use: '這個檔案還在使用中。',
     rate_limited: '操作太頻繁了，請稍等一下再試。',
-    github_error: 'GitHub 暫時無法寫入，請稍後再試。',
+    github_error: (e && e.data && e.data.hint ? e.data.hint + '。' : 'GitHub 暫時無法寫入，請稍後再試。'),
     notion_error: 'Notion 暫時無法讀寫，請稍後再試。',
     not_found: '找不到這筆資料，可能已經被刪除。',
+    not_configured: 'Worker 的設定還不完整' + (e && e.data && e.data.field ? '（缺少 ' + e.data.field + '）' : '') + '，請照部署說明補上。',
+    forbidden_origin: 'Worker 不接受從這個網址送出的請求，請確認 Worker 的 ALLOWED_ORIGINS 設定。',
+    busy: '網站正在更新中，請稍等幾秒再試一次。',
+    bad_upload: 'GitHub 不接受這個檔案，請換一個檔案再試。',
+    notion_busy: 'Notion 暫時太忙，請稍後再試。',
   })[c] || (e && e.status === 404 ? '伺服器還沒有這個功能。' : '發生錯誤（' + (c || '未知') + '）。');
 }
 
