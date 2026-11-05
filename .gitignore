@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+._*
+
+# 編輯器
+.vscode/
+.idea/
+*.swp
+
+# 金鑰與本機設定（絕對不能進 git）
+.env
+.env.*
+*.pem
+*.key
+.dev.vars
+secrets*.json
+
+# Cloudflare Worker / Node
+node_modules/
+.wrangler/
+dist/
+
+# 暫存
+*.log
+tmp/
