@@ -17,15 +17,25 @@
 | `data/catalog.json` | 後台用的物件清單、預設文字、展品尺寸，由 `tools/build-catalog.mjs` 從房間產生 |
 | `tools/build-catalog.mjs` | 改了 `index.html` 的物件或展品之後，執行 `node tools/build-catalog.mjs` 重新產生 `data/catalog.json` |
 | `worker/` | Cloudflare Worker：後台儲存到 GitHub、留言 API。部署方式見 `worker/README.md` |
+| `privacy.html` | 隱私權說明：留言收集哪些資料、怎麼使用 |
+| `DEPLOY.md` | 部署說明：GitHub、Google、Notion、Cloudflare 的設定步驟 |
+| `.nojekyll` | 讓 GitHub Pages 直接提供檔案，不經過 Jekyll 處理 |
 
-## 搬家計畫（第二階段）
+## 架構
 
-- **網站**：GitHub Pages（免費）
-- **留言**：Cloudflare Workers + D1（免費）
-  - Google 登入的留言立即公開；匿名留言需房主審核
-  - 留言同步到 Notion，在 Notion 勾選「公開」即審核通過
-- **後台**：獨立的 `admin.html`，只有房主需要登入
-- **內容**：沿用 `content.json`
+全部使用免費方案。
+
+- **網站**：GitHub Pages，純靜態。一般訪客打開房間不需要登入，也不依賴伺服器。
+- **後台**：`admin.html`，只有房主需要用 Google 登入。
+  - 儲存時，Worker 把 `content.json` 提交到 GitHub，GitHub Pages 約 1 分鐘後更新。
+  - 影片和音樂也經由 Worker 存進 `media/`。
+- **伺服器程式**：Cloudflare Workers（`worker/`）。
+  - GitHub、Notion 金鑰只存在 Worker 的 secrets 裡。
+- **留言**：Notion 資料庫為主，Cloudflare KV 做快取。
+  - Google 登入的留言立即公開；匿名留言要房主審核。
+  - 在 Notion 勾選「公開」就是審核通過。
+
+部署步驟見 [`DEPLOY.md`](DEPLOY.md)，Worker 的細節見 [`worker/README.md`](worker/README.md)，訪客隱私權說明在 [`privacy.html`](privacy.html)。
 
 ## 本機預覽
 
