@@ -6,13 +6,12 @@
 
 | 檔案 | 用途 |
 |---|---|
-| `index.html` | 房間本體（目前與 Claude 上發布的版本相同） |
-| `content.json` | 房主在後台設定的內容：物件名稱與彈窗、展品、火勢、電視與音樂設定 |
-| `media/tv-adventure.mp4` | 電視播放的影片 |
-| `media/music-Blue_720p.mp4` | 平板播放的音樂影片 |
-
-> 注意：`index.html` 目前仍以 Claude 平台的檔案網址（`/_blob/…`）讀取影片與音樂。
-> 搬到 GitHub Pages 時，會改成讀取 `media/` 資料夾裡的檔案。
+| `index.html` | 房間本體（純靜態，不需要登入，也不依賴任何伺服器） |
+| `content.json` | 房主在後台設定的內容：物件名稱與彈窗、展品、火勢、電視與音樂設定。影片和音樂用 `src` 寫檔案路徑 |
+| `data/models.js` | 3D 模型資料（貓、狗、櫻花場景、臥佛、Pocky），原本內嵌在 `index.html` |
+| `assets/exhibits/` | 白牆展品的圖片與「一束光」影片 |
+| `assets/moon.jpg` | 月亮貼圖 |
+| `media/` | 電視影片、平板音樂（後台上傳的檔案也會放這裡） |
 
 ## 搬家計畫（第二階段）
 
@@ -32,3 +31,6 @@ python3 -m http.server 8000
 ```
 
 再打開 http://localhost:8000 。
+
+> `python3 -m http.server` 不支援影片的分段讀取，Safari 在本機可能播不出電視和音樂，請用 Chrome 預覽。
+> 放上 GitHub Pages 後沒有這個限制，iPhone 和 Safari 都能正常播放。
