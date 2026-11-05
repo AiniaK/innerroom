@@ -5,8 +5,8 @@ window.ROOM_CONFIG = {
   // Cloudflare Worker 的網址，第四階段部署後填入，例如 'https://innerroom-api.你的帳號.workers.dev'
   workerUrl: '',
   // Google OAuth 用戶端 ID，第六階段建立後填入，例如 '1234567890-abc.apps.googleusercontent.com'
-  googleClientId: '',
+  googleClientId: '343926158795-3cglv3m79q6n7lojtne9od790fn57bvr.apps.googleusercontent.com',
   // GitHub repo，例如 '你的帳號/innerroom'。後台「改用 GitHub 網頁上傳」的連結會用到
-  githubRepo: '',
+  githubRepo: 'AiniaK/innerroom',
   githubBranch: 'main',
 };
