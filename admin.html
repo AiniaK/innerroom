@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>內在房間・房主後台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<style>
+:root{
+  --paper:#FBF6EC; --paper-2:#F2E8D8; --ink:#3A3029; --muted:#857563; --line:#E2D4BF;
+  --ember:#B26E39; --sage:#76825F; --danger:#A8432F; --veil:rgba(58,48,41,.42);
+  --f-display:"LXGW WenKai TC","Kaiti TC","STKaiti",serif;
+  --f-body:"LXGW WenKai TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body)}
+a{color:var(--ember)}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:.03em}
+.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--paper-2);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.small{font-size:12px;padding:4px 10px}
+.btn.danger{color:var(--danger);border-color:#E3B9AE}
+.btn:disabled{opacity:.45;cursor:default}
+button:focus-visible,.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+.note{font-size:12.5px;color:var(--muted);line-height:1.7}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.field{display:grid;gap:6px;margin:14px 0}
+.field>label,.lbl{font-size:13px;color:var(--muted);letter-spacing:.05em}
+input[type=range]{width:100%;accent-color:var(--ember)}
+input[type=text],input[type=number],input[type=url],input[type=search],textarea,select{font:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fffdf8;color:var(--ink);width:100%;box-sizing:border-box}
+textarea{resize:vertical;min-height:58px}
+input[type=checkbox]{accent-color:var(--ember)}
+
+/* sign-in */
+#login{position:fixed;inset:0;z-index:20;background:var(--veil);display:flex;align-items:center;justify-content:center;padding:20px}
+#login .card{background:var(--paper);border:1px solid var(--line);border-radius:8px;box-shadow:0 30px 80px rgba(40,28,18,.28);width:min(440px,100%);padding:30px 28px 24px;box-sizing:border-box}
+#login h1{margin:0 0 6px;font-size:24px}
+#login p{line-height:1.8;font-size:14.5px;margin:.4em 0 1em}
+#gbtn{min-height:44px;margin:10px 0}
+#loginMsg{font-size:13.5px;color:var(--danger);line-height:1.7;min-height:1.2em}
+
+/* shell */
+.top{position:sticky;top:0;z-index:5;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 28px 12px;background:var(--paper);border-bottom:1px solid var(--line)}
+.top h2{margin:0;font-size:20px}
+.top nav{display:flex;gap:6px;flex-wrap:wrap}
+.top nav button[aria-selected=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.top .sp{flex:1}
+#stat{font-size:13px;color:var(--muted);max-width:420px;line-height:1.5}
+#stat.ok{color:var(--sage)}#stat.err{color:var(--danger)}
+#who{font-size:12px;color:var(--muted)}
+main{padding:8px 28px 80px;max-width:1000px;margin:0 auto}
+main section{margin:22px 0}
+main h3{font-size:17px;margin:0 0 4px}
+main h4{font-family:var(--f-display);font-size:15.5px;margin:22px 0 6px}
+.block{border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:16px 0;background:#fffdf8}
+
+.adm-row{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;padding:12px 0;border-bottom:1px dashed var(--line)}
+.adm-row .k{font-size:12px;color:var(--muted);padding-top:9px;word-break:break-all}
+.adm-row .f{display:grid;gap:6px}
+.adm-row .opts{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
+.adm-row .opts input[type=number]{width:84px}
+.adm-row.off .f>input,.adm-row.off .f>textarea{opacity:.5}
+.adm-row.ex{grid-template-columns:150px 1fr 300px}
+.adm-row.ex canvas{width:100%;height:auto;align-self:start;border:1px solid var(--line);border-radius:6px;background:var(--paper);position:sticky;top:80px}
+.hov{display:flex;gap:8px;align-items:center}.hov span{color:var(--muted);display:grid;place-items:center}
+@media (max-width:900px){.adm-row.ex{grid-template-columns:1fr}.adm-row.ex canvas{position:static;max-width:420px}}
+@media (max-width:640px){.adm-row{grid-template-columns:1fr}.top,main{padding-left:16px;padding-right:16px}}
+
+#tvPrev{width:100%;max-width:440px;aspect-ratio:16/9;border-radius:6px;background:#59544f;display:block}
+.list{display:grid;gap:8px;margin:8px 0}
+.item{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+.item .grow{flex:1 1 200px;min-width:0}
+.item img.cov{width:36px;height:36px;object-fit:cover;border-radius:6px;background:#c98f6c}
+.tag{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.tag.warn{color:var(--ember);border-color:#E7C6A6}
+.tag.ok{color:var(--sage);border-color:#C9D1B8}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden;max-width:440px}
+.progress i{display:block;height:100%;width:0;background:var(--ember);transition:width .2s}
+.ustat{font-size:13px;color:var(--muted);min-height:1.2em;line-height:1.7}
+.ustat.err{color:var(--danger)}
+details.help{border:1px dashed var(--line);border-radius:8px;padding:10px 14px;margin:12px 0;font-size:13.5px;line-height:1.8}
+details.help summary{cursor:pointer;color:var(--ink)}
+details.help ol{margin:6px 0 0;padding-left:1.4em}
+table.files{border-collapse:collapse;width:100%;font-size:13px}
+table.files td,table.files th{border-bottom:1px dashed var(--line);padding:7px 6px;text-align:left;vertical-align:middle}
+table.files th{color:var(--muted);font-weight:400}
+.cm{border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:#fffdf8}
+.cm .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cm .txt{white-space:pre-wrap;line-height:1.8;font-size:14px;margin:6px 0;word-break:break-word}
+.cm.pending{border-color:#E7C6A6}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;max-width:min(560px,calc(100vw - 32px));text-align:center;pointer-events:none;opacity:0;transition:opacity .4s}
+#toast.show{opacity:1}
+#toast span{display:inline-block;background:rgba(251,246,236,.96);border:1px solid var(--line);border-radius:12px;padding:9px 14px;font-size:13.5px;line-height:1.6;box-shadow:0 8px 24px rgba(40,28,18,.15)}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <h1 id="loginTitle">房主後台</h1>
+    <p id="loginIntro">請用房主的 Google 帳號登入。一般訪客不需要來這裡，直接<a href="./">回到房間</a>就好。</p>
+    <div id="gbtn"></div>
+    <div id="loginMsg" role="alert"></div>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <div class="top">
+    <h2>房主後台</h2>
+    <nav role="tablist" aria-label="後台分頁">
+      <button class="btn small" type="button" role="tab" data-tab="obj">物件說明</button>
+      <button class="btn small" type="button" role="tab" data-tab="ex">展品</button>
+      <button class="btn small" type="button" role="tab" data-tab="set">房間設定</button>
+      <button class="btn small" type="button" role="tab" data-tab="media">影片與音樂</button>
+      <button class="btn small" type="button" role="tab" data-tab="gb">留言管理</button>
+    </nav>
+    <span class="sp"></span>
+    <span id="stat" role="status" aria-live="polite"></span>
+    <button class="btn primary" type="button" id="save">儲存並更新房間</button>
+    <a class="btn" href="./" target="_blank" rel="noopener">打開房間</a>
+    <span id="who"></span><button class="btn small" type="button" id="logout">登出</button>
+  </div>
+
+  <main>
+    <section id="tab-obj" role="tabpanel">
+      <h3>物件說明與彈窗</h3>
+      <p class="note">每一列三個欄位：有滑鼠圖示的是游標移上去時顯示的名稱，第二個是彈窗標題，第三個是彈窗裡的說明文字。取消勾選「點擊時顯示彈窗」，點這個物件就不會跳出視窗（坐下、開關燈這類動作不受影響）。</p>
+      <input type="search" id="objQ" placeholder="搜尋物件名稱…" aria-label="搜尋物件名稱">
+      <div id="objList"></div>
+    </section>
+
+    <section id="tab-ex" role="tabpanel">
+      <h3>展品</h3>
+      <p class="note">每個展品右邊都有白牆的即時示意（面向白牆看）：紅框是這件展品，棕框是其他展品，修改數字時會立刻更新。水平位置以公尺計，數字越大越靠左；高度是畫框中心離地的高度；寬度是畫框的寬（公分）。勾選「收進收納箱」就不會出現在牆上，取消勾選就放回牆上。</p>
+      <div id="exList"></div>
+    </section>
+
+    <section id="tab-set" role="tabpanel">
+      <h3>房間設定</h3>
+      <div class="field"><label for="fire">初心之火・<span id="fireV"></span>（儲存後所有訪客都看得到）</label><input type="range" id="fire" min="0" max="100"></div>
+    </section>
+
+    <section id="tab-media" role="tabpanel">
+      <h3>影片與音樂</h3>
+      <p class="note">上傳的檔案會直接存進網站的 <code>media/</code> 資料夾。選好影片或音樂之後，記得按上方的「儲存並更新房間」，訪客才會看到。</p>
+
+      <div class="block" id="tvBlock">
+        <h4 style="margin-top:0">電視影片</h4>
+        <div class="note" id="tvNow"></div>
+        <canvas id="tvPrev" width="960" height="540" aria-label="電視畫面預覽"></canvas>
+        <div class="field"><label for="tvPick">播放哪一支影片</label><select id="tvPick"></select></div>
+        <div class="field"><label for="tvFile">或上傳新的影片（MP4 或 WebM）</label><input type="file" id="tvFile" accept="video/mp4,video/webm,.mp4,.webm"></div>
+        <div class="progress" hidden id="tvProg"><i></i></div>
+        <div class="ustat" id="tvStat" role="status"></div>
+        <div class="field"><label for="tvFit">擺放方式</label><select id="tvFit">
+          <option value="auto">自動（直式置中、左右各 1/5 模糊；橫式完整顯示）</option>
+          <option value="contain">完整顯示（不裁切）</option>
+          <option value="center35">置中於中間 3/5（左右各 1/5 模糊）</option>
+          <option value="cover">填滿畫面（會裁切）</option></select></div>
+        <div class="field"><label for="tvScale">大小・<span id="tvScaleV"></span></label><input type="range" id="tvScale" min="50" max="200"></div>
+        <div class="field"><label for="tvX">左右位置・<span id="tvXV"></span></label><input type="range" id="tvX" min="-100" max="100"></div>
+        <div class="field"><label for="tvY">上下位置・<span id="tvYV"></span></label><input type="range" id="tvY" min="-100" max="100"></div>
+        <div class="field"><label><input type="checkbox" id="tvBlur"> 空白處用模糊的影片畫面填滿</label></div>
+        <div class="row"><button class="btn" type="button" id="tvReset">畫面恢復預設</button></div>
+      </div>
+
+      <div class="block" id="musBlock">
+        <h4 style="margin-top:0">平板音樂</h4>
+        <p class="note">歌曲和影片會在平板上依序循環播放：影片會在螢幕上播放畫面，歌曲顯示專輯樣式，可以替每首歌上傳封面。靠近沙發邊桌才聽得到。</p>
+        <div class="list" id="musTracks"></div>
+        <div class="row"><select id="musPick" style="flex:1 1 240px" aria-label="從 media 資料夾選擇"></select><button class="btn" type="button" id="musAdd">加入播放清單</button></div>
+        <div class="field"><label for="musFile">或上傳新的歌曲或影片（MP3、M4A、MP4、WebM）</label><input type="file" id="musFile" accept="audio/mpeg,audio/mp4,audio/x-m4a,video/mp4,video/webm,.mp3,.m4a,.mp4,.webm"></div>
+        <div class="progress" hidden id="musProg"><i></i></div>
+        <div class="ustat" id="musStat" role="status"></div>
+        <h4>YouTube／Spotify 連結</h4>
+        <div class="list" id="musLinks"></div>
+        <div class="row"><input type="text" id="musLT" maxlength="60" placeholder="歌名" style="flex:1 1 120px" aria-label="歌名">
+          <input type="url" id="musLU" maxlength="300" placeholder="https://open.spotify.com/… 或 https://youtu.be/…" style="flex:2 1 220px" aria-label="網址">
+          <button class="btn" type="button" id="musLAdd">加入連結</button></div>
+      </div>
+
+      <div class="block">
+        <h4 style="margin-top:0">media/ 資料夾裡的檔案</h4>
+        <p class="note">這裡列出網站上所有的影片、音樂和封面。正在使用的檔案不能刪除；先在上面換掉或移除，按「儲存並更新房間」後才能刪。</p>
+        <div class="row"><button class="btn small" type="button" id="filesRefresh">重新整理檔案清單</button><span class="ustat" id="filesStat"></span></div>
+        <table class="files"><thead><tr><th>檔案</th><th>大小</th><th>狀態</th><th></th></tr></thead><tbody id="filesBody"></tbody></table>
+        <details class="help" id="ghHelp">
+          <summary>檔案太大、上傳不了時：改用 GitHub 網頁上傳</summary>
+          <ol>
+            <li>打開 <a id="ghUpload" href="#" target="_blank" rel="noopener">GitHub 上的 media 資料夾上傳頁面</a>（需要用你的 GitHub 帳號登入）。</li>
+            <li>把檔案拖進頁面。檔名建議只用英文、數字和「-」，例如 <code>tv-sea-2026.mp4</code>。</li>
+            <li>拉到頁面最下面，按綠色的「Commit changes」。</li>
+            <li>等大約 1 分鐘，回到這裡按「重新整理檔案清單」。</li>
+            <li>新檔案會出現在電視的「播放哪一支影片」選單，或平板音樂的下拉選單裡。選好之後按「儲存並更新房間」。</li>
+          </ol>
+          <p class="note">GitHub 網頁一次最多只能上傳 25 MB 的檔案。更大的檔案（最多 100 MB）要用 GitHub Desktop 放進 media 資料夾再 Push。不過影片太大，訪客用手機打開房間時會載入很久，建議盡量壓縮在 20 MB 以內。</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="tab-gb" role="tabpanel">
+      <h3>留言管理</h3>
+      <p class="note">這裡的操作會立即生效，不需要按「儲存並更新房間」。你也可以直接在 Notion 的留言資料庫裡勾選或取消勾選「公開」，效果相同（房間最多約 1 分鐘後更新）。</p>
+      <div class="row" role="group" aria-label="篩選留言">
+        <button class="btn small" type="button" data-cf="pending" aria-pressed="true">待審核</button>
+        <button class="btn small" type="button" data-cf="public" aria-pressed="false">已公開</button>
+        <button class="btn small" type="button" data-cf="all" aria-pressed="false">全部</button>
+        <button class="btn small" type="button" id="cmRefresh">重新整理</button>
+        <span class="ustat" id="cmStat" role="status"></span>
+      </div>
+      <div class="list" id="cmList"></div>
+      <h4>已封鎖的 Google 帳號</h4>
+      <p class="note">被封鎖的帳號不能再用 Google 登入留言。對方仍然可以不登入、匿名留言，但匿名留言都要經過你審核才會公開。這裡只顯示雜湊後的代號，不會顯示對方的 Google 名字或 email。</p>
+      <div class="list" id="blockList"></div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" role="status" aria-live="polite"><span></span></div>
+
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

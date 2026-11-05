@@ -2513,6 +2513,13 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 
+/* ---------- catalog for admin.html: object names, default texts, exhibit sizes (read by tools/build-catalog.mjs; no effect on the room) ---------- */
+window.__roomCatalog=()=>{const hover={};targets.forEach(m=>{const a=m.userData&&m.userData.act;if(a&&a.type&&a.label){const k=a.type==='drink'?'drink:'+a.idx:a.type;if(!hover[k])hover[k]=a.label;}});
+  const texts=[...Object.keys(TEXT).filter(k=>!['journal','exhibit'].includes(k)).map(k=>[k,TEXT[k][0],TEXT[k][0],TEXT[k][1]]),
+    ['flyer','課程傳單','覺察書寫小組','八週，每週一次。一起練習把心裡的話寫下來，讓寫字變成照顧自己的方式。'],['fire','初心之火（彈窗文字）','初心之火','這是房主的初心之火，一直燒著。'],
+    ...DRINKS.map((d,i)=>['drink:'+i,'陽台飲料 '+(i+1),d.split('：')[0],d])];
+  const exhibits={};Object.keys(EXHIBITS).forEach(id=>{const E=EXHIBITS[id],o=exObj[id];exhibits[id]={kind:E.kind,W:E.W,H:E.H,OW:o.OW,OH:o.OH,img:E.img,video:E.video||null,def:E.def};});
+  return {texts,hover,exhibits,wall:{z0:-3.42,z1:3.42,h:3.06,zMin:EX_Z_MIN,zMax:EX_Z_MAX,hMin:.75,hMax:2.2},tv:{w:TV_W,h:TV_H,def:TV_DEF},fireDefault:50};};
 /* ---------- start ---------- */
 if(isTouch){$('#keys').innerHTML='<kbd>左下搖桿</kbd><span>走動</span><kbd>右下「蹲下」</kbd><span>切換蹲下／站起</span><kbd>拖曳畫面</kbd><span>環顧四周</span><kbd>輕點</kbd><span>與物件互動</span>';}
 $('#crouchBtn').addEventListener('click',e=>{touchCrouch=!touchCrouch;e.currentTarget.setAttribute('aria-pressed',touchCrouch);e.currentTarget.textContent=touchCrouch?'站起':'蹲下';});

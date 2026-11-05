@@ -12,6 +12,10 @@
 | `assets/exhibits/` | 白牆展品的圖片與「一束光」影片 |
 | `assets/moon.jpg` | 月亮貼圖 |
 | `media/` | 電視影片、平板音樂（後台上傳的檔案也會放這裡） |
+| `admin.html`、`admin.js` | 房主後台（Google 登入後才能使用，透過 Worker 把修改提交到 GitHub） |
+| `config.js` | 公開設定：Worker 網址、Google 用戶端 ID、GitHub repo 名稱（都不是密碼） |
+| `data/catalog.json` | 後台用的物件清單、預設文字、展品尺寸，由 `tools/build-catalog.mjs` 從房間產生 |
+| `tools/build-catalog.mjs` | 改了 `index.html` 的物件或展品之後，執行 `node tools/build-catalog.mjs` 重新產生 `data/catalog.json` |
 
 ## 搬家計畫（第二階段）
 
