@@ -20,7 +20,7 @@ NOTION_VERSION = "2025-09-03"
 # 留言快取、頻率限制、封鎖名單。id 由 `npx wrangler kv namespace create KV` 產生
 [[kv_namespaces]]
 binding = "KV"
-id = "填入 KV namespace 的 id"
+id = "c05ba25758d146d7bf416aa9f3508c83"
 
 [observability]
 enabled = true
