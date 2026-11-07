@@ -26,7 +26,7 @@ async function gh(env, path, opt = {}) {
   const res = await fetch(API + '/repos/' + repo(env) + path, {
     method: opt.method || 'GET',
     headers: {
-      'Authorization': 'Bearer ' + env.GITHUB_TOKEN,
+      'Authorization': 'Bearer ' + String(env.GITHUB_TOKEN).trim(),
       'Accept': 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
       'User-Agent': 'innerroom-worker',

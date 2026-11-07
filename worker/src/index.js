@@ -16,6 +16,12 @@ async function route(request, env, ctx) {
       GITHUB_REPO: !!env.GITHUB_REPO, GITHUB_TOKEN: !!env.GITHUB_TOKEN, GOOGLE_CLIENT_ID: !!env.GOOGLE_CLIENT_ID,
       OWNER_EMAILS: !!env.OWNER_EMAILS, NOTION_TOKEN: !!env.NOTION_TOKEN, NOTION_DATABASE_ID: !!env.NOTION_DATABASE_ID,
       HASH_SECRET: !!(env.HASH_SECRET && env.HASH_SECRET.length >= 16), KV: !!env.KV, ALLOWED_ORIGINS: allowedOrigins(env),
+    },
+    // 只檢查格式（開頭與字元種類），不透露金鑰內容，方便發現貼錯的金鑰
+    format: {
+      GITHUB_TOKEN: /^(github_pat_|ghp_)[A-Za-z0-9_]+$/.test(String(env.GITHUB_TOKEN || '').trim()),
+      NOTION_TOKEN: /^(ntn_|secret_)[A-Za-z0-9]+$/.test(String(env.NOTION_TOKEN || '').trim()),
+      NOTION_DATABASE_ID: /^[0-9a-f]{32}$/i.test(String(env.NOTION_DATABASE_ID || '').trim().replace(/-/g, '')),
     } });
   }
 

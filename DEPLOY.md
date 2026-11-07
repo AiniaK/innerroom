@@ -197,6 +197,8 @@ repo 會是**公開的**：GitHub Pages 免費方案只支援公開 repo。所�
 1. 在資料庫頁面右上角按 **•••**。
 2. 選 **連線**（Connections），找到 `內在房間留言`，按確認。
 
+> 新版 Notion 如果在頁面選單找不到「連線」：到 integration（現在叫「連接」）的設定頁 → **Content access**（內容存取權限）→ **Edit access**，展開 **Private**，只勾選 `內在房間留言`，按 **Save**。
+
 沒做這一步，Worker 會找不到資料庫。
 
 ### 3-4 【你操作】複製資料庫 ID
@@ -312,7 +314,8 @@ npm run deploy
 
 用瀏覽器打開 `https://innerroom-api.你的子網域.workers.dev/api/health`。
 
-- 確認 `configured` 裡每一項都是 `true`。
+- 確認 `configured` 和 `format` 裡每一項都是 `true`。
+- `format` 是 `false` 代表金鑰貼錯了。最常見的原因是剪貼簿裡是別的內容，請重新複製金鑰，再執行一次對應的 `secret put`。
 - `ALLOWED_ORIGINS` 要顯示你的網站網址。
 - 哪一項是 `false`，就回到對應的步驟補上。
 

@@ -107,7 +107,7 @@ openssl rand -hex 32
 
    最後會顯示 Worker 的網址，例如 `https://innerroom-api.你的帳號.workers.dev`。
 
-7. 打開 `https://innerroom-api.你的帳號.workers.dev/api/health`，確認每一項都是 `true`。
+7. 打開 `https://innerroom-api.你的帳號.workers.dev/api/health`，確認 `configured` 和 `format` 裡每一項都是 `true`。`format` 是 `false` 代表金鑰貼錯了（例如貼成別的內容），重新執行 `npx wrangler secret put` 那一行即可。
 
 8. 把 Worker 網址填進專案根目錄的 `config.js` 的 `workerUrl`，commit 並 push。
 

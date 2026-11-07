@@ -20,7 +20,7 @@ async function notion(env, path, opt = {}) {
   const res = await fetch(API + path, {
     method: opt.method || 'GET',
     headers: {
-      'Authorization': 'Bearer ' + env.NOTION_TOKEN,
+      'Authorization': 'Bearer ' + String(env.NOTION_TOKEN).trim(),   // 貼上金鑰時常多帶空白或換行
       'Notion-Version': env.NOTION_VERSION || '2025-09-03',
       'Content-Type': 'application/json',
     },
@@ -40,11 +40,12 @@ async function notion(env, path, opt = {}) {
 // 由資料庫 ID 找到資料來源 ID（記在 KV，只查一次）
 async function dataSourceId(env) {
   if (memDS) return memDS;
-  if (!env.NOTION_DATABASE_ID) fail(500, 'not_configured', 'NOTION_DATABASE_ID');
-  const key = 'notion:ds:' + env.NOTION_DATABASE_ID;
+  const dbId = String(env.NOTION_DATABASE_ID || '').trim();
+  if (!dbId) fail(500, 'not_configured', 'NOTION_DATABASE_ID');
+  const key = 'notion:ds:' + dbId;
   const cached = env.KV ? await env.KV.get(key) : null;
   if (cached) return (memDS = cached);
-  const db = await notion(env, '/databases/' + encodeURIComponent(env.NOTION_DATABASE_ID));
+  const db = await notion(env, '/databases/' + encodeURIComponent(dbId));
   const id = db && db.data_sources && db.data_sources[0] && db.data_sources[0].id;
   if (!id) fail(502, 'notion_error', '找不到資料來源，請確認資料庫已分享給 integration');
   if (env.KV) { try { await env.KV.put(key, id); } catch {} }
