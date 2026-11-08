@@ -71,7 +71,11 @@ async function notionFetch(url, init) {
   if (p === '/data_sources/ds-1/query' && m === 'POST') {
     const b = JSON.parse(init.body);
     let list = [...notion.pages.values()].filter(x => !x.in_trash);
-    if (b.filter) list = list.filter(x => x.properties['公開'].checkbox === true);
+    const fs = b.filter ? (b.filter.and || [b.filter]) : [];
+    for (const f of fs) {
+      if (f.checkbox) list = list.filter(x => !!(x.properties[f.property] || {}).checkbox === f.checkbox.equals);
+      if (f.rich_text) list = list.filter(x => ((x.properties['留言者 Google ID'].rich_text[0] || {}).text || {}).content === f.rich_text.equals);
+    }
     list.sort((a, z) => z.properties['時間'].date.start.localeCompare(a.properties['時間'].date.start));
     return J(200, { results: list.slice(0, b.page_size), has_more: false });
   }
@@ -83,9 +87,11 @@ async function notionFetch(url, init) {
     notion.pages.set(id, page); return J(200, page);
   }
   const pm = /^\/pages\/(.+)$/.exec(p);
+  if (pm && m === 'GET') { const page = notion.pages.get(pm[1]); return page ? J(200, page) : J(404, { code: 'object_not_found' }); }
   if (pm && m === 'PATCH') {
     const page = notion.pages.get(pm[1]); if (!page) return J(404, { code: 'object_not_found' });
-    const b = JSON.parse(init.body); if (b.in_trash) page.in_trash = true; if (b.properties) Object.assign(page.properties, b.properties);
+    const b = JSON.parse(init.body); if (b.in_trash) page.in_trash = true;
+    if (b.properties) { for (const v of Object.values(b.properties)) (v.title || v.rich_text || []).forEach(t => t.plain_text = t.text.content); Object.assign(page.properties, b.properties); }
     return J(200, page);
   }
   return J(404, { message: 'not mocked ' + p });
@@ -208,61 +214,113 @@ await test('刪除檔案：使用中的不能刪，未使用的可以刪', async
   assert.equal((await call('DELETE', '/api/media?path=media/old-unused.mp4', { token: owner })).status, 404);
 });
 
-let anonId, googleId;
-await test('匿名留言：送出後不公開，Notion 不勾選「公開」', async () => {
-  const r = await call('POST', '/api/comments', { body: { nickname: ' 路人 ', content: '<script>alert(1)</script>\n\n\n\n你好', elapsed: 9000 }, ip: '5.5.5.5' });
-  assert.equal(r.status, 201, JSON.stringify(r.data)); assert.equal(r.data.public, false);
-  const page = notion.pages.get(r.data.comment.id); anonId = page.id;
-  assert.equal(page.properties['公開'].checkbox, false);
-  assert.equal(page.properties['登入方式'].select.name, '匿名');
-  assert.equal(page.properties['暱稱'].title[0].text.content, '路人');
-  assert.equal(page.properties['內容'].rich_text[0].text.content, '<script>alert(1)</script>\n\n你好');   // 原樣存成純文字，由房間顯示時跳脫
-  const pub = await call('GET', '/api/comments');
-  assert.equal(pub.data.comments.length, 0);
+let googleId, otherId;
+const other = await idToken({ sub: '3003', email: 'other@gmail.com' });
+await test('沒有登入不能留言', async () => {
+  const r = await call('POST', '/api/comments', { body: { nickname: '路人', content: '你好', elapsed: 9000 }, ip: '5.5.5.5' });
+  assert.equal(r.status, 401); assert.equal(r.data.error, 'login_required');
+  assert.equal(notion.pages.size, 0);
 });
-await test('登入留言：立即公開、只存雜湊代號、不公開 Google 名字', async () => {
-  const r = await call('POST', '/api/comments', { body: { nickname: '小樹', content: '謝謝你的房間', credential: visitor, elapsed: 9000 }, ip: '6.6.6.6' });
-  assert.equal(r.status, 201, JSON.stringify(r.data)); assert.equal(r.data.public, true);
+await test('登入留言：立即公開、只存雜湊代號、不公開 Google 名字、內容原樣存成純文字', async () => {
+  const r = await call('POST', '/api/comments', { body: { nickname: ' 小樹 ', content: '<script>alert(1)</script>\n\n\n\n謝謝你的房間', credential: visitor, elapsed: 9000 }, ip: '6.6.6.6' });
+  assert.equal(r.status, 201, JSON.stringify(r.data)); assert.equal(r.data.public, true); assert.equal(r.data.comment.status, 'public');
   const page = notion.pages.get(r.data.comment.id); googleId = page.id;
+  assert.equal(page.properties['暱稱'].title[0].text.content, '小樹');
+  assert.equal(page.properties['內容'].rich_text[0].text.content, '<script>alert(1)</script>\n\n謝謝你的房間');
+  assert.equal(page.properties['登入方式'].select.name, 'Google 登入');
   const author = page.properties['留言者 Google ID'].rich_text[0].text.content;
   assert.match(author, /^[0-9a-f]{32}$/); assert.ok(!JSON.stringify(page).includes('visitor@gmail.com')); assert.ok(!JSON.stringify(page).includes('2002'));
   const pub = await call('GET', '/api/comments');
   assert.deepEqual(pub.data.comments.map(c => c.nickname), ['小樹']);
   assert.equal(pub.data.comments[0].author, undefined);
+  const o = await call('POST', '/api/comments', { body: { nickname: '別人', content: '我也來了', credential: other, elapsed: 9000 }, ip: '6.6.6.9' });
+  otherId = o.data.comment.id;
 });
-await test('留言檢查：太長、空白、太多連結、太快送出、隱藏欄位', async () => {
-  assert.equal((await call('POST', '/api/comments', { body: { content: 'x'.repeat(501), elapsed: 9000 }, ip: '7.7.7.1' })).status, 400);
-  assert.equal((await call('POST', '/api/comments', { body: { content: '   ', elapsed: 9000 }, ip: '7.7.7.2' })).status, 400);
-  assert.equal((await call('POST', '/api/comments', { body: { nickname: 'n'.repeat(21), content: 'hi', elapsed: 9000 }, ip: '7.7.7.3' })).status, 400);
-  assert.equal((await call('POST', '/api/comments', { body: { content: 'http://a.com http://b.com', elapsed: 9000 }, ip: '7.7.7.4' })).status, 400);
-  assert.equal((await call('POST', '/api/comments', { body: { content: 'hi', elapsed: 500 }, ip: '7.7.7.5' })).status, 400);
+await test('留言檢查：太長、空白、太多連結、太快送出、隱藏欄位、偽造登入', async () => {
+  const t = { credential: visitor, elapsed: 9000 };
+  assert.equal((await call('POST', '/api/comments', { body: { ...t, content: 'x'.repeat(501) }, ip: '7.7.7.1' })).status, 400);
+  assert.equal((await call('POST', '/api/comments', { body: { ...t, content: '   ' }, ip: '7.7.7.2' })).status, 400);
+  assert.equal((await call('POST', '/api/comments', { body: { ...t, nickname: 'n'.repeat(21), content: 'hi' }, ip: '7.7.7.3' })).status, 400);
+  assert.equal((await call('POST', '/api/comments', { body: { ...t, content: 'http://a.com http://b.com http://c.com http://d.com' }, ip: '7.7.7.4' })).status, 400);
+  assert.equal((await call('POST', '/api/comments', { body: { ...t, content: 'hi', elapsed: 500 }, ip: '7.7.7.5' })).status, 400);
   const before = notion.pages.size;
   const hp = await call('POST', '/api/comments', { body: { content: 'buy now', website: 'http://spam', elapsed: 9000 }, ip: '7.7.7.6' });
   assert.equal(hp.status, 200); assert.equal(notion.pages.size, before);
   assert.equal((await call('POST', '/api/comments', { body: { content: 'hi', credential: await idToken({}, { tamper: true }), elapsed: 9000 }, ip: '7.7.7.7' })).status, 401);
 });
 await test('頻率限制：同一個 IP 10 分鐘內第 4 則被擋', async () => {
-  for (let i = 0; i < 3; i++) assert.equal((await call('POST', '/api/comments', { body: { content: '第 ' + i + ' 則', elapsed: 9000 }, ip: '9.9.9.9' })).status, 201);
-  const r = await call('POST', '/api/comments', { body: { content: '第 4 則', elapsed: 9000 }, ip: '9.9.9.9' });
+  for (let i = 0; i < 3; i++) assert.equal((await call('POST', '/api/comments', { body: { content: '第 ' + i + ' 則', credential: await idToken({ sub: 'rl' + i }), elapsed: 9000 }, ip: '9.9.9.9' })).status, 201);
+  const r = await call('POST', '/api/comments', { body: { content: '第 4 則', credential: await idToken({ sub: 'rl9' }), elapsed: 9000 }, ip: '9.9.9.9' });
   assert.equal(r.status, 429); assert.equal(r.data.error, 'rate_limited');
-  assert.equal((await call('POST', '/api/comments', { body: { content: '別的 IP', elapsed: 9000 }, ip: '9.9.9.8' })).status, 201);
 });
-await test('房主管理：審核公開、取消公開、刪除', async () => {
+await test('自己的留言：列出、別人看不到我的', async () => {
+  assert.equal((await call('POST', '/api/comments/mine', { body: {} })).status, 401);
+  const mine = await call('POST', '/api/comments/mine', { body: { credential: visitor } });
+  assert.equal(mine.status, 200); assert.deepEqual(mine.data.comments.map(c => c.id), [googleId]);
+  assert.equal(mine.data.comments[0].editable, true);
+  const theirs = await call('POST', '/api/comments/mine', { body: { credential: other } });
+  assert.deepEqual(theirs.data.comments.map(c => c.id), [otherId]);
+});
+await test('編輯：只能改自己的，改完從房間移除並標示審核中，房主審核後重新公開', async () => {
+  assert.equal((await call('PATCH', '/api/comments/' + otherId, { body: { credential: visitor, content: '亂改別人的' } })).status, 403);
+  assert.equal((await call('PATCH', '/api/comments/' + googleId, { body: { content: '沒登入' } })).status, 401);
+  const r = await call('PATCH', '/api/comments/' + googleId, { body: { credential: visitor, content: '謝謝你的房間（修改過）' } });
+  assert.equal(r.status, 200, JSON.stringify(r.data)); assert.equal(r.data.comment.status, 'reviewing'); assert.ok(r.data.comment.editedAt);
+  const page = notion.pages.get(googleId);
+  assert.equal(page.properties['公開'].checkbox, false); assert.ok(page.properties['編輯時間'].date.start);
+  let pub = await call('GET', '/api/comments'); assert.ok(!pub.data.comments.some(c => c.id === googleId));
+  const mine = await call('POST', '/api/comments/mine', { body: { credential: visitor } });
+  assert.equal(mine.data.comments[0].status, 'reviewing'); assert.equal(mine.data.comments[0].content, '謝謝你的房間（修改過）');
+  assert.equal((await call('PATCH', '/api/admin/comments/' + googleId, { token: owner, body: { public: true } })).status, 200);
+  pub = await call('GET', '/api/comments'); assert.ok(pub.data.comments.some(c => c.id === googleId && c.editedAt));
+});
+await test('編輯期限：送出超過 7 天就不能編輯，但還能刪除', async () => {
+  notion.pages.get(otherId).properties['時間'].date.start = new Date(Date.now() - 8 * 86400e3).toISOString();
+  const r = await call('PATCH', '/api/comments/' + otherId, { body: { credential: other, content: '太久了' } });
+  assert.equal(r.status, 403); assert.equal(r.data.error, 'edit_window_closed');
+  const mine = await call('POST', '/api/comments/mine', { body: { credential: other } });
+  assert.equal(mine.data.comments[0].editable, false);
+  assert.equal((await call('POST', '/api/comments/' + otherId + '/delete', { body: { credential: visitor } })).status, 403);
+  assert.equal((await call('POST', '/api/comments/' + otherId + '/delete', { body: { credential: other } })).status, 200);
+  assert.equal(notion.pages.get(otherId).in_trash, true);
+  assert.equal((await call('POST', '/api/comments/' + otherId + '/delete', { body: { credential: other } })).status, 404);
+});
+await test('房主管理：取消公開時留言者看到「未公開」、刪除', async () => {
   assert.equal((await call('GET', '/api/admin/comments')).status, 401);
   assert.equal((await call('GET', '/api/admin/comments', { token: visitor })).status, 403);
   const all = await call('GET', '/api/admin/comments', { token: owner });
-  assert.ok(all.data.comments.length >= 2); assert.ok(all.data.comments.some(c => c.author && c.method === 'google'));
-  assert.equal((await call('PATCH', '/api/admin/comments/' + anonId, { token: owner, body: { public: true } })).status, 200);
-  let pub = await call('GET', '/api/comments');
-  assert.ok(pub.data.comments.some(c => c.id === anonId));
-  await call('PATCH', '/api/admin/comments/' + anonId, { token: owner, body: { public: false } });
-  pub = await call('GET', '/api/comments'); assert.ok(!pub.data.comments.some(c => c.id === anonId));
+  assert.ok(all.data.comments.some(c => c.id === googleId && c.editedAt));
+  await call('PATCH', '/api/admin/comments/' + googleId, { token: owner, body: { public: false } });
+  notion.pages.get(googleId).properties['編輯時間'] = { date: null };
+  const mine = await call('POST', '/api/comments/mine', { body: { credential: visitor } });
+  assert.equal(mine.data.comments[0].status, 'hidden');
   assert.equal((await call('DELETE', '/api/admin/comments/' + googleId, { token: owner })).status, 200);
-  pub = await call('GET', '/api/comments'); assert.ok(!pub.data.comments.some(c => c.id === googleId));
+  assert.ok(!(await call('GET', '/api/comments')).data.comments.some(c => c.id === googleId));
   assert.equal((await call('PATCH', '/api/admin/comments/not-an-id', { token: owner, body: { public: true } })).status, 400);
 });
+await test('悄悄話：不公開、本人看得到、房主不能公開、可以切換', async () => {
+  const r = await call('POST', '/api/comments', { body: { nickname: '小聲', content: '只想跟你說', whisper: true, credential: other, elapsed: 9000 }, ip: '8.8.8.1' });
+  assert.equal(r.status, 201); assert.equal(r.data.public, false); assert.equal(r.data.comment.status, 'whisper');
+  const id = r.data.comment.id, page = notion.pages.get(id);
+  assert.equal(page.properties['悄悄話'].checkbox, true); assert.equal(page.properties['公開'].checkbox, false);
+  assert.ok(!(await call('GET', '/api/comments')).data.comments.some(c => c.id === id));
+  page.properties['公開'].checkbox = true;   // 就算在 Notion 誤勾「公開」
+  kvStore.delete('comments:public');
+  assert.ok(!(await call('GET', '/api/comments')).data.comments.some(c => c.id === id));
+  page.properties['公開'].checkbox = false;
+  const mine = await call('POST', '/api/comments/mine', { body: { credential: other } });
+  assert.equal(mine.data.comments.find(c => c.id === id).status, 'whisper');
+  const pubTry = await call('PATCH', '/api/admin/comments/' + id, { token: owner, body: { public: true } });
+  assert.equal(pubTry.status, 400); assert.equal(pubTry.data.error, 'is_whisper');
+  const e = await call('PATCH', '/api/comments/' + id, { body: { credential: other, content: '想讓大家看到', whisper: false } });
+  assert.equal(e.status, 200); assert.equal(e.data.comment.status, 'reviewing');
+  assert.equal((await call('PATCH', '/api/admin/comments/' + id, { token: owner, body: { public: true } })).status, 200);
+  assert.ok((await call('GET', '/api/comments')).data.comments.some(c => c.id === id));
+  const back = await call('PATCH', '/api/comments/' + id, { body: { credential: other, content: '還是悄悄說就好', whisper: true } });
+  assert.equal(back.data.comment.status, 'whisper');
+  assert.ok(!(await call('GET', '/api/comments')).data.comments.some(c => c.id === id));
+});
 await test('封鎖：被封鎖的 Google 帳號不能留言，解除後可以', async () => {
-  const all = await call('GET', '/api/admin/comments', { token: owner });
   const author = notion.pages.get(googleId).properties['留言者 Google ID'].rich_text[0].text.content;
   assert.equal((await call('PUT', '/api/admin/blocks/' + author, { token: owner, body: { note: '小樹' } })).status, 200);
   assert.equal((await call('GET', '/api/admin/blocks', { token: owner })).data.blocks[0].author, author);
@@ -270,7 +328,6 @@ await test('封鎖：被封鎖的 Google 帳號不能留言，解除後可以', 
   assert.equal(r.status, 403); assert.equal(r.data.error, 'blocked');
   assert.equal((await call('DELETE', '/api/admin/blocks/' + author, { token: owner })).status, 200);
   assert.equal((await call('POST', '/api/comments', { body: { content: '我又來了', credential: visitor, elapsed: 9000 }, ip: '6.6.6.8' })).status, 201);
-  assert.ok(all.status === 200);
 });
 await test('快取：3 分鐘內重複讀取不會再查 Notion', async () => {
   let queries = 0; const orig = globalThis.fetch;

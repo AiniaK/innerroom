@@ -137,6 +137,14 @@ input[type=range]{width:100%;accent-color:var(--ember)}
 .gb-or{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:4px}
 #gbBtn{min-height:34px}
 .gb-copied{font-size:12px;color:var(--sage)}
+.gb-acts{margin-top:6px;gap:6px}
+.gb-edit{font:inherit;font-size:14px;color:var(--ink);background:#fffdf8;border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box;min-height:84px;resize:vertical;margin-top:6px}
+.gb-note{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
+.gb-whisper{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;margin-top:6px;cursor:pointer}
+form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:none;accent-color:var(--ember)}
+#gbAuth{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+#gbAuth:empty{display:none}
+#gbAuth+form.gb{border-top:0;margin-top:10px;padding-top:0}
 .gb-inapp a.btn{text-decoration:none}
 .card .note a{color:var(--ember)}
 </style>
@@ -2070,12 +2078,14 @@ function openJournal(cat){
     card.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{cur=b.dataset.cat;render();});};
   render();
 }
-/* ---------- guestbook: comments live in Notion behind the Worker. Anyone can read; signed in with Google = shown at once,
-   anonymous = shown after the owner approves. Only the nickname the visitor types is shown, never the Google name or picture. ---------- */
+/* ---------- guestbook: comments live in Notion behind the Worker. Anyone can read; writing needs a Google sign-in and is shown at once.
+   Visitors can delete their own comments any time and edit them within 7 days; an edited comment waits for the owner's review,
+   and only its author sees it meanwhile. A whisper (悄悄話) is never public: only its author and the owner see it. Only the nickname the visitor types is shown, never the Google name or picture. ---------- */
 const GB_CFG=window.ROOM_CONFIG||{};
 const GB_API=String(GB_CFG.workerUrl||'').replace(/\/+$/,'');
-const GB_TOKEN='innerroom.gb.idtoken',GB_MINE='innerroom.gb.mine';
-const gb={list:null,at:0,loading:null,token:null,gsi:null,openedAt:0,added:[]};   // added: this visitor's own public comments, kept even if an older list arrives later
+const GB_TOKEN='innerroom.gb.idtoken';
+try{localStorage.removeItem('innerroom.gb.mine');}catch(e){}   // left over from when anonymous comments were allowed
+const gb={list:null,at:0,loading:null,token:null,gsi:null,openedAt:0,mine:null,mineFor:null,editing:null};
 // in-app browsers where Google refuses to sign in
 const gbInApp=(()=>{const u=navigator.userAgent||'';
   if(/\bLine\//i.test(u))return 'LINE';if(/Instagram/i.test(u))return 'Instagram';if(/FBAN|FBAV|FB_IAB|FBIOS|FB4A|Messenger/i.test(u))return 'Facebook';
@@ -2083,85 +2093,128 @@ const gbInApp=(()=>{const u=navigator.userAgent||'';
 const gbJwt=t=>{try{const b=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');return JSON.parse(decodeURIComponent(escape(atob(b+'='.repeat((4-b.length%4)%4)))));}catch(e){return null;}};
 const gbValid=t=>{const p=t&&gbJwt(t);return !!(p&&p.exp*1000>Date.now()+60000);};
 try{const t=sessionStorage.getItem(GB_TOKEN);if(gbValid(t))gb.token=t;}catch(e){}
+const gbSignedIn=()=>gbValid(gb.token);
+function gbSignOut(){gb.token=null;gb.mine=null;gb.mineFor=null;gb.editing=null;try{sessionStorage.removeItem(GB_TOKEN);}catch(e){}try{google.accounts.id.disableAutoSelect();}catch(e){}}
 const gbDate=iso=>{const d=new Date(iso);if(isNaN(d))return '';const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);return p.replace(/-/g,'.');};
-// anonymous comments this visitor sent, kept on this device only until the owner approves them (or for 30 days)
-const gbMine=()=>{try{const a=JSON.parse(localStorage.getItem(GB_MINE)||'[]');return Array.isArray(a)?a.filter(x=>x&&Date.now()-Date.parse(x.createdAt)<30*86400e3):[];}catch(e){return [];}};
-const gbSetMine=a=>{try{localStorage.setItem(GB_MINE,JSON.stringify(a.slice(0,20)));}catch(e){}};
+async function gbPost(path,body,method){
+  const r=await fetch(GB_API+path,{method:method||'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  let d=null;try{d=await r.json();}catch(_){}
+  if(!r.ok){const code=d&&d.error;if(code==='invalid_token'||code==='expired'||code==='login_required')gbSignOut();throw {code:code||'network'};}
+  return d||{};}
 function gbLoad(force){
   if(!GB_API)return Promise.resolve(null);
   if(!force&&gb.list&&Date.now()-gb.at<60000)return Promise.resolve(gb.list);
   if(gb.loading)return gb.loading;
-  gb.loading=fetch(GB_API+'/api/comments').then(r=>r.ok?r.json():Promise.reject(r.status)).then(d=>{const got=Array.isArray(d.comments)?d.comments:[],ids=new Set(got.map(c=>c.id));gb.list=gb.added.filter(c=>!ids.has(c.id)).concat(got);gb.at=Date.now();
-gbSetMine(gbMine().filter(m=>!ids.has(m.id)));return gb.list;})
+  gb.loading=fetch(GB_API+'/api/comments').then(r=>r.ok?r.json():Promise.reject(r.status)).then(d=>{gb.list=Array.isArray(d.comments)?d.comments:[];gb.at=Date.now();return gb.list;})
     .finally(()=>{gb.loading=null;});
   return gb.loading;}
+// this visitor's own comments (public, under review, or hidden by the owner), fetched once per sign-in
+function gbLoadMine(force){
+  if(!gbSignedIn())return Promise.resolve(null);
+  if(!force&&gb.mine&&gb.mineFor===gb.token)return Promise.resolve(gb.mine);
+  const tok=gb.token;
+  return gbPost('/api/comments/mine',{credential:tok}).then(d=>{if(gb.token!==tok)return null;gb.mine=Array.isArray(d.comments)?d.comments:[];gb.mineFor=tok;return gb.mine;});}
 function gbLoadGsi(){
   if(gb.gsi)return gb.gsi;
   gb.gsi=new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.id){res();return;}
     const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=()=>res();s.onerror=()=>{gb.gsi=null;rej();};document.head.appendChild(s);})
-    .then(()=>{google.accounts.id.initialize({client_id:GB_CFG.googleClientId,callback:r=>{if(!r||!r.credential)return;gb.token=r.credential;try{sessionStorage.setItem(GB_TOKEN,r.credential);}catch(e){}
-      if(card.querySelector('#gbView'))gbRenderAuth();toast('已用 Google 登入：留言會立即公開，只會顯示你填的暱稱');},ux_mode:'popup'});});
+    .then(()=>{google.accounts.id.initialize({client_id:GB_CFG.googleClientId,callback:r=>{if(!r||!r.credential)return;gb.token=r.credential;gb.mine=null;try{sessionStorage.setItem(GB_TOKEN,r.credential);}catch(e){}
+      toast('已用 Google 登入：筆記本上只會顯示你填的暱稱');if(card.querySelector('#gbView'))gbRefresh();},ux_mode:'popup'});});
   return gb.gsi;}
-const gbErr=c=>({rate_limited:'留言得有點快，休息一下再寫吧。',blocked:'這個 Google 帳號目前不能留言。你仍然可以登出後匿名留言。',content_too_long:'內容太長了，請在 500 字以內。',content_empty:'還沒有寫內容喔。',
-  nickname_too_long:'暱稱太長了，請在 20 字以內。',too_many_links:'留言裡的連結太多了。',too_fast:'寫得太快了，再看一眼再送出吧。',invalid_token:'Google 登入已失效，請重新登入，或改用匿名留言。',expired:'Google 登入已過期，請重新登入，或改用匿名留言。',
-  network:'連不上留言本，請檢查網路後再試一次。'}[c]||'送出沒有成功，請稍後再試一次。');
-function gbEntry(c,mine){return `<div class="entry${mine?' mine':''}"><div class="d">${esc(gbDate(c.createdAt))}・${esc(c.nickname||'匿名')}${mine?'・<span class="gb-wait">等待房主看過後公開（只有你看得到）</span>':''}</div><div class="b">${esc(c.content)}</div></div>`;}
+const gbErr=c=>({rate_limited:'動作得有點快，休息一下再試吧。',blocked:'這個 Google 帳號目前不能留言。',content_too_long:'內容太長了，請在 500 字以內。',content_empty:'還沒有寫內容喔。',
+  nickname_too_long:'暱稱太長了，請在 20 字以內。',too_many_links:'留言裡的連結太多了。',too_fast:'寫得太快了，再看一眼再送出吧。',invalid_token:'Google 登入已失效，請重新登入。',expired:'Google 登入已過期，請重新登入。',
+  login_required:'請先用 Google 登入。',not_yours:'這不是你的留言。',edit_window_closed:'這則留言已經超過 7 天，不能再編輯了，但還可以刪除。',not_found:'找不到這則留言，可能已經被刪除。',
+  network:'連不上留言本，請檢查網路後再試一次。'}[c]||'沒有成功，請稍後再試一次。');
+// what this visitor sees: the public comments, plus their own that are under review or hidden, newest first
+function gbEntries(){
+  const mine=new Map((gb.mine||[]).map(c=>[c.id,c]));
+  const out=(gb.list||[]).map(c=>mine.get(c.id)?Object.assign({},c,mine.get(c.id),{own:true}):c);
+  const shown=new Set(out.map(c=>c.id));
+  (gb.mine||[]).forEach(c=>{if(!shown.has(c.id)&&c.status!=='public')out.push(Object.assign({},c,{own:true}));});
+  return out.sort((a,z)=>String(z.createdAt).localeCompare(String(a.createdAt)));}
+function gbEntry(c){
+  const st=c.own&&c.status==='whisper'?'<span class="gb-wait">悄悄話（只有你和房主看得到）</span>':c.own&&c.status==='reviewing'?'<span class="gb-wait">審核中（只有你看得到）</span>':c.own&&c.status==='hidden'?'<span class="gb-wait">未公開（只有你看得到）</span>':'';
+  const meta=`${esc(gbDate(c.createdAt))}・${esc(c.nickname||'匿名')}${c.editedAt?'・已編輯':''}${c.own?'・你的留言':''}${st?'・'+st:''}`;
+  if(c.own&&gb.editing===c.id)return `<div class="entry mine" data-id="${esc(c.id)}"><div class="d">${meta}</div>
+    <textarea class="gb-edit" maxlength="500" aria-label="修改留言內容">${esc(c.content)}</textarea>
+    <label class="gb-whisper"><input type="checkbox" class="gb-edit-whisper" ${c.whisper?'checked':''}> 悄悄話（只給房主看）</label>
+    <div class="gb-note">${c.whisper?'悄悄話改完直接生效；取消勾選「悄悄話」的話，要等房主看過後才會公開。':'修改後會先隱藏，房主看過後才會重新公開；勾選「悄悄話」則只給房主看。'}</div>
+    <div class="row gb-acts"><button class="btn small primary" type="button" data-act="save">送出修改</button><button class="btn small" type="button" data-act="cancel">取消</button></div></div>`;
+  const acts=c.own?`<div class="row gb-acts">${c.editable?'<button class="btn small" type="button" data-act="edit">編輯</button>':''}<button class="btn small" type="button" data-act="del">刪除</button></div>`:'';
+  return `<div class="entry${c.own&&c.status!=='public'?' mine':''}" data-id="${esc(c.id)}"><div class="d">${meta}</div><div class="b">${esc(c.content)}</div>${acts}</div>`;}
 function gbRenderList(state){const box=card.querySelector('#gbList');if(!box)return;
   if(state==='loading'){box.innerHTML='<p class="note gb-quiet">翻開筆記本中…</p>';return;}
   if(state==='error'){box.innerHTML='<p class="note gb-quiet">現在讀不到留言，請稍後再來看看。<button class="btn small" type="button" id="gbRetry">再試一次</button></p>';card.querySelector('#gbRetry').onclick=()=>{gbRenderList('loading');gbLoad(true).then(()=>gbRenderList(),()=>gbRenderList('error'));};return;}
-  const pub=gb.list||[],mine=gbMine();
-  box.innerHTML=(mine.map(c=>gbEntry(c,true)).join('')+pub.map(c=>gbEntry(c,false)).join(''))||'<p class="note gb-quiet">還沒有人留言，你可以當第一個。</p>';}
-function gbRenderAuth(){const box=card.querySelector('#gbAuth'),sub=card.querySelector('#gbSubmit');if(!box)return;
-  const signed=gbValid(gb.token);
-  if(signed){box.innerHTML='<div class="gb-signed">已用 Google 登入，送出後會立即公開。筆記本上只會出現你填的暱稱，不會顯示 Google 名字和大頭貼。<button class="btn small" type="button" id="gbOut">登出</button></div>';
-    card.querySelector('#gbOut').onclick=()=>{gb.token=null;try{sessionStorage.removeItem(GB_TOKEN);}catch(e){}try{google.accounts.id.disableAutoSelect();}catch(e){}gbRenderAuth();};
-    sub.textContent='留下這句話';return;}
-  sub.textContent='匿名送出';
+  box.innerHTML=gbEntries().map(gbEntry).join('')||'<p class="note gb-quiet">還沒有人留言，你可以當第一個。</p>';}
+function gbRenderAuth(){const box=card.querySelector('#gbAuth'),form=card.querySelector('#gbf');if(!box)return;
+  const signed=gbSignedIn();if(form)form.hidden=!signed;
+  if(signed){box.innerHTML='<div class="gb-signed">已用 Google 登入。筆記本上只會出現你填的暱稱，不會顯示 Google 名字和大頭貼。你可以刪除自己的留言，送出 7 天內也可以編輯。<button class="btn small" type="button" id="gbOut">登出</button></div>';
+    card.querySelector('#gbOut').onclick=()=>{gbSignOut();gbRefresh();};return;}
   if(gbInApp){const ext=gbInApp==='LINE'?location.href.replace(/#.*$/,'')+(location.search?'&':'?')+'openExternalBrowser=1':null;
-    box.innerHTML=`<div class="gb-inapp"><b>想讓留言立即公開？</b>你正在 ${esc(gbInApp)} 的內建瀏覽器裡，Google 不允許在這裡登入。請改用 Safari 或 Chrome 打開這個房間：
+    box.innerHTML=`<div class="gb-inapp"><b>想留言嗎？</b>留言需要用 Google 登入，但你正在 ${esc(gbInApp)} 的內建瀏覽器裡，Google 不允許在這裡登入。請改用 Safari 或 Chrome 打開這個房間：
       <div class="row" style="margin-top:8px">${ext?`<a class="btn small primary" href="${esc(ext)}">用瀏覽器開啟</a>`:''}<button class="btn small" type="button" id="gbCopy">複製連結</button><span class="gb-copied" id="gbCopied" role="status"></span></div>
-      <div class="gb-or">${ext?'':'複製後，貼到 Safari 或 Chrome 的網址列。'}也可以直接匿名送出，房主看過後就會公開。</div></div>`;
+      ${ext?'':'<div class="gb-or">複製後，貼到 Safari 或 Chrome 的網址列。</div>'}</div>`;
     card.querySelector('#gbCopy').onclick=async()=>{const url=location.href.replace(/#.*$/,'');let ok=false;
       try{await navigator.clipboard.writeText(url);ok=true;}catch(e){const i=document.createElement('input');i.value=url;document.body.appendChild(i);i.select();try{ok=document.execCommand('copy');}catch(_){}i.remove();}
       card.querySelector('#gbCopied').textContent=ok?'已複製':'請長按網址列複製';};
     return;}
-  if(!GB_CFG.googleClientId){box.innerHTML='<div class="gb-or">留言會在房主看過後公開。</div>';return;}
-  box.innerHTML='<div class="gb-google"><div id="gbBtn"></div><div class="gb-or">用 Google 登入，留言立即公開；或不登入直接匿名送出，房主看過後才會公開。</div></div>';
+  if(!GB_CFG.googleClientId){box.innerHTML='<div class="gb-or">留言本還在準備中。</div>';return;}
+  box.innerHTML='<div class="gb-google"><div class="gb-or" style="margin:0 0 6px">用 Google 登入後就能留言。筆記本上只會顯示你自己填的暱稱。</div><div id="gbBtn"></div></div>';
   gbLoadGsi().then(()=>{const el=card.querySelector('#gbBtn');if(el)google.accounts.id.renderButton(el,{theme:'outline',size:'medium',shape:'pill',text:'signin_with',locale:'zh-TW'});})
-    .catch(()=>{const el=card.querySelector('.gb-google .gb-or');if(el)el.textContent='Google 登入暫時無法載入，你可以先匿名送出，房主看過後就會公開。';});}
+    .catch(()=>{const el=card.querySelector('.gb-google .gb-or');if(el)el.textContent='Google 登入暫時無法載入，請稍後再試。';});}
+function gbRefresh(){gbRenderAuth();gbRenderList();if(gbSignedIn())gbLoadMine().then(()=>gbRenderList()).catch(e=>{gbRenderAuth();gbRenderList();const m=card.querySelector('#gbMsg');if(m)m.textContent=gbErr(e&&e.code);});}
 function openGuestbook(){
-  gb.openedAt=Date.now();
+  gb.openedAt=Date.now();gb.editing=null;
   openModal(`<div id="gbView"><div class="eyebrow">推薦書櫃上</div><h2>留言筆記本</h2><p>來過這裡的人留下的話。</p>
    <div class="entries" id="gbList" aria-live="polite"></div>
-   ${GB_API?`<form class="gb" id="gbf" novalidate>
+   ${GB_API?`<div id="gbAuth"></div>
+   <form class="gb" id="gbf" novalidate hidden>
      <input id="gbName" maxlength="20" placeholder="你的暱稱（可不填）" autocomplete="nickname" aria-label="暱稱">
-     <textarea id="gbText" maxlength="500" placeholder="想對這個房間說什麼？" required data-focus aria-label="留言內容"></textarea>
+     <textarea id="gbText" maxlength="500" placeholder="想對這個房間說什麼？" required aria-label="留言內容"></textarea>
+     <label class="gb-whisper"><input type="checkbox" id="gbWhisper"> 悄悄話：只給房主看，不會出現在筆記本上</label>
      <input class="gb-hp" id="gbHp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-     <div id="gbAuth"></div>
-     <div class="row"><button class="btn primary" type="submit" id="gbSubmit">匿名送出</button><span class="gb-count" id="gbCount">0 / 500</span></div>
-     <div class="gb-msg" id="gbMsg" role="status"></div>
+     <div class="row"><button class="btn primary" type="submit" id="gbSubmit">留下這句話</button><span class="gb-count" id="gbCount">0 / 500</span></div>
    </form>
+   <div class="gb-msg" id="gbMsg" role="status"></div>
    <div class="note">留言前請看<a href="privacy.html" target="_blank" rel="noopener">隱私權說明</a>：我們只公開你填的暱稱和內容。</div>`
    :'<div class="note">留言本還在準備中，很快就能在這裡留言。</div>'}</div>`);
-  if(GB_API){gbRenderList('loading');gbLoad(false).then(()=>gbRenderList(),()=>gbRenderList('error'));}else{gb.list=[];gbRenderList();return;}
-  gbRenderAuth();
+  if(!GB_API){gb.list=[];gbRenderList();return;}
+  gbRenderList('loading');gbRenderAuth();
+  gbLoad(false).then(()=>gbRefresh(),()=>gbRenderList('error'));
   const f=card.querySelector('#gbf'),txt=card.querySelector('#gbText'),cnt=card.querySelector('#gbCount'),msg=card.querySelector('#gbMsg'),sub=card.querySelector('#gbSubmit');
   txt.oninput=()=>{cnt.textContent=[...txt.value].length+' / 500';};
   f.onsubmit=async e=>{e.preventDefault();msg.textContent='';
     const content=txt.value.trim(),nickname=card.querySelector('#gbName').value.trim();
     if(!content){msg.textContent=gbErr('content_empty');txt.focus();return;}
-    const signed=gbValid(gb.token);
+    if(!gbSignedIn()){gbSignOut();gbRefresh();msg.textContent=gbErr('expired');return;}
     sub.disabled=true;sub.textContent='送出中…';
-    try{const r=await fetch(GB_API+'/api/comments',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({nickname,content,credential:signed?gb.token:undefined,elapsed:Date.now()-gb.openedAt,website:card.querySelector('#gbHp').value})});
-      let d=null;try{d=await r.json();}catch(_){}
-      if(!r.ok){const code=d&&d.error;if(code==='invalid_token'||code==='expired'){gb.token=null;try{sessionStorage.removeItem(GB_TOKEN);}catch(_){}gbRenderAuth();}throw {code};}
+    const whisper=card.querySelector('#gbWhisper').checked;
+    try{const d=await gbPost('/api/comments',{nickname,content,whisper,credential:gb.token,elapsed:Date.now()-gb.openedAt,website:card.querySelector('#gbHp').value});
       txt.value='';cnt.textContent='0 / 500';
-      if(d.public&&d.comment){gb.added.unshift(d.comment);gb.list=[d.comment].concat((gb.list||[]).filter(c=>c.id!==d.comment.id));toast('留言已寫進筆記本');}
-      else if(d.comment){gbSetMine([d.comment].concat(gbMine()));toast('已送出，房主看過後就會出現在筆記本裡');}
+      card.querySelector('#gbWhisper').checked=false;
+      if(d.comment){if(d.public)gb.list=[d.comment].concat((gb.list||[]).filter(c=>c.id!==d.comment.id));gb.mine=[d.comment].concat((gb.mine||[]).filter(c=>c.id!==d.comment.id));}
+      toast(whisper?'悄悄話已送出，只有房主看得到':'留言已寫進筆記本');gbRenderList();}
+    catch(err){msg.textContent=gbErr(err&&err.code);gbRenderAuth();}
+    finally{sub.disabled=false;sub.textContent='留下這句話';}};
+  // edit and delete buttons on this visitor's own comments
+  card.querySelector('#gbList').addEventListener('click',async e=>{
+    const b=e.target.closest('[data-act]');if(!b)return;const row=b.closest('[data-id]'),id=row&&row.dataset.id;if(!id)return;msg.textContent='';
+    const act=b.dataset.act;
+    if(act==='edit'){gb.editing=id;gbRenderList();const t=card.querySelector('.gb-edit');if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);}return;}
+    if(act==='cancel'){gb.editing=null;gbRenderList();return;}
+    if(!gbSignedIn()){gbSignOut();gbRefresh();msg.textContent=gbErr('expired');return;}
+    if(act==='del'&&!b.dataset.armed){b.dataset.armed='1';b.textContent='再按一次確認刪除';return;}
+    b.disabled=true;
+    try{
+      if(act==='save'){const content=row.querySelector('.gb-edit').value.trim();if(!content){msg.textContent=gbErr('content_empty');b.disabled=false;return;}
+        const whisper=row.querySelector('.gb-edit-whisper').checked;
+        const d=await gbPost('/api/comments/'+encodeURIComponent(id),{credential:gb.token,content,whisper},'PATCH');
+        gb.editing=null;gb.list=(gb.list||[]).filter(c=>c.id!==id);gb.mine=(gb.mine||[]).map(c=>c.id===id?d.comment:c);
+        toast(whisper?'悄悄話已修改，只有房主看得到':'已送出修改，房主看過後會重新公開');}
+      else if(act==='del'){await gbPost('/api/comments/'+encodeURIComponent(id)+'/delete',{credential:gb.token});
+        gb.list=(gb.list||[]).filter(c=>c.id!==id);gb.mine=(gb.mine||[]).filter(c=>c.id!==id);toast('留言已刪除');}
       gbRenderList();}
-    catch(err){msg.textContent=gbErr(err&&err.code?err.code:'network');}
-    finally{sub.disabled=false;gbRenderAuth();}};
+    catch(err){msg.textContent=gbErr(err&&err.code);b.disabled=false;if(!gbSignedIn())gbRefresh();}});
 }
 function fireWord(v){return v<20?'微弱':v<40?'安靜':v<65?'中等':v<85?'旺盛':'熊熊'}
 function openFire(){

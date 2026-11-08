@@ -3,7 +3,7 @@ import { HttpError, fail, json, corsHeaders, allowedOrigins, readJSON } from './
 import { requireOwner } from './google.js';
 import { getContent, putContent, listMedia, createBlobFromStream, commitFiles, refsInContent, UPLOAD_PATH, isMediaRef } from './github.js';
 import { validateContent, commitMessage } from './content.js';
-import { listPublic, postComment, adminList, adminSetPublic, adminDelete, adminBlocks, adminBlock, adminUnblock } from './comments.js';
+import { listPublic, postComment, listMine, editMine, deleteMine, adminList, adminSetPublic, adminDelete, adminBlocks, adminBlock, adminUnblock } from './comments.js';
 
 async function route(request, env, ctx) {
   const url = new URL(request.url);
@@ -32,6 +32,10 @@ async function route(request, env, ctx) {
   /* ---------- 公開：留言 ---------- */
   if (path === '/api/comments' && m === 'GET') return listPublic(env, ctx);
   if (path === '/api/comments' && m === 'POST') return postComment(env, request);
+  if (path === '/api/comments/mine' && m === 'POST') return listMine(env, request);
+  { const cm = /^\/api\/comments\/([^/]+)(\/delete)?$/.exec(path);
+    if (cm && cm[1] !== 'mine' && m === 'POST' && cm[2]) return deleteMine(env, request, decodeURIComponent(cm[1]));
+    if (cm && cm[1] !== 'mine' && m === 'PATCH' && !cm[2]) return editMine(env, request, decodeURIComponent(cm[1])); }
 
   /* ---------- 以下都只限房主 ---------- */
   if (!path.startsWith('/api/')) fail(404, 'not_found');

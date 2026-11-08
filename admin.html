@@ -205,17 +205,18 @@ table.files th{color:var(--muted);font-weight:400}
 
     <section id="tab-gb" role="tabpanel">
       <h3>留言管理</h3>
-      <p class="note">這裡的操作會立即生效，不需要按「儲存並更新房間」。你也可以直接在 Notion 的留言資料庫裡勾選或取消勾選「公開」，效果相同（房間最多約 3 分鐘後更新）。</p>
+      <p class="note">留言都要用 Google 登入才能送出，送出後立即公開。訪客編輯自己的留言後會先隱藏，出現在「待審核」，你按「公開」後才會重新出現在房間。「悄悄話」只給你看，不會公開。這裡的操作會立即生效，不需要按「儲存並更新房間」；在 Notion 裡勾選或取消勾選「公開」效果相同（房間最多約 3 分鐘後更新）。</p>
       <div class="row" role="group" aria-label="篩選留言">
         <button class="btn small" type="button" data-cf="pending" aria-pressed="true">待審核</button>
         <button class="btn small" type="button" data-cf="public" aria-pressed="false">已公開</button>
+        <button class="btn small" type="button" data-cf="whisper" aria-pressed="false">悄悄話</button>
         <button class="btn small" type="button" data-cf="all" aria-pressed="false">全部</button>
         <button class="btn small" type="button" id="cmRefresh">重新整理</button>
         <span class="ustat" id="cmStat" role="status"></span>
       </div>
       <div class="list" id="cmList"></div>
       <h4>已封鎖的 Google 帳號</h4>
-      <p class="note">被封鎖的帳號不能再用 Google 登入留言。對方仍然可以不登入、匿名留言，但匿名留言都要經過你審核才會公開。這裡只顯示雜湊後的代號，不會顯示對方的 Google 名字或 email。</p>
+      <p class="note">被封鎖的帳號不能再留言，也不能編輯自己的留言（仍然可以刪除）。這裡只顯示雜湊後的代號，不會顯示對方的 Google 名字或 email。</p>
       <div class="list" id="blockList"></div>
     </section>
   </main>

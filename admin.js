@@ -150,6 +150,7 @@ function explain(e) {
     too_large: '檔案太大，無法經伺服器上傳。',
     bad_path: '檔名或資料夾不被接受：只能放進 media/，且只能是 MP4、WebM、MP3、M4A 或 JPG。',
     in_use: '這個檔案還在使用中。',
+    is_whisper: '這是訪客的悄悄話，不能公開。',
     rate_limited: '操作太頻繁了，請稍等一下再試。',
     github_error: (e && e.data && e.data.hint ? e.data.hint + '。' : 'GitHub 暫時無法寫入，請稍後再試。'),
     notion_error: 'Notion 暫時無法讀寫，請稍後再試。',
@@ -779,22 +780,22 @@ async function loadComments() {
 const fmtTime = t => { const d = new Date(t); return isNaN(d) ? '' : d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false }); };
 function renderComments() {
   const st = $('#cmStat');
-  if (st.dataset.ok) st.textContent = `共 ${comments.length} 則，待審核 ${comments.filter(x => !x.public).length} 則`;
+  if (st.dataset.ok) st.textContent = `共 ${comments.length} 則，待審核 ${comments.filter(x => !x.public && !x.whisper).length} 則，悄悄話 ${comments.filter(x => x.whisper).length} 則`;
   const blocked = new Set(blocks.map(b => b.author));
-  const list = comments.filter(c => cFilter === 'all' || (cFilter === 'public' ? c.public : !c.public));
+  const list = comments.filter(c => cFilter === 'all' || (cFilter === 'whisper' ? c.whisper : cFilter === 'public' ? (c.public && !c.whisper) : (!c.public && !c.whisper)));
   const box = $('#cmList');
-  box.innerHTML = list.length ? '' : `<div class="note">${cFilter === 'pending' ? '沒有待審核的留言。' : '沒有留言。'}</div>`;
+  box.innerHTML = list.length ? '' : `<div class="note">${cFilter === 'pending' ? '沒有待審核的留言。' : cFilter === 'whisper' ? '沒有悄悄話。' : '沒有留言。'}</div>`;
   list.forEach(c => {
-    const d = document.createElement('div'); d.className = 'cm' + (c.public ? '' : ' pending');
+    const d = document.createElement('div'); d.className = 'cm' + (c.public || c.whisper ? '' : ' pending');
     const isG = c.method === 'google';
     d.innerHTML = `<div class="meta"><span>${esc(fmtTime(c.createdAt))}</span><b>${esc(c.nickname || '匿名')}</b>
-      <span class="tag">${isG ? 'Google 登入' : '匿名'}</span>${c.public ? '<span class="tag ok">已公開</span>' : '<span class="tag warn">未公開</span>'}
+      <span class="tag">${isG ? 'Google 登入' : '匿名'}</span>${c.whisper ? '<span class="tag">悄悄話・只有你看得到</span>' : c.public ? '<span class="tag ok">已公開</span>' : c.editedAt ? '<span class="tag warn">已編輯，等待審核</span>' : '<span class="tag warn">未公開</span>'}${c.editedAt ? `<span class="tag">編輯於 ${esc(fmtTime(c.editedAt))}</span>` : ''}
       ${isG && blocked.has(c.author) ? '<span class="tag warn">此帳號已封鎖</span>' : ''}</div>
       <div class="txt"></div><div class="row"></div>`;
     d.querySelector('.txt').textContent = c.content || '';
     const row = d.querySelector('.row');
     const btn = (label, fn, cls) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small' + (cls ? ' ' + cls : ''); b.textContent = label; b.onclick = () => fn(b); row.appendChild(b); return b; };
-    btn(c.public ? '取消公開' : '公開', async b => {
+    if (!c.whisper) btn(c.public ? '取消公開' : '公開', async b => {
       b.disabled = true;
       try { await api('/api/admin/comments/' + encodeURIComponent(c.id), { method: 'PATCH', json: { public: !c.public } }); c.public = !c.public; renderComments(); toast(c.public ? '留言已公開' : '留言已取消公開'); }
       catch (e) { b.disabled = false; toast('沒有成功：' + explain(e)); }

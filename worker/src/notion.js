@@ -9,6 +9,8 @@ export const P = {
   method: '登入方式',            // 單選（Select）：Google 登入／匿名
   author: '留言者 Google ID',    // 文字（Text）：雜湊後的代號，匿名留言留空
   public: '公開',                // 核取方塊（Checkbox）
+  edited: '編輯時間',            // 日期（Date）：留言者自己編輯的時間，沒編輯過留空
+  whisper: '悄悄話',             // 核取方塊（Checkbox）：只給房主看，永遠不會出現在房間的公開留言
 };
 const METHOD = { google: 'Google 登入', anonymous: '匿名' };
 
@@ -64,17 +66,23 @@ function toComment(page) {
     method,
     public: !!(pr[P.public] && pr[P.public].checkbox),
     author: plain(pr[P.author] && pr[P.author].rich_text) || null,
+    editedAt: (pr[P.edited] && pr[P.edited].date && pr[P.edited].date.start) || null,
+    whisper: !!(pr[P.whisper] && pr[P.whisper].checkbox),
+    trashed: !!(page.in_trash || page.archived),
   };
 }
 
-// 讀取留言，新的在前。onlyPublic 時只讀勾選「公開」的
-export async function queryComments(env, { onlyPublic, limit }) {
+// 讀取留言，新的在前。onlyPublic 時只讀勾選「公開」的；author 時只讀這個代號的留言
+export async function queryComments(env, { onlyPublic, author, limit }) {
   const ds = await dataSourceId(env);
   const out = [];
   let cursor;
   do {
     const body = { page_size: Math.min(100, limit - out.length), sorts: [{ property: P.time, direction: 'descending' }] };
-    if (onlyPublic) body.filter = { property: P.public, checkbox: { equals: true } };
+    const filters = [];
+    if (onlyPublic) filters.push({ property: P.public, checkbox: { equals: true } }, { property: P.whisper, checkbox: { equals: false } });
+    if (author) filters.push({ property: P.author, rich_text: { equals: author } });
+    if (filters.length) body.filter = filters.length === 1 ? filters[0] : { and: filters };
     if (cursor) body.start_cursor = cursor;
     const r = await notion(env, `/data_sources/${ds}/query`, { method: 'POST', body });
     (r.results || []).forEach(p => { if (!p.in_trash && !p.archived) out.push(toComment(p)); });
@@ -94,6 +102,7 @@ export async function createComment(env, c) {
       [P.method]: { select: { name: METHOD[c.method] } },
       [P.author]: { rich_text: c.author ? [{ type: 'text', text: { content: c.author } }] : [] },
       [P.public]: { checkbox: !!c.public },
+      [P.whisper]: { checkbox: !!c.whisper },
     },
   } });
   return toComment(page);
@@ -108,4 +117,23 @@ export async function setPublic(env, id, value) {
 export async function trashComment(env, id) {
   const page = await notion(env, '/pages/' + id, { method: 'PATCH', notFoundOK: true, body: { in_trash: true } });
   if (!page) fail(404, 'not_found');
+}
+
+export async function getComment(env, id) {
+  const page = await notion(env, '/pages/' + id, { notFoundOK: true });
+  return page ? toComment(page) : null;
+}
+
+// 留言者自己編輯：更新內容與編輯時間，並取消「公開」，等房主審核
+export async function editOwnComment(env, id, { content, nickname, editedAt, whisper }) {
+  const properties = {
+    [P.whisper]: { checkbox: !!whisper },
+    [P.content]: { rich_text: [{ type: 'text', text: { content } }] },
+    [P.edited]: { date: { start: editedAt } },
+    [P.public]: { checkbox: false },
+  };
+  if (nickname !== undefined) properties[P.nickname] = { title: [{ type: 'text', text: { content: nickname } }] };
+  const page = await notion(env, '/pages/' + id, { method: 'PATCH', notFoundOK: true, body: { properties } });
+  if (!page) fail(404, 'not_found');
+  return toComment(page);
 }

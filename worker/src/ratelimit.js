@@ -8,7 +8,7 @@ const mem = new Map();   // key → [時間…]（同一個執行個體內）
 export const LIMITS = {
   ip: [[10 * 60e3, 3], [24 * 3600e3, 15]],         // 每個 IP：10 分鐘 3 則、一天 15 則
   account: [[10 * 60e3, 5], [24 * 3600e3, 30]],    // 每個 Google 帳號：10 分鐘 5 則、一天 30 則
-  anonAll: [[24 * 3600e3, 60]],                    // 全站匿名留言：一天 60 則（保護 Notion 和 KV 額度）
+  edit: [[10 * 60e3, 10], [24 * 3600e3, 40]],      // 每個 Google 帳號編輯：10 分鐘 10 次、一天 40 次
 };
 
 async function load(env, key) {

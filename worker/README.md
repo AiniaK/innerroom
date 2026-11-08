@@ -3,7 +3,7 @@
 在 Cloudflare Workers（免費方案）上執行的小伺服器，負責兩件事：
 
 1. **房主內容 API**：後台 `admin.html` 儲存內容、上傳或刪除影片音樂時，由 Worker 驗證房主身分，再透過 GitHub API 提交到 repo。GitHub Pages 約 1 分鐘後自動更新網站。
-2. **留言 API**：讀取公開留言（用 KV 快取 3 分鐘）、新增留言（Google 登入或匿名）、房主審核、刪除、封鎖。留言存在 Notion 資料庫。
+2. **留言 API**：讀取公開留言（用 KV 快取 3 分鐘）、新增留言（必須用 Google 登入，立即公開；悄悄話只給房主看）、留言者刪除或編輯自己的留言（編輯限 7 天內，編輯後等房主審核）、房主審核、刪除、封鎖。留言存在 Notion 資料庫。
 
 房間本身（`index.html`）是純靜態網站，只有留言本會呼叫 Worker。就算 Worker 暫時出問題，房間其他部分照常運作。
 
@@ -13,13 +13,16 @@
 |---|---|---|---|
 | GET | `/api/health` | 任何人 | 檢查設定是否齊全（只顯示有沒有設定，不顯示內容） |
 | GET | `/api/comments` | 網站訪客 | 已公開的留言，最近 200 則 |
-| POST | `/api/comments` | 網站訪客 | 新增留言 `{ nickname, content, credential?, elapsed, website }` |
+| POST | `/api/comments` | 登入的訪客 | 新增留言 `{ nickname, content, whisper, credential, elapsed, website }` |
+| POST | `/api/comments/mine` | 登入的訪客 | 自己的留言（含審核中、悄悄話、被隱藏的）`{ credential }` |
+| PATCH | `/api/comments/:id` | 留言者本人 | 編輯 `{ credential, content, whisper }`，送出 7 天內；編輯後取消公開，等房主審核 |
+| POST | `/api/comments/:id/delete` | 留言者本人 | 刪除自己的留言 `{ credential }`（移到 Notion 垃圾桶） |
 | GET | `/api/me` | 房主 | 確認登入的是房主 |
 | GET／PUT | `/api/content` | 房主 | 讀取／儲存 `content.json` |
 | GET | `/api/media` | 房主 | 列出 `media/` 裡的檔案 |
 | PUT／DELETE | `/api/media?path=media/…` | 房主 | 上傳／刪除檔案 |
 | GET | `/api/admin/comments` | 房主 | 所有留言（含未公開），最近 300 則 |
-| PATCH／DELETE | `/api/admin/comments/:id` | 房主 | 公開或取消公開 `{ public }`／刪除（移到 Notion 垃圾桶，30 天內可復原） |
+| PATCH／DELETE | `/api/admin/comments/:id` | 房主 | 公開或取消公開 `{ public }`（悄悄話不能公開）／刪除（移到 Notion 垃圾桶，30 天內可復原） |
 | GET | `/api/admin/blocks` | 房主 | 封鎖名單 |
 | PUT／DELETE | `/api/admin/blocks/:代號` | 房主 | 封鎖／解除封鎖某個 Google 帳號 |
 
@@ -135,8 +138,8 @@ npm run check
   - `content.json` 只接受房間認得的欄位，影片音樂路徑必須在 `media/` 底下，連結只能是 YouTube 或 Spotify。
 - **CORS**：只接受 `ALLOWED_ORIGINS` 裡的網址，其他網站的請求一律回 403。
 - **防灌水**
-  - 頻率限制：每個 IP 10 分鐘 3 則、一天 15 則；每個 Google 帳號 10 分鐘 5 則、一天 30 則；全站匿名留言一天 60 則。
-  - 暱稱最多 20 字、內容最多 500 字和 20 行；匿名留言最多 1 個連結、登入留言最多 3 個。
+  - 頻率限制：每個 IP 10 分鐘 3 則、一天 15 則；每個 Google 帳號 10 分鐘 5 則、一天 30 則；編輯每個帳號 10 分鐘 10 次、一天 40 次。
+  - 暱稱最多 20 字、內容最多 500 字和 20 行、最多 3 個連結。
   - 隱藏欄位擋機器人，開啟留言本不到 2.5 秒就送出也會被擋。
 - **HTML 跳脫**
   - Worker 會清掉控制字元和看不見的字元，留言以純文字存進 Notion。

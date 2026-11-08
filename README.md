@@ -32,7 +32,8 @@
 - **伺服器程式**：Cloudflare Workers（`worker/`）。
   - GitHub、Notion 金鑰只存在 Worker 的 secrets 裡。
 - **留言**：Notion 資料庫為主，Cloudflare KV 做快取。
-  - Google 登入的留言立即公開；匿名留言要房主審核。
+  - 留言必須用 Google 登入，送出後立即公開；也可以選「悄悄話」只給房主看。
+  - 訪客可以刪除自己的留言，7 天內可以編輯；編輯後要房主審核才重新公開。
   - 在 Notion 勾選「公開」就是審核通過。
 
 部署步驟見 [`DEPLOY.md`](DEPLOY.md)，Worker 的細節見 [`worker/README.md`](worker/README.md)，訪客隱私權說明在 [`privacy.html`](privacy.html)。
