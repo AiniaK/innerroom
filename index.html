@@ -1596,7 +1596,7 @@ function windMaterial(key,amp){const m=new THREE.MeshToonMaterial(Object.assign(
       transformed.x+=w*uAmp*hh*hh;
       transformed.z+=w*uAmp*.45*hh*hh*sin(ip.x);`);};
   return m;}
-const WIND_AMP={grass:.13,bamboo:.012,fern:.01,broadA:.0022,broadB:.0018,cedar:.0012};
+const WIND_AMP={grass:.13,fern:.01,broadA:.0022,broadB:.0018,cedar:.0012};
 
 let coastMat=null;
 /* Two worlds share one sky.
@@ -1740,7 +1740,7 @@ float sShore(float x){return ${SHORE_GLSL};}`)
 /* ---------- Taiwan mid/low-elevation mountain vegetation ----------
    樟樹・殼斗科 evergreen broadleaf (lumpy broccoli crowns) on the lower slopes,
    台灣杉 tiered conifers rising above the canopy and taking over the high ridges,
-   竹叢 bamboo clumps at the forest edge, 筆筒樹 tree ferns in the damp valley, 芒草 silvergrass on the meadow. */
+   筆筒樹 tree ferns in the damp valley, 芒草 silvergrass on the meadow. */
 function plantTaiwanForest(){
   const R=rng(2024),tmpM=new THREE.Matrix4(),tq=new THREE.Quaternion(),te=new THREE.Euler(),tv=new THREE.Vector3(),ts=new THREE.Vector3(),tcol=new THREE.Color();
   // merge pieces into one non-indexed geometry with per-vertex colour
@@ -1770,10 +1770,6 @@ function plantTaiwanForest(){
       {geo:new THREE.ConeGeometry(1.0,1.5,7),c:0x46624D,y:3.4,jitter:32},
       {geo:new THREE.ConeGeometry(.75,1.4,7),c:0x4C6A52,y:4.35,jitter:33},
       {geo:new THREE.ConeGeometry(.45,1.2,7),c:0x557357,y:5.2,jitter:34}]),
-    // 竹叢: slim stalks fanning out, feathery leaf clouds bent outward
-    bamboo:build((()=>{const a=[];for(let i=0;i<7;i++){const an=i/7*Math.PI*2,lean=.12+(i%3)*.06,h=4.2+(i%2)*1.1;
-        a.push({geo:new THREE.CylinderGeometry(.035,.05,h,5),c:0x9AA868,x:Math.cos(an)*(.15+h*lean*.5),y:h/2,z:Math.sin(an)*(.15+h*lean*.5),rz:-Math.cos(an)*lean,rx:Math.sin(an)*lean});
-        a.push({geo:new THREE.IcosahedronGeometry(1,0),c:i%2?0x8FA35C:0x7E9450,x:Math.cos(an)*(.3+h*lean),y:h*.92,z:Math.sin(an)*(.3+h*lean),sx:.75,sy:.35,sz:.75,jitter:40+i,ry:an});}return a;})()),
     // 筆筒樹 (tree fern): thin dark trunk, crown of long drooping fronds
     fern:build((()=>{const a=[{geo:new THREE.CylinderGeometry(.09,.12,3.2,6),c:0x4E4136,y:1.6}];
         for(let i=0;i<9;i++){const an=i/9*Math.PI*2;a.push({geo:new THREE.IcosahedronGeometry(1,0),c:i%2?0x6E8F4C:0x7C9C55,x:Math.cos(an)*.9,y:3.05,z:Math.sin(an)*.9,sx:1.05,sy:.09,sz:.28,ry:-an,rz:-.38,jitter:50+i});}
@@ -1806,13 +1802,6 @@ function plantTaiwanForest(){
         a.push({geo:new THREE.ConeGeometry(r,.78,11,1,true),c:[0x3B5544,0x41604B,0x47664F,0x4F6E55][i%4],y,rx:rr(-.07,.07),rz:rr(-.07,.07),ry:rr(0,6.28),jitter:140+i,shade:.35});
         a.push({geo:new THREE.ConeGeometry(r*.92,.5,11),c:0x34503F,y:y-.18,jitter:150+i,ry:rr(0,6.28)});}   // the dark underside of each tier
       a.push({geo:new THREE.ConeGeometry(.18,.9,7),c:0x5A7A5C,y:6.4});return a;})()),
-    // 竹叢: gently arching culms; from each upper node a little fan of narrow, drooping lance-shaped leaves
-    bamboo:build((()=>{const a=[];for(let i=0;i<9;i++){const an=i/9*Math.PI*2+rr(-.2,.2),lean=rr(.1,.24),h=rr(3.8,5.6),bx=Math.cos(an),bz=Math.sin(an);
-        a.push({geo:new THREE.CylinderGeometry(.026,.044,h,6,3),c:i%3?0x9AA868:0x8E9E5E,x:bx*(.12+h*lean*.5),y:h/2,z:bz*(.12+h*lean*.5),rz:-bx*lean,rx:bz*lean});
-        for(let j=0;j<3;j++){const t=.6+j*.15,nx=bx*(.12+h*lean*t),nz=bz*(.12+h*lean*t),ny=h*t;
-          for(let k=0;k<4;k++){const la=an+(k-1.5)*.55+rr(-.15,.15),len=rr(.26,.36),cl=Math.cos(la),sl=Math.sin(la),dr=rr(.45,.8);   // each leaf hangs out and down from the node
-            a.push({geo:new THREE.IcosahedronGeometry(1,0),c:[0x6F8A48,0x7E9852,0x88A05A,0x748E4B][(i+j+k)%4],x:nx+cl*len*.5,y:ny-Math.sin(dr)*len*.5,z:nz+sl*len*.5,sx:len*.5,sy:.012,sz:.035,ry:-la,rz:-dr,jitter:160+i*12+j*4+k});}}}
-      return a;})()),
     // 筆筒樹: a dark fibrous trunk, a crown of long fronds arching out and drooping, leaflets tapering to the tip, curled fiddleheads at the centre
     fern:build((()=>{const a=[{geo:new THREE.CylinderGeometry(.085,.13,3.2,8,4),c:0x4E4136,y:1.6,jitter:200}];
       for(let i=0;i<10;i++){const an=i/10*Math.PI*2+rr(-.15,.15),ca=Math.cos(an),sa=Math.sin(an);
@@ -1830,10 +1819,9 @@ function plantTaiwanForest(){
         for(let k=0;k<3;k++){const t=k/2,px=ca*(.24+t*.2),py=1.23-t*t*.2;a.push({geo:new THREE.IcosahedronGeometry(1,0),c:k%2?0xA89E80:0x9C9274,x:px,y:py,z:sa*(.24+t*.2),sx:.032,sy:.1,sz:.032,rz:-ca*(.5+t*.6),rx:sa*(.5+t*.6),jitter:300+i*4+k});}}
       return a;})()),
   };
-  const COUNTS_HI={broadA:320,broadB:130,cedar:170,bamboo:120,fern:85,grass:260};
-  TYPES.bamboo=TYPES_HI.bamboo;   // bamboo clumps are few: the far ones get the fine leaves too (the old leaf clouds read as umbrellas)
+  const COUNTS_HI={broadA:320,broadB:130,cedar:170,fern:85,grass:260};
   TYPES.grass=TYPES_HI.grass;     // silvergrass only grows on the meadow just outside: all of it gets the fine tufts
-  const COUNTS={broadA:900,broadB:450,cedar:900,bamboo:130,fern:90,grass:260};
+  const COUNTS={broadA:900,broadB:450,cedar:900,fern:90,grass:260};
   const meshes={},count={};
   for(const k in TYPES){meshes[k]=new THREE.InstancedMesh(TYPES[k],windMaterial(k,WIND_AMP[k]),COUNTS[k]);count[k]=0;}
   for(const k in TYPES_HI){const kk=k+'_hi';meshes[kk]=new THREE.InstancedMesh(TYPES_HI[k],windMaterial(kk,WIND_AMP[k]),COUNTS_HI[k]);count[kk]=0;COUNTS[kk]=COUNTS_HI[k];}
@@ -1848,13 +1836,13 @@ function plantTaiwanForest(){
     if(h>95)continue;
     const grow=1+d/110;   // farther trees drawn a little larger so the forest still reads
     let k;
-    if(d<12) k=R()<.85?'grass':'bamboo';
-    else if(d<22) k=pick([['grass',.25],['bamboo',.25],['broadA',.3],['fern',.2]]);
-    else if(h<-3) k=pick([['fern',.35],['broadA',.35],['bamboo',.15],['broadB',.15]]);           // damp valley floor
-    else if(h<22) k=pick([['broadA',.45],['broadB',.25],['cedar',.15],['bamboo',.1],['fern',.05]]);
+    if(d<12) k='grass';
+    else if(d<22) k=pick([['grass',.35],['broadA',.4],['fern',.25]]);
+    else if(h<-3) k=pick([['fern',.4],['broadA',.4],['broadB',.2]]);           // damp valley floor
+    else if(h<22) k=pick([['broadA',.5],['broadB',.28],['cedar',.16],['fern',.06]]);
     else if(h<45) k=pick([['cedar',.55],['broadA',.3],['broadB',.15]]);
     else k='cedar';
-    const base={grass:1,bamboo:1,broadA:1.1,broadB:1.15,cedar:1.2,fern:1}[k];
+    const base={grass:1,broadA:1.1,broadB:1.15,cedar:1.2,fern:1}[k];
     const near=d<45&&count[k+'_hi']<COUNTS[k+'_hi'];   // close to the window: the finer plant
     put(near?k+'_hi':k,x,z,base*(.8+R()*.5)*(k==='grass'?1:grow));
     if(Object.keys(COUNTS).every(t=>count[t]>=COUNTS[t]||t.endsWith('_hi')))break;
