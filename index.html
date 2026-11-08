@@ -165,6 +165,14 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 .bk.single .bk-left{display:none}.bk.single .bk-right{left:0;border-radius:5px;box-shadow:inset 18px 0 24px -16px rgba(90,62,36,.3),3px 4px 0 #e9dfcc,0 18px 40px rgba(30,20,10,.35)}
 .bk:not(.open) .bk-left{visibility:hidden}
 .bk-page.blank .bk-inner{display:none}
+.bk-book>.bk-page .bk-inner,.bk-book>.bk-page .bk-num{transition:opacity .35s ease}
+.bk:not(.opened) .bk-book>.bk-page .bk-inner,.bk:not(.opened) .bk-book>.bk-page .bk-num{opacity:0}   /* the words appear once the book lies fully open */
+.bk-soft{position:absolute;top:0;width:var(--pw);height:var(--ph);transform-style:preserve-3d;z-index:6;pointer-events:none;transform:translateZ(1px)}   /* lifted a hair off the page beneath, so the two never flicker */
+.bk-strip{position:absolute;top:0;transform-style:preserve-3d}
+.bk-sface{position:absolute;inset:0;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.bk-sback{transform:rotateY(180deg)}
+.bk-sface>.bk-page{top:0;box-shadow:none}
+.bk-shade{position:absolute;inset:0;background:rgba(70,48,26,1);opacity:var(--sh,0);pointer-events:none}
 .bk-inner{position:absolute;top:50px;bottom:40px;left:30px;right:26px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
 .bk-left .bk-inner,.bk-leaf.back .bk-front .bk-inner,.bk-leaf.fwd .bk-back .bk-inner{left:26px;right:30px}
 .bk-num{position:absolute;bottom:14px;font-size:11px;color:var(--muted);letter-spacing:.1em}
@@ -217,10 +225,9 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
   transition:opacity .15s,transform .6s .1s cubic-bezier(.4,.1,.25,1)}
 .bk.single .bk-cover{left:0}
 .bk.open .bk-cover{transform:rotateY(-178deg);opacity:0;transition:transform .8s cubic-bezier(.4,.1,.25,1),opacity .2s .72s;pointer-events:none}
-.bk-cover-front{border-radius:3px 9px 9px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-  background:radial-gradient(120% 90% at 30% 20%,rgba(255,255,255,.08),rgba(0,0,0,.18)),repeating-linear-gradient(45deg,rgba(255,255,255,.025) 0 2px,rgba(0,0,0,.03) 2px 4px),#4F5E4B;
-  box-shadow:inset 10px 0 12px -6px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.25),0 20px 44px rgba(20,14,8,.45)}
-.bk-cover-front::before{content:"";position:absolute;inset:16px 16px 16px 22px;border:1px solid rgba(214,186,128,.55);border-radius:4px}
+.bk-cover-front{border-radius:3px 9px 9px 3px;background:#4D5C49 center/100% 100% no-repeat;
+  box-shadow:inset 12px 0 14px -8px rgba(0,0,0,.4),inset -2px 0 3px rgba(255,255,240,.08),inset 0 0 0 1px rgba(0,0,0,.28),0 20px 44px rgba(20,14,8,.45)}
+.bk-cover-front::after{content:"";position:absolute;left:10px;top:0;bottom:0;width:6px;background:linear-gradient(90deg,rgba(0,0,0,.18),rgba(255,255,255,.06),rgba(0,0,0,.12));border-radius:2px}   /* the hinge groove beside the spine */
 .bk-title{font-family:var(--f-display);font-size:clamp(20px,calc(var(--pw) * .085),34px);letter-spacing:.3em;color:#D9BD86;text-shadow:0 1px 0 rgba(0,0,0,.35)}
 .bk-sub{font-size:13px;letter-spacing:.5em;color:rgba(217,189,134,.8)}
 .bk-cover-back{transform:rotateY(180deg);border-radius:9px 3px 3px 9px;background:#E8DCC4 repeating-linear-gradient(45deg,rgba(150,118,86,.07) 0 6px,transparent 6px 12px)}
@@ -410,8 +417,16 @@ const W=0.08;
    while(x<5){const len=1.3+R()*1.1,x1=Math.max(-5,x),x2=Math.min(5,x+len);
      if(x2-x1>.05)add(rbox(x2-x1-.012,.07,rowW-.012,.028,4),fm[Math.floor(R()*3)],(x1+x2)/2,-.035,z0+rowW/2,scene,{cast:false,ray:false});
      x+=len;}}}
-box(-5.35,5.35,2.9,3.12,-3.85,3.85,M.ceil);
-box(-5.35,5.35,3.12,3.3,-3.85,3.85,M.ceil,{ray:false});   // a second, thicker roof slab: the sun's shadow can never leak through
+// ceiling and roof in one thick slab, with a round skylight over the ring sofa (the slab is thick so the sun's shadow can never leak through elsewhere)
+const SKY_HOLE={x:0,z:.2,r:.95};
+{const sh=new THREE.Shape();sh.moveTo(-5.35,-3.85);sh.lineTo(5.35,-3.85);sh.lineTo(5.35,3.85);sh.lineTo(-5.35,3.85);sh.closePath();
+ const hole=new THREE.Path();hole.absarc(SKY_HOLE.x,SKY_HOLE.z,SKY_HOLE.r,0,Math.PI*2,true);sh.holes.push(hole);
+ const g=new THREE.ExtrudeGeometry(sh,{depth:.4,bevelEnabled:false,curveSegments:64});g.rotateX(Math.PI/2);g.translate(0,3.3,0);g.computeVertexNormals();planarUV(g,2);
+ add(g,M.ceil,0,0,0,scene,{ray:false});
+ // the skylight: a pane of glass at the top of the shaft, a slim oak ring where the shaft meets the ceiling
+ add(new THREE.CircleGeometry(SKY_HOLE.r,64).rotateX(Math.PI/2),M.glass,SKY_HOLE.x,3.27,SKY_HOLE.z,scene,{cast:false,receive:false,ray:false});
+ add(new THREE.TorusGeometry(SKY_HOLE.r+.012,.022,10,96).rotateX(Math.PI/2),M.oak,SKY_HOLE.x,2.9,SKY_HOLE.z,scene,{cast:false,ray:false});
+ add(new THREE.TorusGeometry(SKY_HOLE.r-.004,.012,8,96).rotateX(Math.PI/2),M.trim,SKY_HOLE.x,3.26,SKY_HOLE.z,scene,{cast:false,ray:false});}
 // house body below (seen from balcony)
 box(-5.22,5.22,-6.2,-0.01,-3.72,3.72,M.wall,{cast:false,ray:false});
 // north wall: balcony opening x −4.0..−1.6, h 2.4
@@ -1329,6 +1344,30 @@ function openSunKnob(){
   r.oninput=()=>{SL.b=.1+r.value/100*.75;S.sunB=SL.b;save();show();};
   b.onclick=()=>{SL.on=!SL.on;show();};}
 
+/* ---------- the guestbook's hard cover: green book-cloth, mottled dye, a fine weave, stray fibres, edges worn pale, gold-blocked title.
+   Painted once; the notebook on the cabinet and the opened notebook share it. ---------- */
+let nbCoverCache=null;
+function notebookCover(){if(nbCoverCache)return nbCoverCache;
+  const w=600,h=834,c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),R=rng(4242);
+  g.fillStyle='#4D5C49';g.fillRect(0,0,w,h);
+  for(let i=0;i<90;i++){const x=R()*w,y=R()*h,r=40+R()*160,gr=g.createRadialGradient(x,y,0,x,y,r),lt=R()<.5;
+    gr.addColorStop(0,lt?`rgba(150,170,130,${.05+R()*.06})`:`rgba(20,30,20,${.06+R()*.08})`);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);}   // uneven dye
+  for(let y=0;y<h;y+=2){g.fillStyle=`rgba(${R()<.5?'255,255,240':'0,0,0'},${.025+R()*.035})`;g.fillRect(0,y,w,1);}   // weave: weft
+  for(let x=0;x<w;x+=2){g.fillStyle=`rgba(${R()<.5?'255,255,240':'0,0,0'},${.02+R()*.03})`;g.fillRect(x,0,1,h);}   // and warp
+  for(let i=0;i<2200;i++){const x=R()*w,y=R()*h,a=R()*Math.PI,l=2+R()*9;g.strokeStyle=R()<.6?`rgba(200,210,180,${.05+R()*.1})`:`rgba(10,15,10,${.06+R()*.1})`;
+    g.lineWidth=.6+R()*.6;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l);g.stroke();}   // stray fibres
+  const id=g.getImageData(0,0,w,h),d=id.data;for(let i=0;i<d.length;i+=4){const n=(R()-.5)*16;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}g.putImageData(id,0,0);   // grain
+  const wear=(x0,y0,x1,y1)=>{const gr=g.createLinearGradient(x0,y0,x1,y1);gr.addColorStop(0,'rgba(215,205,170,.22)');gr.addColorStop(1,'rgba(215,205,170,0)');g.fillStyle=gr;g.fillRect(0,0,w,h);};
+  wear(0,0,0,26);wear(0,h,0,h-26);wear(w,0,w-22,0);wear(0,0,14,0);   // edges rubbed pale
+  for(const [x,y] of [[0,0],[w,0],[0,h],[w,h]]){const gr=g.createRadialGradient(x,y,0,x,y,60);gr.addColorStop(0,'rgba(220,210,175,.28)');gr.addColorStop(1,'rgba(220,210,175,0)');g.fillStyle=gr;g.fillRect(x-60,y-60,120,120);}
+  const gold=g.createLinearGradient(0,h*.35,0,h*.55);gold.addColorStop(0,'#E6CB91');gold.addColorStop(.5,'#C8A766');gold.addColorStop(1,'#E2C489');
+  g.strokeStyle=gold;g.globalAlpha=.75;g.lineWidth=2;g.strokeRect(38,34,w-70,h-68);g.globalAlpha=.45;g.lineWidth=1;g.strokeRect(46,42,w-86,h-84);g.globalAlpha=1;   // blind and gold rules
+  g.textAlign='center';g.textBaseline='middle';g.font='600 62px "LXGW WenKai TC","Kaiti TC",serif';
+  const title='留 言 筆 記 本';g.fillStyle='rgba(0,0,0,.35)';g.fillText(title,w/2+1,h*.44+2);g.fillStyle=gold;g.fillText(title,w/2,h*.44);
+  g.font='26px "LXGW WenKai TC","Kaiti TC",serif';g.fillStyle='rgba(0,0,0,.3)';g.fillText('內 在 房 間',w/2+1,h*.44+72);g.fillStyle=gold;g.globalAlpha=.85;g.fillText('內 在 房 間',w/2,h*.44+70);g.globalAlpha=1;
+  // the gold is blocked into cloth: let the weave break it up a little
+  g.globalCompositeOperation='source-atop';for(let i=0;i<5000;i++){g.fillStyle=`rgba(40,50,35,${R()*.25})`;g.fillRect(R()*w,R()*h,1+R()*2,1);}g.globalCompositeOperation='source-over';
+  nbCoverCache={canvas:c,url:null};return nbCoverCache;}
 /* ---------- south-west cabinet: recommended books, flyer, guestbook ---------- */
 (function swCabinet(){
   const x1=-4.85,x2=-2.05,zF=2.92,zB=3.42,H=.8,act={type:'swcab',label:'推薦書櫃'};
@@ -1362,10 +1401,17 @@ function openSunKnob(){
   if(document.fonts&&document.fonts.load)document.fonts.load('24px "LXGW WenKai TC"','覺察書寫').then(()=>{drawFlyer(flyerTex.image.getContext('2d'),400,560);flyerTex.needsUpdate=true;}).catch(()=>{});
   for(let k=0;k<3;k++)add(new THREE.PlaneGeometry(.21,.29),mat(0xffffff,.9,{map:flyerTex}),-3.9+k*.012,H+.002+k*.0015,3.13+k*.008,scene,{rx:-Math.PI/2,rz:.1-k*.07,act:{type:'flyer',label:'課程傳單'}});
   // guestbook notebook + pen
-  const nb=group(-2.75,H,3.12,-.15,{type:'guestbook',label:'留言筆記本'});
-  add(rbox(.34,.03,.25,.006),mat(0x8A6E55,.7),0,.015,0,nb,{act:nb.userData.act});
-  add(rbox(.33,.012,.24,.004),mat(0xFAF4E8,.9),.004,.034,0,nb,{act:nb.userData.act});
-  add(new THREE.CylinderGeometry(.005,.005,.15,8),mat(0x3A3029,.4),.06,.045,.06,nb,{rz:Math.PI/2,ry:.6,ray:false});
+  // the guestbook: a closed green hardback lying on the cabinet, cream page edges showing, a ribbon and a pen beside it
+  const nb=group(-2.75,H,3.12,-.15,{type:'guestbook',label:'留言筆記本'}),A=nb.userData.act;
+  {const cloth=mat(0x4D5C49,.85),paperE=mat(0xF3EBDA,.95),BW=.25,BD=.34;   // book width (along x) and length (along z), like a real A5 hardback
+   const tex=new THREE.CanvasTexture(notebookCover().canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+   add(rbox(BW,.006,BD,.002),cloth,0,.003,0,nb,{act:A});                                   // back board
+   add(rbox(BW-.012,.024,BD-.01,.002),paperE,-.004,.018,0,nb,{act:A});                     // the block of pages
+   add(rbox(BW,.006,BD,.002),cloth,0,.033,0,nb,{act:A});                                   // front board
+   add(rbox(.012,.036,BD,.004),cloth,-BW/2+.004,.018,0,nb,{act:A});                         // rounded spine
+   const top=add(new THREE.PlaneGeometry(BW-.004,BD-.004),mat(0xffffff,.9,{map:tex}),.001,.0365,0,nb,{act:A,cast:false});top.rotation.set(-Math.PI/2,0,Math.PI);   // the cover cloth with its gold title, the right way up for someone standing in the room
+   add(new THREE.BoxGeometry(.012,.002,.07),mat(0x9E4A3A,.8),.03,.0005,BD/2+.03,nb,{ray:false,cast:false});   // ribbon marker trailing out
+   add(new THREE.CylinderGeometry(.005,.005,.15,8),mat(0x3A3029,.4),BW/2+.035,.006,.02,nb,{rx:Math.PI/2,rz:.25,ray:false});}
 })();
 
 /* ---------- memory cabinet (south wall, right) — organic, grows later ---------- */
@@ -1865,7 +1911,7 @@ function weatherAt(ms){const out={cloud:0,rain:0,thunder:0,mist:0,cellAmt:0,cell
   const monsoon=month>=9||month<=2;
   const warm=month>=4&&month<=10;
   out.cloud=.03+.3*vnoise(ms/(19*HR)+1.3)                          // each day has its own character: some clear all day, some cloudy
-    +.32*vnoise(ms/(42*60e3))+.12*vnoise(ms/(11*60e3)+5.1)           // clouds drift in and out over the hours, and minute to minute
+    +.36*vnoise(ms/(2.6*HR))+.06*vnoise(ms/(55*60e3)+5.1)            // clouds build and thin slowly, over hours
     +(warm?.2:.08)*smooth(10,14,hour)*(1-smooth(17,20.5,hour))       // afternoons build up cloud, evenings clear (more so in the warm months)
     +(monsoon?.12:0);
   out.cloud=Math.min(out.cloud,.9);   // fair-weather clouds, never enough to rain on their own
@@ -2368,25 +2414,53 @@ function bkTargetView(){
   return bk.single?i:Math.floor(i/2);}
 function bkGoWrite(){const i=bk.slots.findIndex(p=>p&&p.type==='write');return bk.single?i:Math.floor(i/2);}
 function bkRebuild(view){if(bk.loading)return;bkPaginate();bk.view=Math.max(0,Math.min(view===undefined?bkTargetView():view,bkViews()-1));bkRender();}
-// turn a leaf: forward lifts the right page over the spine to the left; back brings the left one over to the right
+// turn a leaf like soft paper: the page is cut into narrow vertical strips, each hinged to the one before it,
+// and the outer strips run ahead of the inner ones mid-turn, so the sheet bends as it comes over the spine
+const BK_STRIPS=14;
+function bkBuildLeaf(dir,frontHTML,backHTML,frontCls,backCls){
+  const N=BK_STRIPS,pw=bk.pw,ph=bk.ph,w=pw/N,box=document.createElement('div');
+  box.className='bk-soft';box.style.left=(dir>0&&!bk.single?pw:0)+'px';
+  let parent=box;const strips=[];
+  for(let i=0;i<N;i++){const st=document.createElement('div');st.className='bk-strip';
+    st.style.width=(w+.6)+'px';st.style.height=ph+'px';   // a hair of overlap so no seam shows between strips
+    if(dir>0){st.style.left=(i?w:0)+'px';st.style.transformOrigin='0 50%';}
+    else{st.style.left=(i?-w:pw-w)+'px';st.style.transformOrigin='100% 50%';}
+    const fx=dir>0?i*w:pw-(i+1)*w,bx=dir>0?pw-(i+1)*w:i*w;
+    st.innerHTML=`<div class="bk-sface"><div class="bk-page ${frontCls}" style="left:${-fx}px">${frontHTML}</div><i class="bk-shade"></i></div>`+
+      `<div class="bk-sface bk-sback"><div class="bk-page ${backCls}" style="left:${-bx}px">${backHTML}</div><i class="bk-shade"></i></div>`;
+    parent.appendChild(st);parent=st;strips.push(st);}
+  bk.el.querySelector('.bk-book').appendChild(box);
+  return {box,strips};}
+// the sheet's pose part-way through a turn (tt from 0 to 1): every strip turns the same way, never backwards; early on the outer edge
+// lifts ahead of the rest, late in the turn it trails behind as the soft paper settles. The strips' angles always add up to the whole turn.
+function bkPose(strips,tt,sgn){const N=strips.length,total=180*tt,c=.9*Math.cos(Math.PI*tt)*Math.sin(Math.PI*Math.min(1,tt*1.6));
+  const w=strips.map((_,i)=>1+c*(i/(N-1)-.5)*2),sum=w.reduce((a,b)=>a+b,0);let acc=0;
+  strips.forEach((st,i)=>{const inc=total*w[i]/sum;acc+=inc;st.style.transform=`rotateY(${(sgn*inc).toFixed(3)}deg)`;
+    const face=Math.cos(acc*Math.PI/180);st.style.setProperty('--sh',(.38*(1-Math.abs(face))+(face<0?.05:0)).toFixed(3));});}
 function bkFlip(dir){
   if(bk.busy||bk.loading)return;const to=bk.view+dir;if(to<0||to>=bkViews())return;
   bk.busy=true;gb.editing=null;
   const [l0,r0]=bkPair(bk.view),[l1,r1]=bkPair(to);
-  const L=bk.el.querySelector('#bkL'),R=bk.el.querySelector('#bkR'),leaf=bk.el.querySelector('#bkLeaf');
-  const front=leaf.querySelector('.bk-front'),back=leaf.querySelector('.bk-back');
-  leaf.className='bk-leaf '+(dir>0?'fwd':'back');
-  if(bk.single){front.innerHTML=bkPageHTML(dir>0?r0:r1);back.innerHTML='<div class="bk-inner"></div>';R.innerHTML=bkPageHTML(dir>0?r1:r0);}
-  else if(dir>0){front.innerHTML=bkPageHTML(r0);back.innerHTML=bkPageHTML(l1);R.innerHTML=bkPageHTML(r1);R.classList.toggle('blank',!r1);}
-  else{front.innerHTML=bkPageHTML(l0);back.innerHTML=bkPageHTML(r1);L.innerHTML=bkPageHTML(l1);L.classList.toggle('blank',!l1);}
-  leaf.hidden=false;void leaf.offsetWidth;
-  leaf.classList.add('turn');
-  setTimeout(()=>{leaf.hidden=true;leaf.className='bk-leaf';bk.view=to;bkRender();bk.busy=false;},720);}
+  const L=bk.el.querySelector('#bkL'),R=bk.el.querySelector('#bkR');
+  let leaf,reverse=false;
+  if(bk.single){   // one page at a time: forward, the page lifts off to the left; back, the previous page comes back over it
+    if(dir>0){leaf=bkBuildLeaf(1,bkPageHTML(r0),'<div class="bk-inner"></div>','bk-right','bk-left');R.innerHTML=bkPageHTML(r1);}
+    else{leaf=bkBuildLeaf(1,bkPageHTML(r1),'<div class="bk-inner"></div>','bk-right','bk-left');reverse=true;}}
+  else if(dir>0){leaf=bkBuildLeaf(1,bkPageHTML(r0),bkPageHTML(l1),'bk-right','bk-left');R.innerHTML=bkPageHTML(r1);R.classList.toggle('blank',!r1);}
+  else{leaf=bkBuildLeaf(-1,bkPageHTML(l0),bkPageHTML(r1),'bk-left','bk-right');L.innerHTML=bkPageHTML(l1);L.classList.toggle('blank',!l1);}
+  const N=BK_STRIPS,dur=bk.reduced?10:950,t0=performance.now(),sgn=dir>0||bk.single?-1:1;
+  const pose=tt=>bkPose(leaf.strips,tt,sgn);
+
+  pose(reverse?1:0);
+  const step=now=>{let t=Math.min(1,(now-t0)/dur);const e=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;pose(reverse?1-e:e);
+    if(t<1){requestAnimationFrame(step);return;}
+    leaf.box.remove();bk.view=to;bkRender();bk.busy=false;};
+  requestAnimationFrame(step);}
 // pick the book up and open it / close it and put it down
-function bkOpenAnim(){requestAnimationFrame(()=>{bk.el.classList.add('lifted');setTimeout(()=>{if(!bk.closing)bk.el.classList.add('open');},560);});}
+function bkOpenAnim(){requestAnimationFrame(()=>{bk.el.classList.add('lifted');setTimeout(()=>{if(bk.closing)return;bk.el.classList.add('open');setTimeout(()=>{if(!bk.closing)bk.el.classList.add('opened');},850);},560);});}   // the words on the pages appear only once the cover has fully swung open
 function bkClose(){
   if(bk.closing)return;bk.closing=true;gb.editing=null;
-  bk.el.classList.remove('open');
+  bk.el.classList.remove('opened');setTimeout(()=>bk.el.classList.remove('open'),180);
   setTimeout(()=>{bk.el.classList.remove('lifted');setTimeout(()=>{gbBookCloser=null;bkTeardown();closeModal();},420);},640);}
 function bkTeardown(){if(bk.keyH)removeEventListener('keydown',bk.keyH,true);if(bk.resizeH)removeEventListener('resize',bk.resizeH);bk.keyH=bk.resizeH=null;}
 // wire up whatever is on the open pages: the form, sign-in button, edit and delete
@@ -2439,12 +2513,12 @@ function openGuestbook(){
   openModal(`<div class="bk" id="bk" role="dialog" aria-label="留言筆記本">
      <div class="bk-book">
        <div class="bk-page bk-left" id="bkL"></div><div class="bk-page bk-right" id="bkR"></div>
-       <div class="bk-leaf" id="bkLeaf" hidden><div class="bk-face bk-front bk-page"></div><div class="bk-face bk-back bk-page"></div></div>
-       <div class="bk-cover"><div class="bk-face bk-cover-front"><div class="bk-title">留言筆記本</div><div class="bk-sub">內在房間</div></div><div class="bk-face bk-cover-back"></div></div>
+       <div class="bk-cover"><div class="bk-face bk-cover-front" aria-label="留言筆記本・內在房間"></div><div class="bk-face bk-cover-back"></div></div>
      </div>
      <button class="bk-nav" id="bkPrev" type="button" aria-label="往前翻">‹</button><button class="bk-nav next" id="bkNext" type="button" aria-label="往後翻">›</button>
      <div class="bk-hint">← → 或點兩側翻頁</div></div>`,{book:true});
-  bk.el=card.querySelector('#bk');bkMeasure();
+  bk.el=card.querySelector('#bk');bk.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;bkMeasure();
+  {const nc=notebookCover();if(!nc.url)nc.url=nc.canvas.toDataURL('image/jpeg',.9);bk.el.querySelector('.bk-cover-front').style.backgroundImage=`url(${nc.url})`;}
   gbBookCloser=bkClose;
   bk.el.querySelector('#bkPrev').onclick=()=>bkFlip(-1);bk.el.querySelector('#bkNext').onclick=()=>bkFlip(1);
   bk.el.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b){e.stopPropagation();bkAction(b);return;}
