@@ -1316,9 +1316,10 @@ const moonTex=new THREE.TextureLoader().load('assets/moon.jpg');moonTex.colorSpa
 const skyU={uMetA:{value:new THREE.Vector3(0,1,0)},uMetB:{value:new THREE.Vector3(0,1,0)},uMet:{value:new THREE.Vector2(0,0)},uMoonTex:{value:moonTex},uMoonDir:{value:new THREE.Vector3(-.5,.36,-.79).normalize()},uMoonVis:{value:0},uMoonT:{value:new THREE.Vector3(1,0,0)},uMoonB:{value:new THREE.Vector3(0,1,0)},uMoonL:{value:new THREE.Vector3(0,0,1)},uMoonFrac:{value:1},
   uCloud:{value:.2},uCloudDark:{value:0},uCellDir:{value:new THREE.Vector3(0,.3,-1).normalize()},uCellAmt:{value:0},uCurtain:{value:0},uFlash:{value:0},uTop:{value:new THREE.Color()},uHor:{value:new THREE.Color()},uBot:{value:new THREE.Color()},uSunDir:{value:new THREE.Vector3(0,.2,-1)},uSunCol:{value:new THREE.Color()},uStars:{value:0},uSunVis:{value:1},uDeep:{value:new THREE.Color()},uTime:{value:0}};
 skyU.uTideS={value:0};skyU.uTideWet={value:0};skyU.uSurf={value:1};
-skyU.uCumulus={value:0};skyU.uCirrus={value:0};skyU.uCloudScale={value:1};   // fair-weather cumulus on the horizon, high wispy cirrus, and how big the everyday clouds are (all drift slowly from day to day)   // tide: how far the waterline has moved up (+) or down (-) the beach, in metres; the highest line it reached lately; how rough the surf is
+skyU.uCumulus={value:0};skyU.uCirrus={value:0};skyU.uCloudScale={value:1};
+skyU.uSkyT={value:0};skyU.uWind={value:new THREE.Vector2(.006,.0018)};skyU.uWindOff={value:new THREE.Vector2(0,0)};   // the sky's clock (seconds since Taipei midnight, so the clouds follow the real time of day) and the wind that carries them   // fair-weather cumulus on the horizon, high wispy cirrus, and how big the everyday clouds are (all drift slowly from day to day)   // tide: how far the waterline has moved up (+) or down (-) the beach, in metres; the highest line it reached lately; how rough the surf is
 const SKY_FRAG=`uniform sampler2D uMoonTex;uniform vec3 uTop,uHor,uBot,uSunDir,uSunCol,uMoonDir,uMoonT,uMoonB,uMoonL,uCellDir;uniform float uStars,uSunVis,uMoonVis,uMoonFrac,uCloud,uCloudDark,uCellAmt,uCurtain,uFlash;varying vec3 vDir;
-uniform float uTime;uniform vec3 uMetA,uMetB;uniform vec2 uMet;uniform float uCumulus,uCirrus,uCloudScale;
+uniform float uTime;uniform vec3 uMetA,uMetB;uniform vec2 uMet;uniform float uCumulus,uCirrus,uCloudScale,uSkyT;uniform vec2 uWind,uWindOff;
 float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y);}
@@ -1328,13 +1329,15 @@ col=mix(col,uBot,1.-smoothstep(-.25,0.,h));
 float sd=max(dot(d,uSunDir),0.);col+=uSunCol*(pow(sd,6.)*.16+pow(sd,80.)*.13+pow(sd,500.)*.16)*uSunVis;   // one soft glow that fades smoothly outward, no rings
 float lum0=clamp(dot(uHor,vec3(.33))*1.4,0.,1.);
 // cirrus: on some days thin high streaks combed out by the wind, behind every other cloud
-if(uCirrus>.01&&h>0.){vec2 cw=d.xz/(d.y+.35)*.9+vec2(uTime*.004,uTime*.0012);
+if(uCirrus>.01&&h>0.){vec2 cw=d.xz/(d.y+.35)*.9+uWindOff*.7+vec2(3.7,1.1);
   vec2 cr=vec2(cw.x*.83-cw.y*.56,cw.x*.56+cw.y*.83);
   float ci=fbm(vec2(cr.x*.55,cr.y*5.5))*fbm(cr*1.6+3.1);
   float cim=smoothstep(.2,.4,ci)*smoothstep(.03,.3,h)*uCirrus*(1.-uCloudDark);
   vec3 cic=mix(uHor,vec3(1.,.98,.95),.55*lum0)+uSunCol*pow(sd,4.)*.25*uSunVis;
   col=mix(col,cic,cim*.5);}
-vec2 cu=d.xz/(d.y+.12)*1.3*uCloudScale+vec2(uTime*.006,uTime*.0018);float cl=fbm(cu);
+vec2 cu=d.xz/(d.y+.12)*1.3*uCloudScale+uWindOff;
+cu+=(vec2(fbm(cu*.32+vec2(uSkyT*.00021,0.)),fbm(cu*.32+vec2(5.2,-uSkyT*.00017)))-.5)*1.8;   // the clouds slowly gather, stretch and break apart, not just slide
+float cl=fbm(cu);
 // cloud cover follows the weather; a passing rain cell piles up thick dark cloud around its direction
 float cellK=uCellAmt*smoothstep(.35,.95,dot(d,uCellDir));
 float thr=mix(.7,.33,clamp(uCloud+cellK*.6,0.,1.));
@@ -1348,7 +1351,7 @@ col=mix(col,cc,cm*.92);
 if(uCumulus>.01&&h>-.01){
   float az=atan(d.x,-d.z),el=asin(clamp(h,-1.,1.)),sAz=atan(uSunDir.x,-uSunDir.z),sEl=asin(clamp(uSunDir.y,-1.,1.));
   const float SLOT=.2027;   // 31 slots round the horizon, in radians
-  float u=az/SLOT+uTime*.004;
+  float u=az/SLOT+uSkyT*.00012;
   float sunLow=(1.-smoothstep(.05,.45,sEl))*smoothstep(-.14,.0,sEl);   // how golden the light is: strongest as the sun nears the horizon, gone once it has set
   vec2 L=normalize(vec2(clamp(sin(sAz-az)*3.,-1.,1.)*(.4+.6*sunLow),.35+max(sEl,0.)*1.5));   // where the light comes from, seen on this patch of sky
   float best=0.;vec3 cuc=vec3(0.);
@@ -1378,10 +1381,11 @@ if(uCumulus>.01&&h>-.01){
     float tex=fbm(vec2(X,Y)*90.+cs*4.);                       // soft billows inside the heap
     float lit=max(clamp(.42+.38*dot(nrm,L)+.3*(tex-.5)*(.4+.6*vt),0.,1.)*(.5+.5*pow(vt,.6)),.3);   // lit from the sun's side and from above, shadowed underneath; the creases stay soft
     lit+=.18*smoothstep(.7,1.,dot(nrm,L))*(.4+.6*uSunVis);    // a brighter rim where the light grazes
-    vec3 dayLit=vec3(1.,.985,.96)*mix(.35,1.,lum0);
+    float dayK=smoothstep(.06,.5,lum0);                     // 0 at night, 1 by day
+    vec3 dayLit=vec3(1.,.985,.96)*mix(.35,1.,lum0)*dayK+(uHor*1.6+vec3(.5,.55,.68)*.22*uMoonVis)*(1.-dayK);   // by night only a dim, moonlit silhouette
     vec3 goldLit=mix(uHor*1.25,uSunCol*1.35,.45)+vec3(.12,.06,.04);
     vec3 litC=mix(dayLit,goldLit,sunLow*.85)*mix(1.,.62,uCloudDark);
-    vec3 shadeC=mix(uHor*.7,vec3(.5,.52,.66)*max(lum0,.1),.55)*mix(1.,.8,sunLow);
+    vec3 shadeC=mix(mix(uHor*.7,vec3(.5,.52,.66)*max(lum0,.1),.55)*mix(1.,.8,sunLow),uHor*1.15,1.-dayK);
     cuc=mix(shadeC,litC,clamp(lit,0.,1.));best=dens;}
   float cuM=best*.97*mix(.45,1.,smoothstep(0.,.03,el));     // the lowest parts sink into the haze
   col=mix(col,cuc,cuM);cm=max(cm,cuM);}
@@ -1393,7 +1397,7 @@ col=mix(col,cc*.78,side*hang*streak*uCurtain*.8);
 // lightning lights the clouds from inside, strongest toward the storm
 col+=vec3(.85,.88,1.)*uFlash*(.2+.8*cm)*(.35+.65*smoothstep(.3,.95,dot(d,uCellDir)));
 col+=uSunCol*smoothstep(.9988,.99905,sd)*3.*uSunVis*(1.-cm*.8);
-if(uStars>.01&&h>0.){vec3 q=floor(d*640.);float s=hash(q);col+=vec3(step(.99938,s))*uStars*smoothstep(0.,.25,h)*(.45+.65*hash(q+1.));}   // finer cells: each star about half the size, same count
+if(uStars>.01&&h>0.){vec3 q=floor(d*640.);float s=hash(q);col+=vec3(step(.99938,s))*uStars*smoothstep(0.,.25,h)*(.45+.65*hash(q+1.))*(1.-cm);}   // clouds hide the stars behind them   // finer cells: each star about half the size, same count
 // a shooting star: a thin streak along a great circle, brightest at its head, fading toward the tail; hidden behind cloud
 if(uMet.y>0.&&h>0.){vec3 hd=normalize(mix(uMetA,uMetB,uMet.x)),tl=normalize(mix(uMetA,uMetB,max(uMet.x-.24,0.)));
   vec3 ab=hd-tl;float s=clamp(dot(d-tl,ab)/max(dot(ab,ab),1e-7),0.,1.);float dd=length(d-(tl+ab*s));
@@ -1816,7 +1820,12 @@ const vnoise=t=>{const i=Math.floor(t),f=t-i,u=f*f*(3-2*f);return lerp(hashN(i+.
 function weatherAt(ms){const out={cloud:0,rain:0,thunder:0,mist:0,cellAmt:0,cellAz:0,cellAlt:.3,curtain:0};
   const {month,hour}=tpeParts(ms);
   const monsoon=month>=9||month<=2;
-  out.cloud=.06+.5*vnoise(ms/(42*60e3))*(month>=4&&month<=8?.9:1)+(monsoon?.15:0);   // fair-weather clouds drift in and out, never enough to rain
+  const warm=month>=4&&month<=10;
+  out.cloud=.03+.3*vnoise(ms/(19*HR)+1.3)                          // each day has its own character: some clear all day, some cloudy
+    +.32*vnoise(ms/(42*60e3))+.12*vnoise(ms/(11*60e3)+5.1)           // clouds drift in and out over the hours, and minute to minute
+    +(warm?.2:.08)*smooth(10,14,hour)*(1-smooth(17,20.5,hour))       // afternoons build up cloud, evenings clear (more so in the warm months)
+    +(monsoon?.12:0);
+  out.cloud=Math.min(out.cloud,.9);   // fair-weather clouds, never enough to rain on their own
   // long spells of steady rain (plum rains, NE-monsoon drizzle): a slow wetness that lasts hours, not minutes
   const c0=CLIM[month],wet=vnoise(ms/(5*HR)+3.7),thrW=1-c0[1]*1.6;
   out.cloud=Math.max(out.cloud,.95*smooth(thrW-.14,thrW,wet));
@@ -1856,10 +1865,19 @@ function updateEnv(now){
   { // the sky's mood drifts over hours and days: cotton-wool cumulus only some of the time (most on fair afternoons), wispy cirrus on some days
     const hrs=ms/HR,sn=(x,seed)=>{const i=Math.floor(x),f=x-i,s=f*f*(3-2*f),r=n=>{const v=Math.sin((n+seed*57.3)*127.1)*43758.5453;return v-Math.floor(v);};return r(i)*(1-s)+r(i+1)*s;};
     let cu=Math.min(1,Math.max(0,(sn(hrs/5,1)*.65+sn(hrs/1.7,2)*.35-.46)*2.6));
-    cu*=(.5+.5*smooth(9,13,h)*(1-smooth(17.5,20,h)))*(1-.95*smooth(.08,.45,wx.rain))*(1-.7*smooth(.72,.95,wx.cloud));
+    cu*=(.08+.92*smooth(8.5,12,h)*(1-smooth(17,19.5,h)))*(1-.95*smooth(.08,.45,wx.rain))*(1-.7*smooth(.72,.95,wx.cloud));
     const ci=Math.min(1,Math.max(0,(sn(hrs/9,3)-.52)*2.6))*(1-smooth(.05,.3,wx.rain))*(1-.5*wx.cloud);
     skyU.uCumulus.value=lerp(skyU.uCumulus.value,cu,k*.5);skyU.uCirrus.value=lerp(skyU.uCirrus.value,ci,k*.5);
-    skyU.uCloudScale.value=lerp(skyU.uCloudScale.value,.8+.7*sn(hrs/30,4),k*.2);}
+    skyU.uCloudScale.value=lerp(skyU.uCloudScale.value,.8+.7*sn(hrs/30,4),k*.2);
+    // the clock the clouds follow, and the wind: its direction swings over hours, it blows harder when the weather turns
+    const dayT=((ms+8*HR)%DAYMS)/1000;skyU.uSkyT.value=dayT;
+    const wa=1.2+2.4*(sn(hrs/7,5)-.5),ws=(.004+.009*sn(hrs/3,6))*(1+.9*wx.rain+.6*wx.thunder+.3*wx.cloud);
+    skyU.uWind.value.set(Math.cos(wa)*ws,Math.sin(wa)*ws);
+    // where the wind has carried the clouds by now: summed over the day so a change of wind never makes them jump
+    const off=skyU.uWindOff.value;if(updateEnv.lastT===undefined||Math.abs(dayT-updateEnv.lastT)>600){   // first time, or the time was jumped (dial, midnight): rebuild from the day's winds
+      let ox=0,oy=0;for(let t=0;t<dayT;t+=600){const hh=(ms-(dayT-t)*1000)/HR,a=1.2+2.4*(sn(hh/7,5)-.5),v=(.004+.009*sn(hh/3,6))*(1+.3*wx.cloud);ox+=Math.cos(a)*v*600;oy+=Math.sin(a)*v*600;}off.set(ox,oy);}
+    else off.addScaledVector(skyU.uWind.value,dayT-updateEnv.lastT);
+    updateEnv.lastT=dayT;}
   // sun
   const sp=AST.sun(ms),e=sp.alt;skyDir(sp.az,sp.alt,sunDirV);
   const day=smooth(-.1,.2,e);dayness=day;
