@@ -1313,6 +1313,7 @@ const PODS=[];
 const moonTex=new THREE.TextureLoader().load('assets/moon.jpg');moonTex.colorSpace=THREE.SRGBColorSpace;   // the owner's own painted moon (pastel maria)
 const skyU={uMetA:{value:new THREE.Vector3(0,1,0)},uMetB:{value:new THREE.Vector3(0,1,0)},uMet:{value:new THREE.Vector2(0,0)},uMoonTex:{value:moonTex},uMoonDir:{value:new THREE.Vector3(-.5,.36,-.79).normalize()},uMoonVis:{value:0},uMoonT:{value:new THREE.Vector3(1,0,0)},uMoonB:{value:new THREE.Vector3(0,1,0)},uMoonL:{value:new THREE.Vector3(0,0,1)},uMoonFrac:{value:1},
   uCloud:{value:.2},uCloudDark:{value:0},uCellDir:{value:new THREE.Vector3(0,.3,-1).normalize()},uCellAmt:{value:0},uCurtain:{value:0},uFlash:{value:0},uTop:{value:new THREE.Color()},uHor:{value:new THREE.Color()},uBot:{value:new THREE.Color()},uSunDir:{value:new THREE.Vector3(0,.2,-1)},uSunCol:{value:new THREE.Color()},uStars:{value:0},uSunVis:{value:1},uDeep:{value:new THREE.Color()},uTime:{value:0}};
+skyU.uTideS={value:0};skyU.uTideWet={value:0};skyU.uSurf={value:1};   // tide: how far the waterline has moved up (+) or down (-) the beach, in metres; the highest line it reached lately; how rough the surf is
 const SKY_FRAG=`uniform sampler2D uMoonTex;uniform vec3 uTop,uHor,uBot,uSunDir,uSunCol,uMoonDir,uMoonT,uMoonB,uMoonL,uCellDir;uniform float uStars,uSunVis,uMoonVis,uMoonFrac,uCloud,uCloudDark,uCellAmt,uCurtain,uFlash;varying vec3 vDir;
 uniform float uTime;uniform vec3 uMetA,uMetB;uniform vec2 uMet;
 float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -1366,7 +1367,7 @@ const SHORE_GLSL='(-28.+3.5*sin(x*.031+.7)+1.8*sin(x*.083+2.1)+.7*sin(x*.19+.4))
 const shoreZ=x=>-28+3.5*Math.sin(x*.031+.7)+1.8*Math.sin(x*.083+2.1)+.7*Math.sin(x*.19+.4);
 const sea=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.ShaderMaterial(Object.assign({uniforms:skyU,
   vertexShader:`varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
-  fragmentShader:`uniform vec3 uTop,uHor,uSunDir,uSunCol,uDeep,uMoonDir;uniform float uSunVis,uTime,uMoonVis,uCloud;varying vec3 vW;
+  fragmentShader:`uniform vec3 uTop,uHor,uSunDir,uSunCol,uDeep,uMoonDir;uniform float uSunVis,uTime,uMoonVis,uCloud,uTideS,uSurf;varying vec3 vW;
   float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
   float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y);}
   float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*vn(p);p*=2.07;a*=.5;}return v;}
@@ -1376,7 +1377,7 @@ const sea=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.ShaderMate
   // wind sea: many short waves from a fan of directions, bent by a slow warp, so no line runs straight across the view.
   // long swells are gentle (real swell is almost flat to the eye); detail fades out with distance so far water reads as a smooth sheen.
   vec2 q=p+(vec2(fbm(p*.045+vec2(t*.012,0.)),fbm(p*.045+vec2(7.3,-t*.01)))-.5)*16.;
-  float ang=1.75,k=.32,amp=.024;
+  float ang=1.75,k=.32,amp=.024*mix(.75,1.5,clamp(uSurf-.6,0.,1.));   // rougher water in wind and rain
   for(int i=0;i<9;i++){float fi=float(i);float a=ang+sin(fi*2.39+1.1)*.85;vec2 dd=vec2(cos(a),sin(a));
     float ph=fi*1.93+fbm(q*.02*k+fi)*6.2832;
     float w=dot(dd,q)*k+ph-t*sqrt(9.8*k);
@@ -1393,14 +1394,14 @@ const sea=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.ShaderMate
   float nightDim=mix(.42,1.,lk);      // at night the water swallows most of the sky's glow, rain or clear alike
   sk*=nightDim;
   vec3 col=mix(uDeep,sk,fr);
-  float sd=vW.z-shoreZ(vW.x);   // 0 at the waterline, negative out to sea
+  float sd=vW.z-shoreZ(vW.x)-uTideS;   // 0 at the waterline (which moves with the tide), negative out to sea
   float shallow=smoothstep(-18.,0.,sd);
   col=mix(col,mix(mix(uDeep,vec3(dot(uDeep,vec3(.33))),1.-lk),sk,.5)*1.2+vec3(.0,.03,.022)*lk,shallow*.45);   // lighter, slightly green over the sand bar; at night only a touch lighter, never neon blue
   float spark=smoothstep(.72,.9,fbm(p*2.3+vec2(t*.6,t*.4)));
   col+=uSunCol*(pow(max(dot(r,uSunDir),0.),140.)*1.1+pow(max(dot(r,uSunDir),0.),18.)*spark*.6)*uSunVis;
   float ml=max(dot(r,uMoonDir),0.);col+=vec3(.95,.92,.8)*(pow(ml,600.)*.35+pow(ml,90.)*spark*.22)*uMoonVis;   // moon path, broken by ripples
   // surf: fronts roll in parallel to the shore, crest, and break into lacy foam over the last dozen metres
-  float zone=smoothstep(-17.,-7.,sd)*(1.-smoothstep(-.6,.2,sd));
+  float zone=smoothstep(-17.*uSurf,-7.*uSurf,sd)*(1.-smoothstep(-.6,.2,sd));   // the surf zone widens when the sea is rough
   float wob=fbm(vec2(vW.x*.035,t*.04))*1.4;
   float ph=fract(sd*.105-t*.085+wob);
   float crest=smoothstep(.0,.03,ph)*(1.-smoothstep(.03,.075,ph));                       // the white lip of each breaker
@@ -1412,7 +1413,7 @@ const sea=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.ShaderMate
   float foamTrail=trail*broken*smoothstep(.42,.62,lace+.18*fine);
   float resid=smoothstep(.55,.75,fbm(vec2(vW.x*.32+t*.03,sd*.6-t*.12)))*smoothstep(.42,.62,lace)*.65;   // drifting scraps between breakers
   float edgeWash=smoothstep(-3.2,-.4,sd)*smoothstep(.35,.6,lace+.25*fine)*.75;                    // white water where the last of each wave spends itself
-  float foamA=clamp(foamLip*1.15+foamTrail*.8+resid*(.35+.65*shallow)+edgeWash,0.,1.)*zone;
+  float foamA=clamp((foamLip*1.15+foamTrail*.8)*mix(.8,1.25,clamp(uSurf-.6,0.,1.))+resid*(.35+.65*shallow)*uSurf+edgeWash,0.,1.)*zone;
   vec3 foam=mix(uHor*1.4,vec3(1.,.985,.95),.62)*mix(.035,1.,lk*lk)*mix(vec3(.86,.9,1.),vec3(1.),lk)+vec3(.55,.56,.6)*.06*uMoonVis;   // foam only catches what light there is: soft grey-blue under the moon
   col=mix(col,foam,foamA*(1.-smoothstep(70.,190.,dist))*mix(.45,.9,lk));
   col=mix(col,uHor*mix(nightDim,1.,.35),smoothstep(200.,900.,dist));gl_FragColor=vec4(col,1.);
@@ -1443,9 +1444,9 @@ let coastMat=null;
    Sea world: the coast under the house and the open ocean, seen everywhere except through the mountain window.
    Mountain world: meadow, valley and layered ridges, drawn only inside the mountain window (stencil). */
 scene.fog=new THREE.Fog(0xdbe7ee,30,420);
-function terrainH(x,z){ // a wide beach: dry sand by the house sloping gently seaward, then a firm (1:8) entry into the water along a curving shore
-  const s=z-shoreZ(x);   // metres landward of the waterline
-  let h=s>2?lerp(-5.75,-5.35,smooth(2,20,s)):Math.max(-8,-5.75+(s-2)*.125);
+function terrainH(x,z){ // a wide beach: dry sand by the house, a smooth 1:15 tidal slope the sea climbs and leaves twice a day, then a firm (1:8) drop into deeper water
+  const s=z-shoreZ(x);   // metres landward of the mean waterline
+  let h=s>10?lerp(-6+10/15,-5.35,smooth(10,20,s)):s>-4?-6+s/15:Math.max(-8,-6-4/15+(s+4)*.125);
   h+=smooth(30,140,z)*(9+6*Math.sin(x*.035));
   h+=Math.sin(x*.31)*Math.cos(z*.27)*.12*smooth(-20,-12,z);   // soft dunes only up near the house, never at the waterline
   return h;}
@@ -1466,22 +1467,27 @@ function paintTerrain(geo,hf,colorAt){const P=geo.attributes.position,col=new Fl
   const wetSand=new THREE.Color(0xC4B08C),drySand=new THREE.Color(0xE6D6B4);
   const coast=paintTerrain(new THREE.PlaneGeometry(700,700,240,240).rotateX(-Math.PI/2),terrainH,(c,h,x,z)=>{c.copy(drySand).lerp(wetSand,smooth(7,1.5,z-shoreZ(x))).lerp(grass,smooth(-5.3,-3,h));});
   coastMat=new THREE.MeshToonMaterial(Object.assign({vertexColors:true,flatShading:true,gradientMap:gradMap},NOT_MOUNTAIN));
-  coastMat.onBeforeCompile=sh=>{sh.uniforms.uTime=skyU.uTime;
+  coastMat.onBeforeCompile=sh=>{sh.uniforms.uTime=skyU.uTime;sh.uniforms.uTideS=skyU.uTideS;sh.uniforms.uTideWet=skyU.uTideWet;sh.uniforms.uSurf=skyU.uSurf;
     sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWp;')
       .replace('#include <project_vertex>','#include <project_vertex>\nvWp=(modelMatrix*vec4(transformed,1.)).xyz;');
     sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
-uniform float uTime;varying vec3 vWp;
+uniform float uTime,uTideS,uTideWet,uSurf;varying vec3 vWp;
 float sh2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float svn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(sh2(i),sh2(i+vec2(1,0)),f.x),mix(sh2(i+vec2(0,1)),sh2(i+vec2(1,1)),f.x),f.y);}
 float sfbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*svn(p);p*=2.07;a*=.5;}return v;}
 float sShore(float x){return ${SHORE_GLSL};}`)
     .replace('#include <color_fragment>',`#include <color_fragment>
 { // swash: each wave runs up the sand with a pale foamy front, pauses, slides back leaving foam scraps and a dark wet band
-  float x=vWp.x,t=uTime,sd=vWp.z-sShore(x);
+  float x=vWp.x,t=uTime,sd=vWp.z-sShore(x)-uTideS;
+  { // sand the falling tide has just uncovered: dark and damp, drying slowly up the beach
+    float band=max(uTideWet,0.)+.6;
+    float damp=step(-.5,sd)*(1.-smoothstep(band*.55,band,sd))*smoothstep(-.5,.6,sd+.6);
+    damp*=.55+.45*sfbm(vec2(x*.35,sd*.8));
+    diffuseColor.rgb*=1.-.26*damp;}
   if(sd>-2.&&sd<7.5){
     float seed=sfbm(vec2(x*.05,3.))*2.+sfbm(vec2(x*.013,7.));
     float cyc=fract(t*.075+seed),wave=floor(t*.075+seed);
-    float reach=1.8+3.4*sfbm(vec2(x*.09,wave*1.7))*(.7+.3*sfbm(vec2(x*.02,wave*.9+4.)));
+    float reach=(1.8+3.4*sfbm(vec2(x*.09,wave*1.7))*(.7+.3*sfbm(vec2(x*.02,wave*.9+4.))))*mix(.85,1.35,clamp(uSurf-.6,0.,1.));
     float up=cyc<.28?sin(cyc/.28*1.5708):(cyc<.36?1.:1.-smoothstep(.36,1.,cyc));
     float edge=-1.2+(reach+1.2)*up+.35*(sfbm(vec2(x*.7,t*.25+wave))-.5)+.15*(sfbm(vec2(x*2.2,wave))-.5);
     float water=1.-smoothstep(edge-.2,edge+.04,sd);
@@ -1492,7 +1498,7 @@ float sShore(float x){return ${SHORE_GLSL};}`)
     float foam=lip*mix(.55,1.,smoothstep(.28,.6,lace))*mix(.7,1.,adv);
     foam=max(foam,adv*smoothstep(edge-3.,edge-lipW,sd)*(1.-smoothstep(edge-lipW*.6,edge-.1,sd))*smoothstep(.42,.66,lace+.2*sfbm(vec2(x*2.4,sd*4.-t)))*.75);
     foam=max(foam,(1.-adv)*water*smoothstep(.58,.75,sfbm(vec2(x*1.9,sd*2.2+t*.35)))*(1.-smoothstep(.5,1.,cyc))*smoothstep(edge-2.5,edge-.3,sd)*.8);
-    float reachP=1.8+3.4*sfbm(vec2(x*.09,(wave-1.)*1.7))*(.7+.3*sfbm(vec2(x*.02,(wave-1.)*.9+4.)));
+    float reachP=(1.8+3.4*sfbm(vec2(x*.09,(wave-1.)*1.7))*(.7+.3*sfbm(vec2(x*.02,(wave-1.)*.9+4.))))*mix(.85,1.35,clamp(uSurf-.6,0.,1.));
     float topN=-1.2+(reach+1.2)*(cyc<.28?up:1.),topP=-1.2+(reachP+1.2);
     float wetN=(1.-smoothstep(topN-.3,topN+.25,sd))*mix(1.,.4,smoothstep(.4,1.,cyc))*step(.02,cyc);
     float wetP=(1.-smoothstep(topP-.3,topP+.25,sd))*.4*(1.-smoothstep(0.,.45,cyc));
@@ -1705,9 +1711,27 @@ const AST=(()=>{const rad=Math.PI/180,J1970=2440588,J2000=2451545,e=rad*23.4397,
   return {
     sun(ms){const d=toDays(ms),c=sunC(d),H=sid(d,lw)-c.ra;return {az:az(H,phi,c.dec),alt:alt(H,phi,c.dec)};},
     moon(ms){const d=toDays(ms),c=moonC(d),H=sid(d,lw)-c.ra;let h=alt(H,phi,c.dec);h+=rad*.017/tan(h+rad*10.26/(h+rad*5.10));return {az:az(H,phi,c.dec),alt:h};},
+    hours(ms){const d=toDays(ms),s=sunC(d),m=moonC(d),st=sid(d,lw);return {moonH:st-m.ra,sunH:st-s.ra,moonDist:m.dist};},   // hour angles, for the tide
     illum(ms){const d=toDays(ms),s=sunC(d),m=moonC(d),sd=149598000,ph=acos(sin(s.dec)*sin(m.dec)+cos(s.dec)*cos(m.dec)*cos(s.ra-m.ra)),
       inc=atan(sd*sin(ph),m.dist-sd*cos(ph)),ang=atan(cos(s.dec)*sin(s.ra-m.ra),sin(s.dec)*cos(m.dec)-cos(s.dec)*sin(m.dec)*cos(s.ra-m.ra));
       return {fraction:(1+cos(inc))/2,phase:.5+.5*inc*(ang<0?-1:1)/Math.PI,inc};}};})();
+/* ---------- tide: two highs and two lows a day, about 50 minutes later each day, following the real moon and sun.
+   The moon's pull (M2) and the sun's (S2) add up near new and full moon (spring tides) and partly cancel at the quarters (neap tides);
+   a nearer moon gives bigger tides. An approximation from the sky, not a tide table. ---------- */
+const TIDE={amp:.38,lag:0};   // metres at an average spring tide; lag = hours after the moon crosses the meridian that high water comes
+function tideAt(ms){const o=AST.hours(ms),lag=TIDE.lag*Math.PI/12*1.035;
+  const near=Math.pow(385001/o.moonDist,3);
+  return TIDE.amp*(Math.cos(2*(o.moonH-lag))*near+.46*Math.cos(2*(o.sunH-lag)))/1.46;}
+// how far the waterline moves up (+) or down (-) the beach for a given sea level
+function tideShift(T){T=Math.min(T,.6);return T>=-4/15?T*15:Math.max(-20,-4+(T+4/15)/.125);}   // matches terrainH's tidal slope
+const tide={h:0,s:0,wet:0,state:'',at:-1};
+function updateTide(ms){
+  if(Math.abs(ms-tide.at)<20000)return;tide.at=ms;
+  const T=tideAt(ms),T2=tideAt(ms+20*60e3);tide.h=T;tide.s=tideShift(T);
+  let wet=tide.s;for(let k=1;k<=12;k++)wet=Math.max(wet,tideShift(tideAt(ms-k*15*60e3))-k*.12);   // the highest the water reached in the last three hours, drying from the top
+  tide.wet=wet-tide.s;
+  const rising=T2>T,ext=Math.abs(T2-T)<TIDE.amp*.025;
+  tide.state=ext?(T>0?'滿潮':'乾潮'):(rising?'漲潮':'退潮');}
 // compass bearing (0 = north, clockwise) -> bearing shown in the room: rise and set squeezed onto the sea, midday swings over the house
 function viewBearing(A){A=((A%360)+360)%360;const w=A>180,a=w?360-A:A;
   const m=a<=60?a*25/60:a<=120?25+(a-60)*30/60:55+(a-120)*125/60;return w?-m:m;}
@@ -1763,6 +1787,8 @@ function updateEnv(now){
   const k=1-Math.pow(.6,dtE);   // ease toward the plan so nothing snaps
   for(const key of['cloud','rain','thunder','mist','cellAmt','curtain'])wx[key]=lerp(wx[key],W[key],k);
   skyDir(W.cellAz,W.cellAlt,cellDirV);skyU.uCellDir.value.lerp(cellDirV,k).normalize();
+  updateTide(ms);sea.position.y=-6+tide.h;skyU.uTideS.value=lerp(skyU.uTideS.value,tide.s,k);skyU.uTideWet.value=lerp(skyU.uTideWet.value,tide.wet,k);
+  skyU.uSurf.value=lerp(skyU.uSurf.value,Math.min(1.6,.75+.25*wx.cloud+.45*wx.rain+.5*wx.thunder),k);   // calm on clear days, rougher in rain and storms
   // sun
   const sp=AST.sun(ms),e=sp.alt;skyDir(sp.az,sp.alt,sunDirV);
   const day=smooth(-.1,.2,e);dayness=day;
@@ -1845,7 +1871,7 @@ function updateEnv(now){
   clockEl.textContent=`台北 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}・${part}${S.timeMode==='manual'?'（預覽）':''}`;
   const wl=wx.thunder>.3?'雷陣雨':wx.rain>.45?'下雨':wx.rain>.1?'小雨':wx.mist>.55?'山中起霧':wx.cloud>.8?'陰天':wx.cloud>.45?'多雲':'晴朗';
   wx.state=wx.rain>.1?'rain':wx.mist>.55?'mist':'clear';wx.label=wl;
-  wxEl.textContent=wl+(night>.5&&mp.alt>0?'・'+moonPhaseName(il.phase):'');
+  wxEl.textContent=wl+(night>.5&&mp.alt>0?'・'+moonPhaseName(il.phase):'')+(tide.state?'・'+tide.state:'');
 }
 /* ---------- fire animation ---------- */
 let fireScale=.07+S.fire/100*.27;
