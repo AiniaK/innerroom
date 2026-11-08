@@ -1599,6 +1599,7 @@ function windMaterial(key,amp){const m=new THREE.MeshToonMaterial(Object.assign(
 const WIND_AMP={grass:.13,fern:.01,broadA:.0022,broadB:.0018,cedar:.0012};
 
 let coastMat=null;
+let natureTick=null;   // the cherry, wildflowers and butterflies outside the mountain window (set up with the forest)
 /* Two worlds share one sky.
    Sea world: the coast under the house and the open ocean, seen everywhere except through the mountain window.
    Mountain world: meadow, valley and layered ridges, drawn only inside the mountain window (stencil). */
@@ -1848,6 +1849,100 @@ function plantTaiwanForest(){
     if(Object.keys(COUNTS).every(t=>count[t]>=COUNTS[t]||t.endsWith('_hi')))break;
   }
   for(const k in meshes){meshes[k].count=count[k];meshes[k].instanceMatrix.needsUpdate=true;if(meshes[k].instanceColor)meshes[k].instanceColor.needsUpdate=true;scene.add(meshes[k]);}
+  /* ---------- just outside the mountain window: a Taiwan cherry (山櫻花) that follows the real calendar, wildflowers
+     among the silvergrass, and blue tiger butterflies on sunny days ---------- */
+  {const NR=rng(5150),nr=(a,b)=>a+(b-a)*NR();
+   const TX=2.55,TZ=-9.9,TY=mountainH(TX,TZ)-.05;   // the cherry: about six metres out, a little left of centre
+   // trunk and limbs, dark reddish-brown with a little sheen
+   const limbs=[{geo:new THREE.CylinderGeometry(.09,.17,2.1,8),c:0x5E4436,y:1.05,jitter:600}];
+   const tips=[];
+   for(let i=0;i<5;i++){const an=i/5*Math.PI*2+nr(-.3,.3),tilt=nr(.55,.85),len=nr(1.3,1.8),ca=Math.cos(an),sa=Math.sin(an);
+     const bx=ca*Math.sin(tilt)*len/2,by=1.9+Math.cos(tilt)*len/2,bz=sa*Math.sin(tilt)*len/2;
+     limbs.push({geo:new THREE.CylinderGeometry(.035,.075,len,6),c:0x624738,x:bx,y:by,z:bz,rz:-ca*tilt,rx:sa*tilt});
+     const ex=ca*Math.sin(tilt)*len,ey=1.9+Math.cos(tilt)*len,ez=sa*Math.sin(tilt)*len;
+     for(let j=0;j<3;j++){const a2=an+nr(-.9,.9),t2=nr(.6,1.2),l2=nr(.6,1.0),c2=Math.cos(a2),s2=Math.sin(a2);   // twigs fanning from each limb
+       limbs.push({geo:new THREE.CylinderGeometry(.012,.03,l2,5),c:0x6B4E3E,x:ex+c2*Math.sin(t2)*l2/2,y:ey+Math.cos(t2)*l2/2,z:ez+s2*Math.sin(t2)*l2/2,rz:-c2*t2,rx:s2*t2});
+       tips.push([ex+c2*Math.sin(t2)*l2,ey+Math.cos(t2)*l2,ez+s2*Math.sin(t2)*l2]);}}
+   const tree=new THREE.Mesh(build(limbs),windMaterial('cherry',.0016));tree.position.set(TX,TY,TZ);scene.add(tree);
+   // leaves and blossoms are clumps placed round the twig tips; how many show depends on the season
+   const clumpGeo=build([{geo:new THREE.IcosahedronGeometry(1,1),c:0xffffff,jitter:610}]);
+   const LEAVES=90,BLOOMS=130;
+   const leafM=new THREE.InstancedMesh(clumpGeo,windMaterial('cherryLeaf',.0016),LEAVES),bloomM=new THREE.InstancedMesh(clumpGeo,windMaterial('cherryBloom',.0016),BLOOMS);
+   const m4=new THREE.Matrix4(),q4=new THREE.Quaternion(),v4=new THREE.Vector3(),s4=new THREE.Vector3(),c4=new THREE.Color();
+   const near=(n,spread,sz,szR)=>{const out=[];for(let i=0;i<n;i++){const t=tips[Math.floor(NR()*tips.length)];
+     out.push({x:TX+t[0]+nr(-spread,spread),y:TY+t[1]+nr(-spread*.6,spread*.8),z:TZ+t[2]+nr(-spread,spread),s:sz+NR()*szR});}return out;};
+   near(LEAVES,.5,.28,.2).forEach((p,i)=>{q4.setFromEuler(new THREE.Euler(NR()*3,NR()*3,NR()*3));m4.compose(v4.set(p.x,p.y,p.z),q4,s4.set(p.s,p.s*.75,p.s));leafM.setMatrixAt(i,m4);
+     const v=.85+NR()*.3;leafM.setColorAt(i,c4.setRGB(v,v,v*(.9+NR()*.15)));});
+   near(BLOOMS,.45,.14,.12).forEach((p,i)=>{q4.setFromEuler(new THREE.Euler(NR()*3,NR()*3,NR()*3));m4.compose(v4.set(p.x,p.y,p.z),q4,s4.set(p.s,p.s*.8,p.s));bloomM.setMatrixAt(i,m4);
+     bloomM.setColorAt(i,c4.set([0xD9497A,0xE3648F,0xCC3B6E,0xEB7FA2][i%4]));});   // the deep rose-pink of Taiwan cherry
+   leafM.count=0;bloomM.count=0;scene.add(leafM,bloomM);
+   // petals drifting down while it is in bloom
+   const PET=46,petM=new THREE.InstancedMesh(new THREE.PlaneGeometry(.035,.028),new THREE.MeshToonMaterial(Object.assign({color:0xE3648F,gradientMap:gradMap,side:THREE.DoubleSide},ONLY_MOUNTAIN)),PET);
+   const petals=[];for(let i=0;i<PET;i++)petals.push({t:NR()*8,x:0,y:-99,z:0,vx:0,vz:0,spin:NR()*6});petM.count=0;scene.add(petM);
+   // wildflowers among the grass: 咸豐草 (white petals, yellow eye), 紫花藿香薊 (lavender puffs), 台灣百合 (white trumpets, spring only)
+   const FLOWER={
+     bidens:build([{geo:new THREE.CylinderGeometry(.005,.007,.34,4),c:0x7E9157,y:.17},
+       {geo:new THREE.CircleGeometry(.032,6),c:0xF6F1E4,y:.345,rx:-Math.PI/2+.25},{geo:new THREE.SphereGeometry(.012,6,4),c:0xE0B83A,y:.35}]),
+     ageratum:build([{geo:new THREE.CylinderGeometry(.005,.007,.3,4),c:0x768A52,y:.15},
+       ...[[0,0],[.025,.01],[-.02,.018],[.008,-.024],[-.012,-.012]].map(([x,z],i)=>({geo:new THREE.IcosahedronGeometry(.02,0),c:i%2?0xA99CD8:0x9C8FCF,x,y:.31+i*.004,z}))]),
+     lily:build([{geo:new THREE.CylinderGeometry(.007,.01,.72,5),c:0x6F8650,y:.36},
+       {geo:new THREE.ConeGeometry(.045,.15,8,1,true),c:0xF7F3EA,x:.05,y:.69,rz:-1.9},{geo:new THREE.ConeGeometry(.04,.14,8,1,true),c:0xF2EDE2,x:-.04,y:.64,z:.02,rz:1.95,ry:.4},
+       {geo:new THREE.IcosahedronGeometry(1,0),c:0x7C9658,y:.3,sx:.015,sy:.12,sz:.03,rz:.35}]),
+   };
+   const FCOUNT={bidens:150,ageratum:95,lily:34},fl={},flowerSpots=[];
+   for(const k in FLOWER){fl[k]=new THREE.InstancedMesh(FLOWER[k],windMaterial('fl-'+k,.09),FCOUNT[k]);
+     for(let i=0;i<FCOUNT[k];i++){let x,z,d,tries=0;do{d=1.3+Math.pow(NR(),1.3)*10.5;x=3.7+(NR()-.5)*(2.2+d*1.15);z=-3.5-d;tries++;}while(tries<20&&Math.hypot(x-TX,z-TZ)<.6);
+       const s=(k==='lily'?.9:1)*(.8+NR()*.5);q4.setFromEuler(new THREE.Euler((NR()-.5)*.15,NR()*6.28,(NR()-.5)*.15));m4.compose(v4.set(x,mountainH(x,z)-.02,z),q4,s4.set(s,s,s));fl[k].setMatrixAt(i,m4);
+       const v=.9+NR()*.2;fl[k].setColorAt(i,c4.setRGB(v,v,v));if(k!=='lily')flowerSpots.push([x,mountainH(x,z)+.34*s,z]);}
+     scene.add(fl[k]);}
+   // blue tiger butterflies (青斑蝶): dark wings with pale blue panels, flitting over the flowers by day
+   const wingTex=ctex(64,64,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#22262B';g.beginPath();g.moveTo(2,30);g.bezierCurveTo(8,2,50,0,62,10);g.bezierCurveTo(58,26,40,32,30,34);g.bezierCurveTo(44,40,52,56,40,62);g.bezierCurveTo(22,64,6,50,2,34);g.closePath();g.fill();
+     g.fillStyle='#BFDCEB';for(const [x,y,rx,ry,a] of [[18,18,7,4,.5],[30,13,6,3.5,.3],[42,11,5,3,.2],[52,13,3.5,2.5,0],[20,44,6,4,-.4],[32,50,5,3.5,-.6],[13,30,5,3,0],[26,26,4,2.5,.4]]){g.beginPath();g.ellipse(x,y,rx,ry,a,0,7);g.fill();}
+     g.fillStyle='#E9F2F6';for(let i=0;i<10;i++){g.beginPath();g.arc(56-i*1.8,8+i*.4,1,0,7);g.fill();}});
+   const wingMat=new THREE.MeshBasicMaterial(Object.assign({map:wingTex,alphaTest:.5,side:THREE.DoubleSide,color:0xffffff},ONLY_MOUNTAIN));
+   const wingGeo=new THREE.PlaneGeometry(.075,.075).translate(.0375,0,0).rotateX(-Math.PI/2);
+   const bodyMat=new THREE.MeshBasicMaterial(Object.assign({color:0x1E2124},ONLY_MOUNTAIN));
+   const flies=[];
+   for(let i=0;i<4;i++){const g=new THREE.Group(),L=new THREE.Mesh(wingGeo,wingMat),Rw=new THREE.Mesh(wingGeo,wingMat),b=new THREE.Mesh(new THREE.CylinderGeometry(.004,.003,.05,5).rotateX(Math.PI/2),bodyMat);
+     Rw.scale.x=-1;g.add(L,Rw,b);scene.add(g);
+     const sp=flowerSpots[Math.floor(NR()*flowerSpots.length)];
+     flies.push({g,L,R:Rw,pos:new THREE.Vector3(sp[0],sp[1]+.6,sp[2]),vel:new THREE.Vector3(),target:new THREE.Vector3(),rest:0,next:0,ph:NR()*6,show:0});}
+   let seasonAt=-1e9,season=null;
+   const LEAF_SPRING=new THREE.Color(0xA9C86C),LEAF_SUMMER=new THREE.Color(0x5F8846),LEAF_AUTUMN=new THREE.Color(0xD48A3C),tmpC3=new THREE.Color();
+   function seasonOf(ms){const d=new Date(ms+8*HR),y=d.getUTCFullYear(),doy=(Date.UTC(y,d.getUTCMonth(),d.getUTCDate())-Date.UTC(y,0,1))/864e5;
+     return {bloom:smooth(8,20,doy)*(1-smooth(48,60,doy)),               // flowers from mid-January, gone by the start of March
+       leaf:Math.min(smooth(55,90,doy),1-smooth(318,362,doy)),          // new leaves through March; they fall through December
+       spring:1-smooth(95,140,doy),autumn:smooth(285,322,doy),           // fresh green into May; turning orange from mid-October
+       lily:smooth(92,105,doy)*(1-smooth(170,185,doy))};}                // lilies in April to June
+   natureTick=(dt,now)=>{
+     const ms=tpeMs();
+     if(Math.abs(ms-seasonAt)>60e3){seasonAt=ms;season=seasonOf(ms);
+       leafM.count=Math.round(LEAVES*season.leaf);bloomM.count=Math.round(BLOOMS*season.bloom);fl.lily.count=Math.round(FCOUNT.lily*season.lily);
+       tmpC3.copy(LEAF_SUMMER).lerp(LEAF_SPRING,season.spring).lerp(LEAF_AUTUMN,season.autumn);leafM.material.color.copy(tmpC3);}
+     // falling petals
+     const fall=season.bloom>.3;let pc=0;
+     for(const p of petals){if(!fall&&p.y<-50)continue;p.t-=dt;
+       if(p.y<-50||p.t<0&&p.y<TY){if(!fall){p.y=-99;continue;}const t=tips[Math.floor(Math.random()*tips.length)];p.x=TX+t[0]+(Math.random()-.5)*.8;p.y=TY+t[1];p.z=TZ+t[2]+(Math.random()-.5)*.8;p.vx=(Math.random()-.3)*.25;p.vz=(Math.random()-.5)*.2;p.t=2+Math.random()*6;}
+       p.y-=dt*(.32+.1*Math.sin(now/600+p.spin));p.x+=dt*(p.vx+.12*Math.sin(now/900+p.spin));p.z+=dt*p.vz;
+       if(p.y<mountainH(p.x,p.z)+.01){p.y=-99;continue;}
+       q4.setFromEuler(new THREE.Euler(now/400+p.spin,now/700+p.spin*2,0));m4.compose(v4.set(p.x,p.y,p.z),q4,s4.set(1,1,1));petM.setMatrixAt(pc++,m4);}
+     petM.count=pc;petM.instanceMatrix.needsUpdate=true;
+     // butterflies: out on fair days, resting on a flower now and then
+     const want=smooth(.35,.6,dayness)*(1-smooth(.05,.2,wx.rain))*(1-smooth(.5,.8,wx.thunder));
+     wingMat.color.setScalar(.55+.45*dayness);
+     for(const f of flies){f.show=lerp(f.show,want,1-Math.pow(.3,dt));const vis=f.show>.02;f.g.visible=vis;if(!vis)continue;
+       f.next-=dt;
+       if(f.rest>0){f.rest-=dt;f.ph+=dt*2.2;const a=.9+.35*Math.sin(f.ph);f.L.rotation.z=a;f.R.rotation.z=-a;f.g.scale.setScalar(f.show);if(f.rest<=0)f.next=0;continue;}
+       if(f.next<=0){if(Math.random()<.35){const sp=flowerSpots[Math.floor(Math.random()*flowerSpots.length)];f.target.set(sp[0],sp[1]+.03,sp[2]);f.landing=true;}
+         else{const x=3.7+(Math.random()-.5)*5,z=-4.6-Math.random()*6;f.target.set(x,mountainH(x,z)+.4+Math.random()*1.1,z);f.landing=false;}f.next=2.5+Math.random()*3;}
+       tmpT.subVectors(f.target,f.pos);const dist=tmpT.length();
+       if(f.landing&&dist<.06){f.pos.copy(f.target);f.vel.set(0,0,0);f.rest=1.5+Math.random()*3.5;f.landing=false;}
+       tmpT.normalize().multiplyScalar(1.1);tmpT.x+=Math.sin(now/230+f.ph)*.7;tmpT.y+=Math.sin(now/170+f.ph*2)*.6;tmpT.z+=Math.cos(now/260+f.ph)*.7;   // the wobbly, bobbing flight
+       f.vel.lerp(tmpT,1-Math.pow(.05,dt));f.pos.addScaledVector(f.vel,dt*.7);
+       const gy=mountainH(f.pos.x,f.pos.z)+.12;if(f.pos.y<gy)f.pos.y=gy;
+       f.g.position.copy(f.pos);if(f.vel.lengthSq()>1e-4)f.g.rotation.y=Math.atan2(f.vel.x,f.vel.z);
+       f.ph+=dt*16;const a=.15+1.05*Math.abs(Math.sin(f.ph));f.L.rotation.z=a;f.R.rotation.z=-a;f.g.scale.setScalar(f.show);}
+   };}
 }
 // mist: lives in the mountain world only
 const mistSprites=[];const RM=rng(5);
@@ -3023,6 +3118,7 @@ function frame(now){
   if(tvDoc&&!tvVideo.paused&&tvVideo.readyState>=2)drawTV();
   if(IOS&&now-(frame.shT||0)>200){frame.shT=now;shadowSync();}
   sunLampTick(dt);
+  if(natureTick)natureTick(dt,now);
   if(tabIsVideo()&&!musicEl.paused)drawTabletVideo();
   else if(now-(frame.tabT||0)>1000){frame.tabT=now;if(musicTracks().length)drawTablet();}
   if(now-hoverT>90){updateHover();hoverT=now;}
