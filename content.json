@@ -3,8 +3,8 @@
     "items": {
       "storebox": {
         "b": "這裡收納曾經放在牆上的物件",
-        "pop": false,
-        "h": "這裡收納曾經放在牆上的物件"
+        "h": "這裡收納曾經放在牆上的物件A",
+        "pop": false
       },
       "whitewall": {
         "pop": false,
@@ -15,16 +15,16 @@
         "hov": false
       },
       "buddha": {
-        "pop": false,
-        "h": "臥佛"
+        "h": "臥佛",
+        "pop": false
       },
       "sidetable": {
         "pop": false,
         "hov": false
       },
       "tv": {
-        "pop": false,
-        "h": "電視"
+        "h": "電視",
+        "pop": false
       },
       "tvstand": {
         "pop": false,
@@ -47,20 +47,20 @@
         "hov": false
       },
       "cocoa": {
-        "pop": false,
-        "h": "熱可可"
+        "h": "熱可可",
+        "pop": false
       },
       "pudding": {
-        "pop": false,
-        "h": "布丁"
+        "h": "布丁",
+        "pop": false
       },
       "remote": {
-        "pop": false,
-        "h": "遙控器"
+        "h": "遙控器",
+        "pop": false
       },
       "pocky": {
-        "pop": false,
-        "h": "Pocky"
+        "h": "Pocky",
+        "pop": false
       },
       "door": {
         "pop": false,
@@ -70,8 +70,8 @@
         "pop": false
       },
       "pothos": {
-        "pop": false,
-        "h": "黃金葛"
+        "h": "黃金葛",
+        "pop": false
       },
       "succulent": {
         "pop": false
@@ -89,32 +89,32 @@
       },
       "dog1": {
         "t": "Middle",
-        "pop": false,
-        "h": "Middle"
+        "h": "Middle",
+        "pop": false
       },
       "cat1": {
-        "pop": false,
-        "h": "漫漫"
+        "h": "漫漫",
+        "pop": false
       },
       "cat2": {
-        "pop": false,
-        "h": "娜娜"
+        "h": "娜娜",
+        "pop": false
       },
       "cat3": {
-        "pop": false,
-        "h": "小羽"
+        "h": "小羽",
+        "pop": false
       },
       "cat4": {
-        "pop": false,
-        "h": "大頭"
+        "h": "大頭",
+        "pop": false
       },
       "bed": {
-        "pop": false,
-        "h": "躺躺看"
+        "h": "躺躺看",
+        "pop": false
       },
       "sakura": {
-        "pop": false,
-        "h": "曾經的夢境場景"
+        "h": "曾經的夢境場景",
+        "pop": false
       },
       "hchair": {
         "pop": false,
@@ -138,8 +138,8 @@
         "hov": false
       },
       "mug": {
-        "pop": false,
-        "h": "還溫溫的。"
+        "h": "還溫溫的。",
+        "pop": false
       },
       "shelf": {
         "pop": false,
@@ -174,12 +174,12 @@
         "pop": false
       },
       "drink:0": {
-        "pop": false,
-        "h": "柚子氣泡"
+        "h": "柚子氣泡",
+        "pop": false
       },
       "drink:1": {
-        "pop": false,
-        "h": "百香果冰茶"
+        "h": "百香果冰茶",
+        "pop": false
       }
     },
     "fire": 46
@@ -191,11 +191,11 @@
         "title": "曾經到訪的美洲獅",
         "desc": "某個我在房間的午後，美洲獅在門口等待我的邀請，進門後牠一句話也沒說，安靜地走到角落窩著。\n我和牠約好每天都回來看牠，每天我都在差不多的時間來到房間靜靜的躺在牠身邊感受他。\n\n牠是我體內深層的一股憤怒，沒有特定事件，而是貫穿許多時空累積化形而成的型態。牠只需要我看見牠，接納牠的存在。我遇見牠的那天，是我在身上感受到一股在腹部灼燒的感受。\n\n過了第四天，我已經習慣牠的存在，陪著牠呼吸。接著隔天我就再也沒見到牠，甚至有些捨不得牠的離去。",
         "hidden": false,
+        "popup": true,
+        "hover": true,
         "mode": "lean",
         "along": -2.08,
         "height": 1.45,
-        "hover": true,
-        "popup": true,
         "scale": 1
       },
       "lightvid": {
@@ -203,11 +203,11 @@
         "title": "光",
         "desc": "",
         "hidden": false,
+        "popup": true,
+        "hover": true,
         "mode": "hang",
         "along": 0.65,
         "height": 1.5,
-        "hover": true,
-        "popup": true,
         "scale": 0.9999999999999998
       },
       "recordwall": {
@@ -215,11 +215,11 @@
         "title": "勳章",
         "desc": "曾經認為，那些走過的痛苦與癒合的傷痕，是值得驕傲的勳章。\n\n但後來發現，這些勳章不知不覺成了貼在自己身上的標籤，限制了我對自己的認知，讓我一度以「曾經受過傷的人」來定義自己，也框架了周遭的關係。\n\n我想我不再需要這些勳章。\n\n過去的經歷依然重要，或許也不再重要，我不必再透過它們認識自己。我可以選擇如何定義「我」。",
         "hidden": false,
+        "popup": true,
+        "hover": true,
         "mode": "hang",
         "along": 1.55,
         "height": 1.62,
-        "hover": true,
-        "popup": true,
         "scale": 0.9953343701399688
       }
     }
@@ -227,14 +227,14 @@
   "tv": {
     "src": "media/tv-adventure.mp4",
     "name": "adventure.mp4",
+    "updatedAt": 1793183600000,
     "view": {
-      "blur": true,
       "fit": "auto",
+      "scale": 134,
       "offX": 0,
       "offY": 0,
-      "scale": 134
-    },
-    "updatedAt": 1793183600000
+      "blur": true
+    }
   },
   "music": {
     "tracks": [
@@ -255,5 +255,5 @@
       }
     ]
   },
-  "savedAt": 1793621500013
+  "savedAt": 1794101439702
 }
