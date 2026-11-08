@@ -147,6 +147,91 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 #gbAuth+form.gb{border-top:0;margin-top:10px;padding-top:0}
 .gb-inapp a.btn{text-decoration:none}
 .card .note a{color:var(--ember)}
+/* guestbook: a hardbound notebook that is picked up, opened and leafed through */
+.card.book{background:none;border:0;box-shadow:none;width:100%;max-width:none;height:100%;max-height:none;padding:0;overflow:visible;display:flex;align-items:center;justify-content:center}
+.card.book>.x{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));z-index:30}
+.bk{position:relative;width:calc(var(--pw) * 2);height:var(--ph);perspective:2400px;--paper-c:#FBF6EA;--rule:rgba(150,118,86,.16)}
+.bk.single{width:var(--pw)}
+.bk-book{position:absolute;inset:0;transform-style:preserve-3d;transform:translateX(calc(var(--pw) * -.5)) translateY(42vh) rotateX(62deg) scale(.42);opacity:0;
+  transition:transform .55s cubic-bezier(.2,.7,.25,1),opacity .35s ease}
+.bk.single .bk-book{transform:translateY(42vh) rotateX(62deg) scale(.42)}
+.bk.lifted .bk-book{transform:translateX(calc(var(--pw) * -.5));opacity:1}
+.bk.single.lifted .bk-book{transform:none}
+.bk.lifted.open .bk-book{transform:none;transition:transform .8s cubic-bezier(.4,.1,.25,1),opacity .35s}
+.bk-page{position:absolute;top:0;width:var(--pw);height:var(--ph);box-sizing:border-box;overflow:hidden;color:var(--ink);
+  background:repeating-linear-gradient(to bottom,transparent 0 27px,var(--rule) 27px 28px) 0 50px/100% 100% no-repeat,var(--paper-c) var(--paper-img);background-size:100% 100%,420px}
+.bk-left{left:0;border-radius:5px 0 0 5px;box-shadow:inset -26px 0 30px -18px rgba(90,62,36,.32),-2px 3px 0 #e9dfcc,-4px 6px 0 #e2d6bf,0 18px 40px rgba(30,20,10,.35)}
+.bk-right{left:var(--pw);border-radius:0 5px 5px 0;box-shadow:inset 26px 0 30px -18px rgba(90,62,36,.32),2px 3px 0 #e9dfcc,4px 6px 0 #e2d6bf,0 18px 40px rgba(30,20,10,.35)}
+.bk.single .bk-left{display:none}.bk.single .bk-right{left:0;border-radius:5px;box-shadow:inset 18px 0 24px -16px rgba(90,62,36,.3),3px 4px 0 #e9dfcc,0 18px 40px rgba(30,20,10,.35)}
+.bk:not(.open) .bk-left{visibility:hidden}
+.bk-page.blank .bk-inner{display:none}
+.bk-inner{position:absolute;top:50px;bottom:40px;left:30px;right:26px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.bk-left .bk-inner,.bk-leaf.back .bk-front .bk-inner,.bk-leaf.fwd .bk-back .bk-inner{left:26px;right:30px}
+.bk-num{position:absolute;bottom:14px;font-size:11px;color:var(--muted);letter-spacing:.1em}
+.bk-right .bk-num,.bk-leaf .bk-face .bk-num{right:24px}.bk-left .bk-num,.bk-leaf.back .bk-front .bk-num,.bk-leaf.fwd .bk-back .bk-num{left:24px;right:auto}
+.bk-entry{flex:none;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;gap:4px;padding:2px 2px 0}
+.bk-entry.half{height:calc((100% - 14px) / 2)}.bk-entry.full{height:100%}
+.bk-entry.natural{height:auto}.bk-entry.natural .bk-text{flex:none;overflow:visible}.bk-entry.natural.editing{height:calc((100% - 14px) / 2)}
+.bk-entry.private{background:linear-gradient(rgba(178,110,57,.05),rgba(178,110,57,.05));border-radius:4px;padding:4px 6px 0}
+.bk-meta{font-size:12px;color:var(--muted);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.bk-st{font-size:11.5px;color:var(--ember)}
+.bk-text{font-family:var(--f-display);font-size:15.5px;line-height:28px;white-space:pre-wrap;word-break:break-word;flex:1;min-height:0;overflow:hidden}
+.bk-entry.dense .bk-text{font-size:13px;line-height:21px;overflow:auto}
+.bk-acts{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px}
+.bk-btn{font:inherit;font-size:12px;border:1px solid var(--line);background:rgba(255,253,248,.85);color:var(--ink);border-radius:999px;padding:3px 10px;cursor:pointer;text-decoration:none;display:inline-block}
+.bk-btn.ink{background:var(--ink);color:var(--paper);border-color:var(--ink)}.bk-btn:disabled{opacity:.5;cursor:default}
+.bk-link{font:inherit;font-size:inherit;border:0;background:none;color:var(--ember);text-decoration:underline;cursor:pointer;padding:0}
+.bk-note{font-size:11.5px;color:var(--muted);line-height:1.6}.bk-note a{color:var(--ember)}
+.bk-count{font-size:11.5px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.bk-quiet{margin:auto;text-align:center;color:var(--muted);font-size:14px;line-height:2}
+.bk-p{font-size:14px;line-height:28px;margin:0}
+.bk-write-h{font-family:var(--f-display);font-size:19px;letter-spacing:.06em;margin-bottom:2px}
+.bk-form{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.bk-form input:not([type=checkbox]),.bk-form textarea,.bk-edit{font:inherit;font-family:var(--f-display);font-size:15px;color:var(--ink);background:transparent;border:0;border-bottom:1px solid rgba(150,118,86,.35);border-radius:0;padding:4px 2px;width:100%;box-sizing:border-box;outline:none}
+.bk-form textarea,.bk-edit{flex:1;min-height:110px;resize:none;line-height:28px;border:1px dashed rgba(150,118,86,.35);border-radius:4px;padding:2px 6px;background:rgba(255,253,248,.4)}
+.bk-edit{min-height:0;height:100%}
+.bk-form input:focus,.bk-form textarea:focus,.bk-edit:focus{border-color:var(--ember)}
+.bk-check{font-size:12.5px;color:var(--muted);display:flex;gap:6px;align-items:center;cursor:pointer}.bk-check input{margin:0;accent-color:var(--ember)}
+.bk-gbtn{min-height:40px;margin:6px 0}
+.bk-write .gb-msg{font-size:12.5px;color:#A8432F;min-height:1.2em}
+.bk-plate{align-items:center;justify-content:center}
+.bk-plate-box{border:1px solid rgba(150,118,86,.4);outline:1px solid rgba(150,118,86,.25);outline-offset:4px;padding:26px 22px;text-align:center;max-width:78%}
+.bk-plate-t{font-family:var(--f-display);font-size:13px;letter-spacing:.4em;color:var(--muted)}
+.bk-plate-s{font-family:var(--f-display);font-size:24px;letter-spacing:.2em;margin:8px 0 14px}
+.bk-plate-n{font-size:12.5px;line-height:2;color:var(--muted)}
+/* a turning leaf */
+.bk-leaf{position:absolute;top:0;width:var(--pw);height:var(--ph);transform-style:preserve-3d;transition:transform .7s cubic-bezier(.45,.05,.25,1);z-index:5}
+.bk-leaf.fwd{left:var(--pw);transform-origin:left center}.bk-leaf.fwd.turn{transform:rotateY(-180deg)}
+.bk-leaf.back{left:0;transform-origin:right center}.bk-leaf.back.turn{transform:rotateY(180deg)}
+.bk.single .bk-leaf.fwd{left:0}
+.bk.single .bk-leaf.back{left:0;transform-origin:left center;transform:rotateY(-180deg)}.bk.single .bk-leaf.back.turn{transform:rotateY(0)}
+.bk-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.bk-leaf .bk-face{left:0;top:0}
+.bk-back{transform:rotateY(180deg)}
+.bk-leaf.fwd .bk-front,.bk-leaf.back .bk-back{border-radius:0 5px 5px 0;box-shadow:inset 26px 0 30px -18px rgba(90,62,36,.32)}
+.bk-leaf.fwd .bk-back,.bk-leaf.back .bk-front{border-radius:5px 0 0 5px;box-shadow:inset -26px 0 30px -18px rgba(90,62,36,.32)}
+.bk-leaf .bk-face::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(60,40,20,.0),rgba(60,40,20,.18));opacity:0;transition:opacity .35s}
+.bk-leaf.turn .bk-face::after{opacity:1}
+/* the hard cover */
+.bk-cover{position:absolute;top:-7px;left:var(--pw);width:calc(var(--pw) + 7px);height:calc(var(--ph) + 14px);transform-origin:left center;transform-style:preserve-3d;z-index:8;
+  transition:opacity .15s,transform .6s .1s cubic-bezier(.4,.1,.25,1)}
+.bk.single .bk-cover{left:0}
+.bk.open .bk-cover{transform:rotateY(-178deg);opacity:0;transition:transform .8s cubic-bezier(.4,.1,.25,1),opacity .2s .72s;pointer-events:none}
+.bk-cover-front{border-radius:3px 9px 9px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:radial-gradient(120% 90% at 30% 20%,rgba(255,255,255,.08),rgba(0,0,0,.18)),repeating-linear-gradient(45deg,rgba(255,255,255,.025) 0 2px,rgba(0,0,0,.03) 2px 4px),#4F5E4B;
+  box-shadow:inset 10px 0 12px -6px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.25),0 20px 44px rgba(20,14,8,.45)}
+.bk-cover-front::before{content:"";position:absolute;inset:16px 16px 16px 22px;border:1px solid rgba(214,186,128,.55);border-radius:4px}
+.bk-title{font-family:var(--f-display);font-size:clamp(20px,calc(var(--pw) * .085),34px);letter-spacing:.3em;color:#D9BD86;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.bk-sub{font-size:13px;letter-spacing:.5em;color:rgba(217,189,134,.8)}
+.bk-cover-back{transform:rotateY(180deg);border-radius:9px 3px 3px 9px;background:#E8DCC4 repeating-linear-gradient(45deg,rgba(150,118,86,.07) 0 6px,transparent 6px 12px)}
+.bk-nav{position:absolute;top:calc(50% - 22px);left:-58px;width:44px;height:44px;border-radius:50%;border:1px solid rgba(251,246,236,.7);background:rgba(251,246,236,.85);color:var(--ink);font-size:24px;line-height:1;cursor:pointer;opacity:0;transition:opacity .3s .9s}
+.bk-nav.next{left:auto;right:-58px}
+.bk.open .bk-nav{opacity:1}.bk.open .bk-nav:disabled{opacity:.25;cursor:default}.bk:not(.open) .bk-nav{pointer-events:none}
+.bk-hint{position:absolute;left:0;right:0;bottom:-34px;text-align:center;font-size:12px;color:rgba(251,246,236,.85);letter-spacing:.1em;opacity:0;transition:opacity .3s 1s}
+.bk.open .bk-hint{opacity:1}
+.bk-measure{position:fixed!important;left:-9999px;top:0;visibility:hidden}
+@media (max-width:760px){.bk-nav{top:auto;bottom:-56px;left:calc(50% - 56px)}.bk-nav.next{left:calc(50% + 12px);right:auto}.bk-hint{display:none}}
+@media (prefers-reduced-motion:reduce){.bk-book,.bk-leaf,.bk-cover{transition-duration:.01s!important}}
 </style>
 </head>
 <body>
@@ -1316,10 +1401,10 @@ const moonTex=new THREE.TextureLoader().load('assets/moon.jpg');moonTex.colorSpa
 const skyU={uMetA:{value:new THREE.Vector3(0,1,0)},uMetB:{value:new THREE.Vector3(0,1,0)},uMet:{value:new THREE.Vector2(0,0)},uMoonTex:{value:moonTex},uMoonDir:{value:new THREE.Vector3(-.5,.36,-.79).normalize()},uMoonVis:{value:0},uMoonT:{value:new THREE.Vector3(1,0,0)},uMoonB:{value:new THREE.Vector3(0,1,0)},uMoonL:{value:new THREE.Vector3(0,0,1)},uMoonFrac:{value:1},
   uCloud:{value:.2},uCloudDark:{value:0},uCellDir:{value:new THREE.Vector3(0,.3,-1).normalize()},uCellAmt:{value:0},uCurtain:{value:0},uFlash:{value:0},uTop:{value:new THREE.Color()},uHor:{value:new THREE.Color()},uBot:{value:new THREE.Color()},uSunDir:{value:new THREE.Vector3(0,.2,-1)},uSunCol:{value:new THREE.Color()},uStars:{value:0},uSunVis:{value:1},uDeep:{value:new THREE.Color()},uTime:{value:0}};
 skyU.uTideS={value:0};skyU.uTideWet={value:0};skyU.uSurf={value:1};
-skyU.uCumulus={value:0};skyU.uCirrus={value:0};skyU.uCloudScale={value:1};
+skyU.uCirrus={value:0};skyU.uCloudScale={value:1};   // high wispy cirrus on some days, and how big the everyday clouds are
 skyU.uSkyT={value:0};skyU.uWind={value:new THREE.Vector2(.006,.0018)};skyU.uWindOff={value:new THREE.Vector2(0,0)};   // the sky's clock (seconds since Taipei midnight, so the clouds follow the real time of day) and the wind that carries them   // fair-weather cumulus on the horizon, high wispy cirrus, and how big the everyday clouds are (all drift slowly from day to day)   // tide: how far the waterline has moved up (+) or down (-) the beach, in metres; the highest line it reached lately; how rough the surf is
 const SKY_FRAG=`uniform sampler2D uMoonTex;uniform vec3 uTop,uHor,uBot,uSunDir,uSunCol,uMoonDir,uMoonT,uMoonB,uMoonL,uCellDir;uniform float uStars,uSunVis,uMoonVis,uMoonFrac,uCloud,uCloudDark,uCellAmt,uCurtain,uFlash;varying vec3 vDir;
-uniform float uTime;uniform vec3 uMetA,uMetB;uniform vec2 uMet;uniform float uCumulus,uCirrus,uCloudScale,uSkyT;uniform vec2 uWind,uWindOff;
+uniform float uTime;uniform vec3 uMetA,uMetB;uniform vec2 uMet;uniform float uCirrus,uCloudScale,uSkyT;uniform vec2 uWind,uWindOff;
 float hash(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y);}
@@ -1336,7 +1421,7 @@ if(uCirrus>.01&&h>0.){vec2 cw=d.xz/(d.y+.35)*.9+uWindOff*.7+vec2(3.7,1.1);
   vec3 cic=mix(uHor,vec3(1.,.98,.95),.55*lum0)+uSunCol*pow(sd,4.)*.25*uSunVis;
   col=mix(col,cic,cim*.5);}
 vec2 cu=d.xz/(d.y+.12)*1.3*uCloudScale+uWindOff;
-cu+=(vec2(fbm(cu*.32+vec2(uSkyT*.00021,0.)),fbm(cu*.32+vec2(5.2,-uSkyT*.00017)))-.5)*1.8;   // the clouds slowly gather, stretch and break apart, not just slide
+cu+=(vec2(fbm(cu*.32+vec2(uSkyT*.00005,0.)),fbm(cu*.32+vec2(5.2,-uSkyT*.00004)))-.5)*1.8;   // the clouds slowly gather, stretch and break apart, not just slide
 float cl=fbm(cu);
 // cloud cover follows the weather; a passing rain cell piles up thick dark cloud around its direction
 float cellK=uCellAmt*smoothstep(.35,.95,dot(d,uCellDir));
@@ -1346,49 +1431,6 @@ float lum=clamp(dot(uHor,vec3(.33))*1.4,0.,1.);vec3 cc=mix(uHor*.9,vec3(1.,.97,.
 cc*=mix(1.,.52,clamp(uCloudDark*.8+cellK*.7,0.,1.)*smoothstep(thr,thr+.28,cl));   // heavy cores go grey
 {float toward=fbm(cu+normalize(uSunDir.xz+1e-5)*.09);cc*=mix(1.,mix(1.1,.86,smoothstep(-.06,.08,toward-cl)),uSunVis*(1.-uCloudDark)*.8);}   // edges facing the sun catch the light, the far side falls into shade
 col=mix(col,cc,cm*.92);
-// fair-weather cumulus: cotton-wool heaps on the horizon, each built from several round puffs on a flat base,
-// every puff lit from the sun's side; white by day, pink and gold at sunset, grey-violet in their own shade
-if(uCumulus>.01&&h>-.01){
-  float az=atan(d.x,-d.z),el=asin(clamp(h,-1.,1.)),sAz=atan(uSunDir.x,-uSunDir.z),sEl=asin(clamp(uSunDir.y,-1.,1.));
-  const float SLOT=.2027;   // 31 slots round the horizon, in radians
-  float u=az/SLOT+uSkyT*.00012;
-  float sunLow=(1.-smoothstep(.05,.45,sEl))*smoothstep(-.14,.0,sEl);   // how golden the light is: strongest as the sun nears the horizon, gone once it has set
-  vec2 L=normalize(vec2(clamp(sin(sAz-az)*3.,-1.,1.)*(.4+.6*sunLow),.35+max(sEl,0.)*1.5));   // where the light comes from, seen on this patch of sky
-  float best=0.;vec3 cuc=vec3(0.);
-  for(int k=-1;k<=1;k++){
-    float ci=floor(u)+float(k),cs=mod(ci,31.);
-    float r1=h2(vec2(cs,7.13)),r2=h2(vec2(cs,3.7)),r3=h2(vec2(cs,9.1)),r4=h2(vec2(cs,1.9));
-    float here=smoothstep(r1,r1+.08,uCumulus*.8+.06);
-    if(here<=0.)continue;
-    float eb=.0005+.016*r4;                                 // base: sitting on the sea horizon, nearer heaps a little higher
-    float w=(.07+.11*r2)*(.7+eb*18.)*(.6+.55*uCumulus);     // half-width in radians
-    float X=(u-(ci+.5+(r3-.5)*.4))*SLOT,Y=el;
-    if(abs(X)>w*1.5||Y<eb-.01||Y>eb+w*1.6)continue;
-    float dens=0.,ny=0.;vec2 nrm=vec2(0.,1.);
-    for(int j=0;j<6;j++){float fj=float(j);
-      float a1=h2(vec2(cs,fj*3.1+.5)),a2=h2(vec2(cs,fj*5.7+1.3));
-      float px=(a1-.5)*w*1.35,pr=w*(.34+.32*a2)*(1.-abs(px)/w*.4);
-      float py=eb+pr*(.45+.5*h2(vec2(cs,fj*2.3+8.)))+(fj>3.?pr*.9:0.);   // later puffs sit higher: a towering top
-      vec2 q=vec2(X-px,Y-py);float dd=length(q)/pr;
-      float bumpy=dd-.14*(fbm(vec2(X,Y)*140.+cs*9.+fj)-.5)-.06*(vn(vec2(X,Y)*420.+fj)-.5);   // cauliflower edge
-      float dj=1.-smoothstep(.9,1.,bumpy);
-      nrm+=q/max(length(q),1e-4)*dj*(1.-min(dd,1.));   // blend the puffs' normals so the heap reads as one soft mass
-      dens=max(dens,dj);}
-    float nl=length(nrm);nrm=normalize(mix(vec2(0.,1.),nrm/max(nl,1e-4),smoothstep(.05,.6,nl))+vec2(0.,.3));   // deep inside the heap, where the puffs' normals cancel out, treat it as facing up: no dark dimples
-    dens*=smoothstep(eb-.0015,eb+.0035,Y)*here;              // flat base
-    if(dens<=best)continue;
-    float vt=clamp((Y-eb)/(w*1.4),0.,1.);
-    float tex=fbm(vec2(X,Y)*90.+cs*4.);                       // soft billows inside the heap
-    float lit=max(clamp(.42+.38*dot(nrm,L)+.3*(tex-.5)*(.4+.6*vt),0.,1.)*(.5+.5*pow(vt,.6)),.3);   // lit from the sun's side and from above, shadowed underneath; the creases stay soft
-    lit+=.18*smoothstep(.7,1.,dot(nrm,L))*(.4+.6*uSunVis);    // a brighter rim where the light grazes
-    float dayK=smoothstep(.06,.5,lum0);                     // 0 at night, 1 by day
-    vec3 dayLit=vec3(1.,.985,.96)*mix(.35,1.,lum0)*dayK+(uHor*1.6+vec3(.5,.55,.68)*.22*uMoonVis)*(1.-dayK);   // by night only a dim, moonlit silhouette
-    vec3 goldLit=mix(uHor*1.25,uSunCol*1.35,.45)+vec3(.12,.06,.04);
-    vec3 litC=mix(dayLit,goldLit,sunLow*.85)*mix(1.,.62,uCloudDark);
-    vec3 shadeC=mix(mix(uHor*.7,vec3(.5,.52,.66)*max(lum0,.1),.55)*mix(1.,.8,sunLow),uHor*1.15,1.-dayK);
-    cuc=mix(shadeC,litC,clamp(lit,0.,1.));best=dens;}
-  float cuM=best*.97*mix(.45,1.,smoothstep(0.,.03,el));     // the lowest parts sink into the haze
-  col=mix(col,cuc,cuM);cm=max(cm,cuM);}
 // rain hanging under a distant cell, streaking down to the sea horizon
 vec2 dz=normalize(d.xz+1e-5),cz=normalize(uCellDir.xz+1e-5);
 float side=smoothstep(.86,.985,dot(dz,cz)),hang=smoothstep(.24,.02,h)*smoothstep(-.03,.01,h);
@@ -1425,7 +1467,7 @@ const SHORE_GLSL='(-28.+3.5*sin(x*.031+.7)+1.8*sin(x*.083+2.1)+.7*sin(x*.19+.4))
 const shoreZ=x=>-28+3.5*Math.sin(x*.031+.7)+1.8*Math.sin(x*.083+2.1)+.7*Math.sin(x*.19+.4);
 const sea=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.ShaderMaterial(Object.assign({uniforms:skyU,
   vertexShader:`varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
-  fragmentShader:`uniform vec3 uTop,uHor,uSunDir,uSunCol,uDeep,uMoonDir;uniform float uSunVis,uTime,uMoonVis,uCloud,uTideS,uSurf;varying vec3 vW;
+  fragmentShader:`uniform vec3 uTop,uHor,uSunDir,uSunCol,uDeep,uMoonDir;uniform float uSunVis,uTime,uMoonVis,uMoonFrac,uCloud,uTideS,uSurf;varying vec3 vW;
   float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
   float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y);}
   float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*vn(p);p*=2.07;a*=.5;}return v;}
@@ -1457,7 +1499,8 @@ const sea=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.ShaderMate
   col=mix(col,mix(mix(uDeep,vec3(dot(uDeep,vec3(.33))),1.-lk),sk,.5)*1.2+vec3(.0,.03,.022)*lk,shallow*.45);   // lighter, slightly green over the sand bar; at night only a touch lighter, never neon blue
   float spark=smoothstep(.72,.9,fbm(p*2.3+vec2(t*.6,t*.4)));
   col+=uSunCol*(pow(max(dot(r,uSunDir),0.),140.)*1.1+pow(max(dot(r,uSunDir),0.),18.)*spark*.6)*uSunVis;
-  float ml=max(dot(r,uMoonDir),0.);col+=vec3(.95,.92,.8)*(pow(ml,600.)*.35+pow(ml,90.)*spark*.22)*uMoonVis;   // moon path, broken by ripples
+  float ml=max(dot(r,uMoonDir),0.),mlit=pow(uMoonFrac,1.6);   // how much of the moon is lit: nothing at new moon, all of it at full
+  col+=vec3(.95,.92,.8)*(pow(ml,600.)*.16+pow(ml,90.)*spark*.09)*uMoonVis*mlit;   // moon path, broken by ripples, as bright as the moon's phase allows
   // surf: fronts roll in parallel to the shore, crest, and break into lacy foam over the last dozen metres
   float zone=smoothstep(-17.*uSurf,-7.*uSurf,sd)*(1.-smoothstep(-.6,.2,sd));   // the surf zone widens when the sea is rough
   float wob=fbm(vec2(vW.x*.035,t*.04))*1.4;
@@ -1472,7 +1515,7 @@ const sea=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.ShaderMate
   float resid=smoothstep(.55,.75,fbm(vec2(vW.x*.32+t*.03,sd*.6-t*.12)))*smoothstep(.42,.62,lace)*.65;   // drifting scraps between breakers
   float edgeWash=smoothstep(-3.2,-.4,sd)*smoothstep(.35,.6,lace+.25*fine)*.75;                    // white water where the last of each wave spends itself
   float foamA=clamp((foamLip*1.15+foamTrail*.8)*mix(.8,1.25,clamp(uSurf-.6,0.,1.))+resid*(.35+.65*shallow)*uSurf+edgeWash,0.,1.)*zone;
-  vec3 foam=mix(uHor*1.4,vec3(1.,.985,.95),.62)*mix(.035,1.,lk*lk)*mix(vec3(.86,.9,1.),vec3(1.),lk)+vec3(.55,.56,.6)*.06*uMoonVis;   // foam only catches what light there is: soft grey-blue under the moon
+  vec3 foam=mix(uHor*1.4,vec3(1.,.985,.95),.62)*mix(.035,1.,lk*lk)*mix(vec3(.86,.9,1.),vec3(1.),lk)+vec3(.55,.56,.6)*.06*uMoonVis*pow(uMoonFrac,1.6);   // foam only catches what light there is: soft grey-blue under the moon
   col=mix(col,foam,foamA*(1.-smoothstep(70.,190.,dist))*mix(.45,.9,lk));
   // the last few metres: the water is only centimetres deep, so the wet sand shows through and the edge has no hard line
   float depth=max(-sd,0.)/15.;                                   // the beach under the tide is a 1:15 slope
@@ -1862,20 +1905,18 @@ function updateEnv(now){
   skyDir(W.cellAz,W.cellAlt,cellDirV);skyU.uCellDir.value.lerp(cellDirV,k).normalize();
   updateTide(ms);sea.position.y=-6+tide.h;skyU.uTideS.value=lerp(skyU.uTideS.value,tide.s,k);skyU.uTideWet.value=lerp(skyU.uTideWet.value,tide.wet,k);
   skyU.uSurf.value=lerp(skyU.uSurf.value,Math.min(1.6,.75+.25*wx.cloud+.45*wx.rain+.5*wx.thunder),k);   // calm on clear days, rougher in rain and storms
-  { // the sky's mood drifts over hours and days: cotton-wool cumulus only some of the time (most on fair afternoons), wispy cirrus on some days
+  { // the sky's mood drifts over hours and days: wispy cirrus on some days
     const hrs=ms/HR,sn=(x,seed)=>{const i=Math.floor(x),f=x-i,s=f*f*(3-2*f),r=n=>{const v=Math.sin((n+seed*57.3)*127.1)*43758.5453;return v-Math.floor(v);};return r(i)*(1-s)+r(i+1)*s;};
-    let cu=Math.min(1,Math.max(0,(sn(hrs/5,1)*.65+sn(hrs/1.7,2)*.35-.46)*2.6));
-    cu*=(.08+.92*smooth(8.5,12,h)*(1-smooth(17,19.5,h)))*(1-.95*smooth(.08,.45,wx.rain))*(1-.7*smooth(.72,.95,wx.cloud));
     const ci=Math.min(1,Math.max(0,(sn(hrs/9,3)-.52)*2.6))*(1-smooth(.05,.3,wx.rain))*(1-.5*wx.cloud);
-    skyU.uCumulus.value=lerp(skyU.uCumulus.value,cu,k*.5);skyU.uCirrus.value=lerp(skyU.uCirrus.value,ci,k*.5);
+    skyU.uCirrus.value=lerp(skyU.uCirrus.value,ci,k*.5);
     skyU.uCloudScale.value=lerp(skyU.uCloudScale.value,.8+.7*sn(hrs/30,4),k*.2);
     // the clock the clouds follow, and the wind: its direction swings over hours, it blows harder when the weather turns
     const dayT=((ms+8*HR)%DAYMS)/1000;skyU.uSkyT.value=dayT;
-    const wa=1.2+2.4*(sn(hrs/7,5)-.5),ws=(.004+.009*sn(hrs/3,6))*(1+.9*wx.rain+.6*wx.thunder+.3*wx.cloud);
+    const wa=1.2+2.4*(sn(hrs/7,5)-.5),ws=(.0009+.0022*sn(hrs/3,6))*(1+.9*wx.rain+.6*wx.thunder+.3*wx.cloud);   // real-time pace: a cloud takes a good quarter of an hour to cross the sky
     skyU.uWind.value.set(Math.cos(wa)*ws,Math.sin(wa)*ws);
     // where the wind has carried the clouds by now: summed over the day so a change of wind never makes them jump
     const off=skyU.uWindOff.value;if(updateEnv.lastT===undefined||Math.abs(dayT-updateEnv.lastT)>600){   // first time, or the time was jumped (dial, midnight): rebuild from the day's winds
-      let ox=0,oy=0;for(let t=0;t<dayT;t+=600){const hh=(ms-(dayT-t)*1000)/HR,a=1.2+2.4*(sn(hh/7,5)-.5),v=(.004+.009*sn(hh/3,6))*(1+.3*wx.cloud);ox+=Math.cos(a)*v*600;oy+=Math.sin(a)*v*600;}off.set(ox,oy);}
+      let ox=0,oy=0;for(let t=0;t<dayT;t+=600){const hh=(ms-(dayT-t)*1000)/HR,a=1.2+2.4*(sn(hh/7,5)-.5),v=(.0009+.0022*sn(hh/3,6))*(1+.3*wx.cloud);ox+=Math.cos(a)*v*600;oy+=Math.sin(a)*v*600;}off.set(ox,oy);}
     else off.addScaledVector(skyU.uWind.value,dayT-updateEnv.lastT);
     updateEnv.lastT=dayT;}
   // sun
@@ -2022,7 +2063,7 @@ const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='Mac
 let started=false,locked=false,noLock=isTouch,modalOpen=false;
 const joy={x:0,y:0,id:null};
 addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea,select'))return;keys[e.code]=true;
-  if(e.code==='KeyE'&&started&&!modalOpen)interact(hovered);if(e.code==='Escape'&&modalOpen)closeModal();});
+  if(e.code==='KeyE'&&started&&!modalOpen)interact(hovered);if(e.code==='Escape'&&modalOpen){if(gbBookCloser)gbBookCloser();else closeModal();}});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;$('#cross').hidden=!locked&&!noLock?true:!(locked||(!isTouch&&false));
@@ -2148,10 +2189,10 @@ const DRINKS=['柚子氣泡：微苦的柚皮，和一點蜂蜜。喝一口，�
 
 /* ---------- modal ---------- */
 const modal=$('#modal'),card=$('#modalCard');
-function openModal(html,opt={}){card.classList.toggle('wide',!!opt.wide);card.classList.toggle('admin',!!opt.admin);card.innerHTML='<button class="x" type="button" aria-label="關閉" data-close>×</button>'+html;modal.hidden=false;modalOpen=true;
+function openModal(html,opt={}){card.classList.toggle('wide',!!opt.wide);card.classList.toggle('admin',!!opt.admin);card.classList.toggle('book',!!opt.book);card.innerHTML='<button class="x" type="button" aria-label="關閉" data-close>×</button>'+html;modal.hidden=false;modalOpen=true;
   if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;const f=card.querySelector('[data-focus]')||card.querySelector('.x');setTimeout(()=>f&&f.focus(),30);}
-function closeModal(){modal.hidden=true;modalOpen=false;card.innerHTML='';updateCursorUI();canvas.focus();}
-modal.addEventListener('click',e=>{if(e.target===modal||e.target.closest('[data-close]'))closeModal();});
+function closeModal(){if(gbBookCloser){gbBookCloser=null;bkTeardown();}modal.hidden=true;modalOpen=false;card.innerHTML='';card.classList.remove('book');updateCursorUI();canvas.focus();}
+modal.addEventListener('click',e=>{if(e.target===modal||e.target===card&&card.classList.contains('book')||e.target.closest('[data-close]')){if(gbBookCloser)gbBookCloser();else closeModal();}});   // the notebook closes itself and is put down first
 let toastT=0;function toast(s){const t=$('#toast');t.querySelector('span').textContent=s;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200);}
 const simple=(eyebrow,title,body,note)=>`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>${body}</p>${note?`<div class="note">${note}</div>`:''}`;
 
@@ -2234,102 +2275,192 @@ function gbLoadGsi(){
   gb.gsi=new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.id){res();return;}
     const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=()=>res();s.onerror=()=>{gb.gsi=null;rej();};document.head.appendChild(s);})
     .then(()=>{google.accounts.id.initialize({client_id:GB_CFG.googleClientId,callback:r=>{if(!r||!r.credential)return;gb.token=r.credential;gb.mine=null;try{sessionStorage.setItem(GB_TOKEN,r.credential);}catch(e){}
-      toast('已用 Google 登入：筆記本上只會顯示你填的暱稱');if(card.querySelector('#gbView'))gbRefresh();},ux_mode:'popup'});});
+      toast('已用 Google 登入：筆記本上只會顯示你填的暱稱');if(card.querySelector('#bk'))gbRefresh();},ux_mode:'popup'});});
   return gb.gsi;}
 const gbErr=c=>({rate_limited:'動作得有點快，休息一下再試吧。',blocked:'這個 Google 帳號目前不能留言。',content_too_long:'內容太長了，請在 500 字以內。',content_empty:'還沒有寫內容喔。',
   nickname_too_long:'暱稱太長了，請在 20 字以內。',too_many_links:'留言裡的連結太多了。',too_fast:'寫得太快了，再看一眼再送出吧。',invalid_token:'Google 登入已失效，請重新登入。',expired:'Google 登入已過期，請重新登入。',
   login_required:'請先用 Google 登入。',not_yours:'這不是你的留言。',edit_window_closed:'這則留言已經超過 7 天，不能再編輯了，但還可以刪除。',not_found:'找不到這則留言，可能已經被刪除。',
   network:'連不上留言本，請檢查網路後再試一次。'}[c]||'沒有成功，請稍後再試一次。');
 // what this visitor sees: the public comments, plus their own that are under review or hidden, newest first
+// what this visitor sees: the public comments, plus their own that are under review, hidden or whispered — oldest first, as in a notebook
 function gbEntries(){
   const mine=new Map((gb.mine||[]).map(c=>[c.id,c]));
   const out=(gb.list||[]).map(c=>mine.get(c.id)?Object.assign({},c,mine.get(c.id),{own:true}):c);
   const shown=new Set(out.map(c=>c.id));
   (gb.mine||[]).forEach(c=>{if(!shown.has(c.id)&&c.status!=='public')out.push(Object.assign({},c,{own:true}));});
-  return out.sort((a,z)=>String(z.createdAt).localeCompare(String(a.createdAt)));}
-function gbEntry(c){
-  const st=c.own&&c.status==='whisper'?'<span class="gb-wait">悄悄話（只有你和房主看得到）</span>':c.own&&c.status==='reviewing'?'<span class="gb-wait">審核中（只有你看得到）</span>':c.own&&c.status==='hidden'?'<span class="gb-wait">未公開（只有你看得到）</span>':'';
-  const meta=`${esc(gbDate(c.createdAt))}・${esc(c.nickname||'匿名')}${c.editedAt?'・已編輯':''}${c.own?'・你的留言':''}${st?'・'+st:''}`;
-  if(c.own&&gb.editing===c.id)return `<div class="entry mine" data-id="${esc(c.id)}"><div class="d">${meta}</div>
-    <textarea class="gb-edit" maxlength="500" aria-label="修改留言內容">${esc(c.content)}</textarea>
-    <label class="gb-whisper"><input type="checkbox" class="gb-edit-whisper" ${c.whisper?'checked':''}> 悄悄話（只給房主看）</label>
-    <div class="gb-note">${c.whisper?'悄悄話改完直接生效；取消勾選「悄悄話」的話，要等房主看過後才會公開。':'修改後會先隱藏，房主看過後才會重新公開；勾選「悄悄話」則只給房主看。'}</div>
-    <div class="row gb-acts"><button class="btn small primary" type="button" data-act="save">送出修改</button><button class="btn small" type="button" data-act="cancel">取消</button></div></div>`;
-  const acts=c.own?`<div class="row gb-acts">${c.editable?'<button class="btn small" type="button" data-act="edit">編輯</button>':''}<button class="btn small" type="button" data-act="del">刪除</button></div>`:'';
-  return `<div class="entry${c.own&&c.status!=='public'?' mine':''}" data-id="${esc(c.id)}"><div class="d">${meta}</div><div class="b">${esc(c.content)}</div>${acts}</div>`;}
-function gbRenderList(state){const box=card.querySelector('#gbList');if(!box)return;
-  if(state==='loading'){box.innerHTML='<p class="note gb-quiet">翻開筆記本中…</p>';return;}
-  if(state==='error'){box.innerHTML='<p class="note gb-quiet">現在讀不到留言，請稍後再來看看。<button class="btn small" type="button" id="gbRetry">再試一次</button></p>';card.querySelector('#gbRetry').onclick=()=>{gbRenderList('loading');gbLoad(true).then(()=>gbRenderList(),()=>gbRenderList('error'));};return;}
-  box.innerHTML=gbEntries().map(gbEntry).join('')||'<p class="note gb-quiet">還沒有人留言，你可以當第一個。</p>';}
-function gbRenderAuth(){const box=card.querySelector('#gbAuth'),form=card.querySelector('#gbf');if(!box)return;
-  const signed=gbSignedIn();if(form)form.hidden=!signed;
-  if(signed){box.innerHTML='<div class="gb-signed">已用 Google 登入。筆記本上只會出現你填的暱稱，不會顯示 Google 名字和大頭貼。你可以刪除自己的留言，送出 7 天內也可以編輯。<button class="btn small" type="button" id="gbOut">登出</button></div>';
-    card.querySelector('#gbOut').onclick=()=>{gbSignOut();gbRefresh();};return;}
-  if(gbInApp){const ext=gbInApp==='LINE'?location.href.replace(/#.*$/,'')+(location.search?'&':'?')+'openExternalBrowser=1':null;
-    box.innerHTML=`<div class="gb-inapp"><b>想留言嗎？</b>留言需要用 Google 登入，但你正在 ${esc(gbInApp)} 的內建瀏覽器裡，Google 不允許在這裡登入。請改用 Safari 或 Chrome 打開這個房間：
-      <div class="row" style="margin-top:8px">${ext?`<a class="btn small primary" href="${esc(ext)}">用瀏覽器開啟</a>`:''}<button class="btn small" type="button" id="gbCopy">複製連結</button><span class="gb-copied" id="gbCopied" role="status"></span></div>
-      ${ext?'':'<div class="gb-or">複製後，貼到 Safari 或 Chrome 的網址列。</div>'}</div>`;
-    card.querySelector('#gbCopy').onclick=async()=>{const url=location.href.replace(/#.*$/,'');let ok=false;
-      try{await navigator.clipboard.writeText(url);ok=true;}catch(e){const i=document.createElement('input');i.value=url;document.body.appendChild(i);i.select();try{ok=document.execCommand('copy');}catch(_){}i.remove();}
-      card.querySelector('#gbCopied').textContent=ok?'已複製':'請長按網址列複製';};
-    return;}
-  if(!GB_CFG.googleClientId){box.innerHTML='<div class="gb-or">留言本還在準備中。</div>';return;}
-  box.innerHTML='<div class="gb-google"><div class="gb-or" style="margin:0 0 6px">用 Google 登入後就能留言。筆記本上只會顯示你自己填的暱稱。</div><div id="gbBtn"></div></div>';
-  gbLoadGsi().then(()=>{const el=card.querySelector('#gbBtn');if(el)google.accounts.id.renderButton(el,{theme:'outline',size:'medium',shape:'pill',text:'signin_with',locale:'zh-TW'});})
-    .catch(()=>{const el=card.querySelector('.gb-google .gb-or');if(el)el.textContent='Google 登入暫時無法載入，請稍後再試。';});}
-function gbRefresh(){gbRenderAuth();gbRenderList();if(gbSignedIn())gbLoadMine().then(()=>gbRenderList()).catch(e=>{gbRenderAuth();gbRenderList();const m=card.querySelector('#gbMsg');if(m)m.textContent=gbErr(e&&e.code);});}
+  return out.sort((a,z)=>String(a.createdAt).localeCompare(String(z.createdAt)));}
+
+/* ---------- the guestbook as a hardbound notebook: it is picked up, the cover swings open on the newest pages,
+   and its leaves turn one by one. Each comment takes at least half a page; a long one takes a whole page.
+   After the last comment comes a blank page to write on. ---------- */
+const bk={el:null,pages:[],slots:[],view:0,single:false,pw:0,ph:0,busy:false,closing:false,keyH:null,resizeH:null,loading:true,error:false};
+let gbBookCloser=null;
+const BK_STATUS={reviewing:'審核中（只有你看得到）',hidden:'未公開（只有你看得到）',whisper:'悄悄話（只有你和房主看得到）'};
+function bkEntryHTML(c,size){
+  const st=c.own&&BK_STATUS[c.status]?`<span class="bk-st">${BK_STATUS[c.status]}</span>`:'';
+  const meta=`<div class="bk-meta">${esc(gbDate(c.createdAt))}・${esc(c.nickname||'匿名')}${c.editedAt?'・已編輯':''}${c.own?'・你的留言':''}</div>${st}`;
+  if(c.own&&gb.editing===c.id)return `<div class="bk-entry ${size} editing" data-id="${esc(c.id)}">${meta}
+    <textarea class="bk-edit" maxlength="500" aria-label="修改留言內容">${esc(c.content)}</textarea>
+    <label class="bk-check"><input type="checkbox" class="bk-edit-whisper" ${c.whisper?'checked':''}> 悄悄話（只給房主看）</label>
+    <div class="bk-acts"><button class="bk-btn ink" type="button" data-act="save">送出修改</button><button class="bk-btn" type="button" data-act="cancel">取消</button></div>
+    <div class="bk-note">${c.whisper?'悄悄話改完直接生效；取消勾選的話，要等房主看過才會公開。':'改完會先隱藏，房主看過後才重新公開。'}</div></div>`;
+  const acts=c.own?`<div class="bk-acts">${c.editable?'<button class="bk-btn" type="button" data-act="edit">編輯</button>':''}<button class="bk-btn" type="button" data-act="del">刪除</button></div>`:'';
+  return `<div class="bk-entry ${size}${c.own&&c.status!=='public'?' private':''}" data-id="${esc(c.id)}">${meta}<div class="bk-text">${esc(c.content)}</div>${acts}</div>`;}
+// lay the comments out on pages: measure each one at the real page size; half a page at least, a whole page if it needs it
+function bkPaginate(){
+  const ms=document.createElement('div');ms.className='bk-page bk-measure';ms.style.width=bk.pw+'px';ms.style.height=bk.ph+'px';document.body.appendChild(ms);
+  const inner=document.createElement('div');inner.className='bk-inner';ms.appendChild(inner);
+  const full=inner.clientHeight,half=(full-14)/2;
+  const pages=[];let cur=null;
+  for(const c of gbEntries()){
+    inner.innerHTML=bkEntryHTML(c,'natural');const hgt=inner.firstElementChild.offsetHeight;   // its natural height, text unclipped
+    let size=hgt<=half+1?'half':hgt<=full+1?'full':'full dense';   // a pixel's grace for rounding
+    if(size==='half'&&cur&&cur.items.length===1&&cur.sizes[0]==='half'){cur.items.push(c);cur.sizes.push('half');continue;}
+    cur={type:'entries',items:[c],sizes:[size]};pages.push(cur);if(size!=='half')cur=null;}
+  ms.remove();
+  pages.push({type:'write'});
+  bk.pages=pages;
+  bk.slots=bk.single?pages.slice():[{type:'inside'}].concat(pages);}
+function bkPageNum(p){const i=bk.pages.indexOf(p);return i>=0?i+1:0;}
+function bkPageHTML(p){
+  if(!p)return '<div class="bk-inner"></div>';
+  if(p.type==='inside')return `<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">內在房間</div><div class="bk-plate-s">留言筆記本</div><div class="bk-plate-n">給每一位來過這裡的人。<br>往後翻，可以讀到大家留下的話；<br>最後的空白頁，留給你。</div></div></div>`;
+  const num=bkPageNum(p),foot=num?`<div class="bk-num">${num}</div>`:'';
+  if(p.type==='loading')return `<div class="bk-inner"><p class="bk-quiet">${bk.error?'現在讀不到留言，請稍後再來看看。<br><button class="bk-btn" type="button" data-act="retry">再試一次</button>':'翻開筆記本中…'}</p></div>`;
+  if(p.type==='entries')return `<div class="bk-inner">${p.items.map((c,i)=>bkEntryHTML(c,p.sizes[i])).join('')}</div>${foot}`;
+  // the blank page: sign in, or write
+  if(!GB_API)return `<div class="bk-inner"><p class="bk-quiet">留言本還在準備中，很快就能在這裡留言。</p></div>${foot}`;
+  const signed=gbSignedIn();
+  let body;
+  if(signed)body=`<div class="bk-write-h">寫下你的話</div>
+    <form class="bk-form" id="gbf" novalidate>
+      <input id="gbName" maxlength="20" placeholder="你的暱稱（可不填）" autocomplete="nickname" aria-label="暱稱">
+      <textarea id="gbText" maxlength="500" placeholder="想對這個房間說什麼？" aria-label="留言內容"></textarea>
+      <input class="gb-hp" id="gbHp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="bk-check"><input type="checkbox" id="gbWhisper"> 悄悄話：只給房主看</label>
+      <div class="bk-acts"><button class="bk-btn ink" type="submit" id="gbSubmit">留下這句話</button><span class="bk-count" id="gbCount">0 / 500</span></div>
+    </form>
+    <div class="bk-note">筆記本上只會出現你填的暱稱，不會顯示 Google 名字和大頭貼。<button class="bk-link" type="button" data-act="logout">登出</button>・<a href="privacy.html" target="_blank" rel="noopener">隱私權說明</a></div>`;
+  else if(gbInApp){const ext=gbInApp==='LINE'?location.href.replace(/#.*$/,'')+(location.search?'&':'?')+'openExternalBrowser=1':null;
+    body=`<div class="bk-write-h">想留言嗎？</div><p class="bk-p">留言需要用 Google 登入，但你正在 ${esc(gbInApp)} 的內建瀏覽器裡，Google 不允許在這裡登入。請改用 Safari 或 Chrome 打開這個房間。</p>
+      <div class="bk-acts">${ext?`<a class="bk-btn ink" href="${esc(ext)}">用瀏覽器開啟</a>`:''}<button class="bk-btn" type="button" data-act="copy">複製連結</button><span class="bk-count" id="gbCopied"></span></div>`;}
+  else body=`<div class="bk-write-h">這一頁留給你</div><p class="bk-p">用 Google 登入後，就能在這裡寫下你的話。筆記本上只會顯示你自己填的暱稱。</p><div id="gbBtn" class="bk-gbtn"></div>
+    <div class="bk-note"><a href="privacy.html" target="_blank" rel="noopener">隱私權說明</a></div>`;
+  return `<div class="bk-inner bk-write">${body}<div class="gb-msg" id="gbMsg" role="status"></div></div>${foot}`;}
+// sizes: a two-page spread on wide screens, one page at a time on phones
+function bkMeasure(){
+  bk.single=innerWidth<760;
+  const W=Math.min(innerWidth*.94,1040),H=Math.min(innerHeight*.84,700),ar=.72;
+  let pw=bk.single?Math.min(W,H*ar):Math.min(W/2,H*ar);bk.pw=Math.floor(pw);bk.ph=Math.floor(pw/ar);
+  bk.el.style.setProperty('--pw',bk.pw+'px');bk.el.style.setProperty('--ph',bk.ph+'px');bk.el.classList.toggle('single',bk.single);}
+function bkPair(v){return bk.single?[null,bk.slots[v]]:[bk.slots[2*v],bk.slots[2*v+1]];}
+function bkViews(){return bk.single?bk.slots.length:Math.ceil(bk.slots.length/2);}
+function bkRender(){
+  const [l,r]=bkPair(bk.view),L=bk.el.querySelector('#bkL'),R=bk.el.querySelector('#bkR');
+  L.innerHTML=bkPageHTML(l);R.innerHTML=bkPageHTML(r);
+  L.classList.toggle('blank',!l);R.classList.toggle('blank',!r);
+  bk.el.querySelector('#bkPrev').disabled=bk.view<=0;bk.el.querySelector('#bkNext').disabled=bk.view>=bkViews()-1;
+  bkWire();}
+// open on the newest comments (the blank page is one turn further on, or right beside them)
+function bkTargetView(){
+  let last=-1;bk.slots.forEach((p,i)=>{if(p&&p.type==='entries')last=i;});
+  const i=last>=0?last:bk.slots.findIndex(p=>p&&p.type==='write');
+  return bk.single?i:Math.floor(i/2);}
+function bkGoWrite(){const i=bk.slots.findIndex(p=>p&&p.type==='write');return bk.single?i:Math.floor(i/2);}
+function bkRebuild(view){if(bk.loading)return;bkPaginate();bk.view=Math.max(0,Math.min(view===undefined?bkTargetView():view,bkViews()-1));bkRender();}
+// turn a leaf: forward lifts the right page over the spine to the left; back brings the left one over to the right
+function bkFlip(dir){
+  if(bk.busy||bk.loading)return;const to=bk.view+dir;if(to<0||to>=bkViews())return;
+  bk.busy=true;gb.editing=null;
+  const [l0,r0]=bkPair(bk.view),[l1,r1]=bkPair(to);
+  const L=bk.el.querySelector('#bkL'),R=bk.el.querySelector('#bkR'),leaf=bk.el.querySelector('#bkLeaf');
+  const front=leaf.querySelector('.bk-front'),back=leaf.querySelector('.bk-back');
+  leaf.className='bk-leaf '+(dir>0?'fwd':'back');
+  if(bk.single){front.innerHTML=bkPageHTML(dir>0?r0:r1);back.innerHTML='<div class="bk-inner"></div>';R.innerHTML=bkPageHTML(dir>0?r1:r0);}
+  else if(dir>0){front.innerHTML=bkPageHTML(r0);back.innerHTML=bkPageHTML(l1);R.innerHTML=bkPageHTML(r1);R.classList.toggle('blank',!r1);}
+  else{front.innerHTML=bkPageHTML(l0);back.innerHTML=bkPageHTML(r1);L.innerHTML=bkPageHTML(l1);L.classList.toggle('blank',!l1);}
+  leaf.hidden=false;void leaf.offsetWidth;
+  leaf.classList.add('turn');
+  setTimeout(()=>{leaf.hidden=true;leaf.className='bk-leaf';bk.view=to;bkRender();bk.busy=false;},720);}
+// pick the book up and open it / close it and put it down
+function bkOpenAnim(){requestAnimationFrame(()=>{bk.el.classList.add('lifted');setTimeout(()=>{if(!bk.closing)bk.el.classList.add('open');},560);});}
+function bkClose(){
+  if(bk.closing)return;bk.closing=true;gb.editing=null;
+  bk.el.classList.remove('open');
+  setTimeout(()=>{bk.el.classList.remove('lifted');setTimeout(()=>{gbBookCloser=null;bkTeardown();closeModal();},420);},640);}
+function bkTeardown(){if(bk.keyH)removeEventListener('keydown',bk.keyH,true);if(bk.resizeH)removeEventListener('resize',bk.resizeH);bk.keyH=bk.resizeH=null;}
+// wire up whatever is on the open pages: the form, sign-in button, edit and delete
+function bkWire(){
+  const form=bk.el.querySelector('#gbf');
+  if(form){const txt=form.querySelector('#gbText'),cnt=form.querySelector('#gbCount'),sub=form.querySelector('#gbSubmit'),msg=bk.el.querySelector('#gbMsg');
+    txt.oninput=()=>{cnt.textContent=[...txt.value].length+' / 500';};
+    form.onsubmit=async e=>{e.preventDefault();msg.textContent='';
+      const content=txt.value.trim(),nickname=form.querySelector('#gbName').value.trim(),whisper=form.querySelector('#gbWhisper').checked;
+      if(!content){msg.textContent=gbErr('content_empty');txt.focus();return;}
+      if(!gbSignedIn()){gbSignOut();bkRebuild(bkGoWrite());return;}
+      sub.disabled=true;sub.textContent='送出中…';
+      try{const d=await gbPost('/api/comments',{nickname,content,whisper,credential:gb.token,elapsed:Date.now()-gb.openedAt,website:form.querySelector('#gbHp').value});
+        if(d.comment){if(d.public)gb.list=[d.comment].concat((gb.list||[]).filter(c=>c.id!==d.comment.id));gb.mine=[d.comment].concat((gb.mine||[]).filter(c=>c.id!==d.comment.id));}
+        toast(whisper?'悄悄話已寫進筆記本，只有房主看得到':'留言已寫進筆記本');bkRebuild();}
+      catch(err){msg.textContent=gbErr(err&&err.code);sub.disabled=false;sub.textContent='留下這句話';if(!gbSignedIn())bkRebuild(bkGoWrite());}};}
+  const gbtn=bk.el.querySelector('#gbBtn');
+  if(gbtn&&GB_CFG.googleClientId)gbLoadGsi().then(()=>{if(gbtn.isConnected)google.accounts.id.renderButton(gbtn,{theme:'outline',size:'medium',shape:'pill',text:'signin_with',locale:'zh-TW'});})
+    .catch(()=>{gbtn.textContent='Google 登入暫時無法載入，請稍後再試。';});}
+async function bkAction(b){
+  const act=b.dataset.act,row=b.closest('[data-id]'),id=row&&row.dataset.id,msg=bk.el.querySelector('#gbMsg');
+  const say=t=>{if(msg)msg.textContent=t;else toast(t);};
+  if(act==='retry'){bk.error=false;bkLoad();return;}
+  if(act==='logout'){gbSignOut();bkRebuild(bkGoWrite());return;}
+  if(act==='copy'){const url=location.href.replace(/#.*$/,'');let ok=false;try{await navigator.clipboard.writeText(url);ok=true;}catch(e){}
+    const c=bk.el.querySelector('#gbCopied');if(c)c.textContent=ok?'已複製':'請長按網址列複製';return;}
+  if(!id)return;
+  if(act==='edit'){gb.editing=id;bkRebuild(bk.view);const t=bk.el.querySelector('.bk-edit');if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);}return;}
+  if(act==='cancel'){gb.editing=null;bkRebuild(bk.view);return;}
+  if(!gbSignedIn()){gbSignOut();toast(gbErr('expired'));bkRebuild(bk.view);return;}
+  if(act==='del'&&!b.dataset.armed){b.dataset.armed='1';b.textContent='再按一次確認刪除';return;}
+  b.disabled=true;
+  try{
+    if(act==='save'){const content=row.querySelector('.bk-edit').value.trim();if(!content){toast(gbErr('content_empty'));b.disabled=false;return;}
+      const whisper=row.querySelector('.bk-edit-whisper').checked;
+      const d=await gbPost('/api/comments/'+encodeURIComponent(id),{credential:gb.token,content,whisper},'PATCH');
+      gb.editing=null;gb.list=(gb.list||[]).filter(c=>c.id!==id);gb.mine=(gb.mine||[]).map(c=>c.id===id?d.comment:c);
+      toast(whisper?'悄悄話已修改，只有房主看得到':'已送出修改，房主看過後會重新公開');}
+    else if(act==='del'){await gbPost('/api/comments/'+encodeURIComponent(id)+'/delete',{credential:gb.token});
+      gb.list=(gb.list||[]).filter(c=>c.id!==id);gb.mine=(gb.mine||[]).filter(c=>c.id!==id);toast('留言已刪除');}
+    bkRebuild(bk.view);}
+  catch(err){toast(gbErr(err&&err.code));b.disabled=false;if(!gbSignedIn())bkRebuild(bk.view);}}
+function bkLoad(){
+  bk.loading=true;bk.pages=[{type:'loading'}];bk.slots=bk.single?bk.pages.slice():[{type:'inside'},bk.pages[0]];bk.view=0;bkRender();
+  if(!GB_API){gb.list=[];bk.loading=false;bkRebuild();return;}
+  gbLoad(false).then(()=>gbSignedIn()?gbLoadMine().catch(()=>null):null).then(()=>{bk.loading=false;bkRebuild();},()=>{bk.error=true;bkRender();});}
+function gbRefresh(){if(bk.el&&bk.el.isConnected){gb.mine=null;const go=()=>{bk.loading=false;bkRebuild(bkGoWrite());};gbSignedIn()?gbLoadMine().then(go,go):go();}}
 function openGuestbook(){
-  gb.openedAt=Date.now();gb.editing=null;
-  openModal(`<div id="gbView"><div class="eyebrow">推薦書櫃上</div><h2>留言筆記本</h2><p>來過這裡的人留下的話。</p>
-   <div class="entries" id="gbList" aria-live="polite"></div>
-   ${GB_API?`<div id="gbAuth"></div>
-   <form class="gb" id="gbf" novalidate hidden>
-     <input id="gbName" maxlength="20" placeholder="你的暱稱（可不填）" autocomplete="nickname" aria-label="暱稱">
-     <textarea id="gbText" maxlength="500" placeholder="想對這個房間說什麼？" required aria-label="留言內容"></textarea>
-     <label class="gb-whisper"><input type="checkbox" id="gbWhisper"> 悄悄話：只給房主看，不會出現在筆記本上</label>
-     <input class="gb-hp" id="gbHp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-     <div class="row"><button class="btn primary" type="submit" id="gbSubmit">留下這句話</button><span class="gb-count" id="gbCount">0 / 500</span></div>
-   </form>
-   <div class="gb-msg" id="gbMsg" role="status"></div>
-   <div class="note">留言前請看<a href="privacy.html" target="_blank" rel="noopener">隱私權說明</a>：我們只公開你填的暱稱和內容。</div>`
-   :'<div class="note">留言本還在準備中，很快就能在這裡留言。</div>'}</div>`);
-  if(!GB_API){gb.list=[];gbRenderList();return;}
-  gbRenderList('loading');gbRenderAuth();
-  gbLoad(false).then(()=>gbRefresh(),()=>gbRenderList('error'));
-  const f=card.querySelector('#gbf'),txt=card.querySelector('#gbText'),cnt=card.querySelector('#gbCount'),msg=card.querySelector('#gbMsg'),sub=card.querySelector('#gbSubmit');
-  txt.oninput=()=>{cnt.textContent=[...txt.value].length+' / 500';};
-  f.onsubmit=async e=>{e.preventDefault();msg.textContent='';
-    const content=txt.value.trim(),nickname=card.querySelector('#gbName').value.trim();
-    if(!content){msg.textContent=gbErr('content_empty');txt.focus();return;}
-    if(!gbSignedIn()){gbSignOut();gbRefresh();msg.textContent=gbErr('expired');return;}
-    sub.disabled=true;sub.textContent='送出中…';
-    const whisper=card.querySelector('#gbWhisper').checked;
-    try{const d=await gbPost('/api/comments',{nickname,content,whisper,credential:gb.token,elapsed:Date.now()-gb.openedAt,website:card.querySelector('#gbHp').value});
-      txt.value='';cnt.textContent='0 / 500';
-      card.querySelector('#gbWhisper').checked=false;
-      if(d.comment){if(d.public)gb.list=[d.comment].concat((gb.list||[]).filter(c=>c.id!==d.comment.id));gb.mine=[d.comment].concat((gb.mine||[]).filter(c=>c.id!==d.comment.id));}
-      toast(whisper?'悄悄話已送出，只有房主看得到':'留言已寫進筆記本');gbRenderList();}
-    catch(err){msg.textContent=gbErr(err&&err.code);gbRenderAuth();}
-    finally{sub.disabled=false;sub.textContent='留下這句話';}};
-  // edit and delete buttons on this visitor's own comments
-  card.querySelector('#gbList').addEventListener('click',async e=>{
-    const b=e.target.closest('[data-act]');if(!b)return;const row=b.closest('[data-id]'),id=row&&row.dataset.id;if(!id)return;msg.textContent='';
-    const act=b.dataset.act;
-    if(act==='edit'){gb.editing=id;gbRenderList();const t=card.querySelector('.gb-edit');if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);}return;}
-    if(act==='cancel'){gb.editing=null;gbRenderList();return;}
-    if(!gbSignedIn()){gbSignOut();gbRefresh();msg.textContent=gbErr('expired');return;}
-    if(act==='del'&&!b.dataset.armed){b.dataset.armed='1';b.textContent='再按一次確認刪除';return;}
-    b.disabled=true;
-    try{
-      if(act==='save'){const content=row.querySelector('.gb-edit').value.trim();if(!content){msg.textContent=gbErr('content_empty');b.disabled=false;return;}
-        const whisper=row.querySelector('.gb-edit-whisper').checked;
-        const d=await gbPost('/api/comments/'+encodeURIComponent(id),{credential:gb.token,content,whisper},'PATCH');
-        gb.editing=null;gb.list=(gb.list||[]).filter(c=>c.id!==id);gb.mine=(gb.mine||[]).map(c=>c.id===id?d.comment:c);
-        toast(whisper?'悄悄話已修改，只有房主看得到':'已送出修改，房主看過後會重新公開');}
-      else if(act==='del'){await gbPost('/api/comments/'+encodeURIComponent(id)+'/delete',{credential:gb.token});
-        gb.list=(gb.list||[]).filter(c=>c.id!==id);gb.mine=(gb.mine||[]).filter(c=>c.id!==id);toast('留言已刪除');}
-      gbRenderList();}
-    catch(err){msg.textContent=gbErr(err&&err.code);b.disabled=false;if(!gbSignedIn())gbRefresh();}});
+  gb.openedAt=Date.now();gb.editing=null;bk.closing=false;bk.busy=false;bk.error=false;
+  openModal(`<div class="bk" id="bk" role="dialog" aria-label="留言筆記本">
+     <div class="bk-book">
+       <div class="bk-page bk-left" id="bkL"></div><div class="bk-page bk-right" id="bkR"></div>
+       <div class="bk-leaf" id="bkLeaf" hidden><div class="bk-face bk-front bk-page"></div><div class="bk-face bk-back bk-page"></div></div>
+       <div class="bk-cover"><div class="bk-face bk-cover-front"><div class="bk-title">留言筆記本</div><div class="bk-sub">內在房間</div></div><div class="bk-face bk-cover-back"></div></div>
+     </div>
+     <button class="bk-nav" id="bkPrev" type="button" aria-label="往前翻">‹</button><button class="bk-nav next" id="bkNext" type="button" aria-label="往後翻">›</button>
+     <div class="bk-hint">← → 或點兩側翻頁</div></div>`,{book:true});
+  bk.el=card.querySelector('#bk');bkMeasure();
+  gbBookCloser=bkClose;
+  bk.el.querySelector('#bkPrev').onclick=()=>bkFlip(-1);bk.el.querySelector('#bkNext').onclick=()=>bkFlip(1);
+  bk.el.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b){e.stopPropagation();bkAction(b);return;}
+    if(e.target.closest('input,textarea,button,a,label,.bk-gbtn,iframe'))return;
+    const pg=e.target.closest('.bk-left,.bk-right');if(!pg||!bk.el.classList.contains('open'))return;
+    const r=pg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width;   // tap near the outer edge of a page to turn it
+    if(pg.classList.contains('bk-right')&&x>.78)bkFlip(1);else if(pg.classList.contains('bk-left')&&x<.22)bkFlip(-1);else if(bk.single&&x<.22)bkFlip(-1);});
+  let sx=null;bk.el.addEventListener('pointerdown',e=>{if(!e.target.closest('input,textarea'))sx=e.clientX;});
+  bk.el.addEventListener('pointerup',e=>{if(sx===null)return;const dx=e.clientX-sx;sx=null;if(Math.abs(dx)>50)bkFlip(dx<0?1:-1);});   // swipe on phones
+  bk.keyH=e=>{if(!bk.el||!bk.el.isConnected)return;if(e.target.closest&&e.target.closest('input,textarea'))return;
+    if(e.key==='ArrowRight'){e.preventDefault();e.stopPropagation();bkFlip(1);}else if(e.key==='ArrowLeft'){e.preventDefault();e.stopPropagation();bkFlip(-1);}};
+  addEventListener('keydown',bk.keyH,true);
+  bk.resizeH=()=>{if(!bk.el||!bk.el.isConnected)return;const was=bk.single;bkMeasure();if(bk.loading){bkRender();return;}
+    const keep=was===bk.single?bk.view:bkTargetView();bkRebuild(keep);};
+  addEventListener('resize',bk.resizeH);
+  bkLoad();bkOpenAnim();
 }
 function fireWord(v){return v<20?'微弱':v<40?'安靜':v<65?'中等':v<85?'旺盛':'熊熊'}
 function openFire(){
