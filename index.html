@@ -1416,10 +1416,16 @@ const sea=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.ShaderMate
   float foamA=clamp((foamLip*1.15+foamTrail*.8)*mix(.8,1.25,clamp(uSurf-.6,0.,1.))+resid*(.35+.65*shallow)*uSurf+edgeWash,0.,1.)*zone;
   vec3 foam=mix(uHor*1.4,vec3(1.,.985,.95),.62)*mix(.035,1.,lk*lk)*mix(vec3(.86,.9,1.),vec3(1.),lk)+vec3(.55,.56,.6)*.06*uMoonVis;   // foam only catches what light there is: soft grey-blue under the moon
   col=mix(col,foam,foamA*(1.-smoothstep(70.,190.,dist))*mix(.45,.9,lk));
-  col=mix(col,uHor*mix(nightDim,1.,.35),smoothstep(200.,900.,dist));gl_FragColor=vec4(col,1.);
+  // the last few metres: the water is only centimetres deep, so the wet sand shows through and the edge has no hard line
+  float depth=max(-sd,0.)/15.;                                   // the beach under the tide is a 1:15 slope
+  float ragged=(fbm(vec2(vW.x*.6,sd*1.3-t*.2))-.5)*.08+(fbm(vec2(vW.x*2.1,t*.5))-.5)*.03;
+  float clear=1.-smoothstep(0.,.3,depth+ragged);                // 1 right at the edge, 0 once it is ~30 cm deep
+  col=mix(col,mix(col,vec3(.62,.72,.66)*mix(.05,1.,lk*lk),.35*mix(.3,1.,lk)),clear*.8);   // shallow water over sand: paler, a little green; at night it just goes dark with the sand
+  float alpha=max(1.-clear*.92,clamp(foamA*(1.-smoothstep(70.,190.,dist))*mix(.45,.9,lk)*1.4,0.,1.));   // foam stays solid white
+  col=mix(col,uHor*mix(nightDim,1.,.35),smoothstep(200.,900.,dist));gl_FragColor=vec4(col,alpha);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
-  }`},NOT_MOUNTAIN)));
+  }`},NOT_MOUNTAIN,{transparent:true})));
 sea.rotation.x=-Math.PI/2;sea.position.y=-6;scene.add(sea);
 /* wind for the mountain plants: tips sway more than the base, gusts roll across the slope */
 const WIND={uTime:{value:0},uGust:{value:1}};
@@ -1483,7 +1489,11 @@ float sShore(float x){return ${SHORE_GLSL};}`)
     float band=max(uTideWet,0.)+.6;
     float damp=step(-.5,sd)*(1.-smoothstep(band*.55,band,sd))*smoothstep(-.5,.6,sd+.6);
     damp*=.55+.45*sfbm(vec2(x*.35,sd*.8));
-    diffuseColor.rgb*=1.-.26*damp;}
+    diffuseColor.rgb*=1.-.26*damp;
+    // sand under the sea: wet-dark and tinted by the water above it, deeper = more sea colour
+    float under=smoothstep(.3,-1.2,sd);
+    vec3 seaBed=mix(diffuseColor.rgb*.66,vec3(.36,.5,.5)*dot(diffuse,vec3(.333))*1.15,.25+.45*smoothstep(-.5,-6.,sd));
+    diffuseColor.rgb=mix(diffuseColor.rgb,seaBed,under);}
   if(sd>-2.&&sd<7.5){
     float seed=sfbm(vec2(x*.05,3.))*2.+sfbm(vec2(x*.013,7.));
     float cyc=fract(t*.075+seed),wave=floor(t*.075+seed);
