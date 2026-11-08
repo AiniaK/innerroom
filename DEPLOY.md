@@ -335,9 +335,9 @@ googleClientId: '你的用戶端 ID.apps.googleusercontent.com',
 githubRepo: '你的帳號/innerroom',
 ```
 
-### 5-2 【可以請 Claude 做】填寫隱私權說明的聯絡方式
+### 5-2 隱私權說明的聯絡方式
 
-打開 `privacy.html`，把「（房主聯絡 email）」換成你想公開的聯絡信箱。建議另開一個專用信箱，不一定要用你的主要 Gmail。
+`privacy.html` 目前請訪客用留言本的「悄悄話」聯絡房主。想改成公開信箱的話，修改 `privacy.html` 裡「資料放在哪裡」下方那一段即可。
 
 ### 5-3 【你操作】上傳到 GitHub
 
