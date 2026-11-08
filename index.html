@@ -1849,36 +1849,72 @@ function plantTaiwanForest(){
     if(Object.keys(COUNTS).every(t=>count[t]>=COUNTS[t]||t.endsWith('_hi')))break;
   }
   for(const k in meshes){meshes[k].count=count[k];meshes[k].instanceMatrix.needsUpdate=true;if(meshes[k].instanceColor)meshes[k].instanceColor.needsUpdate=true;scene.add(meshes[k]);}
-  /* ---------- just outside the mountain window: a Taiwan cherry (山櫻花) that follows the real calendar, wildflowers
-     among the silvergrass, and blue tiger butterflies on sunny days ---------- */
+  /* ---------- just outside the mountain window: a magic tree that is always in flower, wildflowers among the silvergrass,
+     and blue tiger butterflies on sunny days ---------- */
   {const NR=rng(5150),nr=(a,b)=>a+(b-a)*NR();
-   const TX=2.55,TZ=-9.9,TY=mountainH(TX,TZ)-.05;   // the cherry: about six metres out, a little left of centre
-   // trunk and limbs, dark reddish-brown with a little sheen
-   const limbs=[{geo:new THREE.CylinderGeometry(.09,.17,2.1,8),c:0x5E4436,y:1.05,jitter:600}];
-   const tips=[];
-   for(let i=0;i<5;i++){const an=i/5*Math.PI*2+nr(-.3,.3),tilt=nr(.55,.85),len=nr(1.3,1.8),ca=Math.cos(an),sa=Math.sin(an);
-     const bx=ca*Math.sin(tilt)*len/2,by=1.9+Math.cos(tilt)*len/2,bz=sa*Math.sin(tilt)*len/2;
-     limbs.push({geo:new THREE.CylinderGeometry(.035,.075,len,6),c:0x624738,x:bx,y:by,z:bz,rz:-ca*tilt,rx:sa*tilt});
-     const ex=ca*Math.sin(tilt)*len,ey=1.9+Math.cos(tilt)*len,ez=sa*Math.sin(tilt)*len;
-     for(let j=0;j<3;j++){const a2=an+nr(-.9,.9),t2=nr(.6,1.2),l2=nr(.6,1.0),c2=Math.cos(a2),s2=Math.sin(a2);   // twigs fanning from each limb
-       limbs.push({geo:new THREE.CylinderGeometry(.012,.03,l2,5),c:0x6B4E3E,x:ex+c2*Math.sin(t2)*l2/2,y:ey+Math.cos(t2)*l2/2,z:ez+s2*Math.sin(t2)*l2/2,rz:-c2*t2,rx:s2*t2});
-       tips.push([ex+c2*Math.sin(t2)*l2,ey+Math.cos(t2)*l2,ez+s2*Math.sin(t2)*l2]);}}
-   const tree=new THREE.Mesh(build(limbs),windMaterial('cherry',.0016));tree.position.set(TX,TY,TZ);scene.add(tree);
-   // leaves and blossoms are clumps placed round the twig tips; how many show depends on the season
-   const clumpGeo=build([{geo:new THREE.IcosahedronGeometry(1,1),c:0xffffff,jitter:610}]);
-   const LEAVES=90,BLOOMS=130;
-   const leafM=new THREE.InstancedMesh(clumpGeo,windMaterial('cherryLeaf',.0016),LEAVES),bloomM=new THREE.InstancedMesh(clumpGeo,windMaterial('cherryBloom',.0016),BLOOMS);
+   /* the magic tree: one spot outside the window that is always some tree in flower, changing with Taipei's calendar —
+      山櫻花 Jan–Feb, 黃花風鈴木 Mar, 油桐 Apr–May, 鳳凰木 Jun–Aug, 木芙蓉 Sep–Oct, 美人樹 Nov–Dec.
+      Round each change the old tree sinks away while the new one grows up in its place. */
+   const TX=2.55,TZ=-9.9,TY=mountainH(TX,TZ)-.05;
    const m4=new THREE.Matrix4(),q4=new THREE.Quaternion(),v4=new THREE.Vector3(),s4=new THREE.Vector3(),c4=new THREE.Color();
-   const near=(n,spread,sz,szR)=>{const out=[];for(let i=0;i<n;i++){const t=tips[Math.floor(NR()*tips.length)];
-     out.push({x:TX+t[0]+nr(-spread,spread),y:TY+t[1]+nr(-spread*.6,spread*.8),z:TZ+t[2]+nr(-spread,spread),s:sz+NR()*szR});}return out;};
-   near(LEAVES,.5,.28,.2).forEach((p,i)=>{q4.setFromEuler(new THREE.Euler(NR()*3,NR()*3,NR()*3));m4.compose(v4.set(p.x,p.y,p.z),q4,s4.set(p.s,p.s*.75,p.s));leafM.setMatrixAt(i,m4);
-     const v=.85+NR()*.3;leafM.setColorAt(i,c4.setRGB(v,v,v*(.9+NR()*.15)));});
-   near(BLOOMS,.45,.14,.12).forEach((p,i)=>{q4.setFromEuler(new THREE.Euler(NR()*3,NR()*3,NR()*3));m4.compose(v4.set(p.x,p.y,p.z),q4,s4.set(p.s,p.s*.8,p.s));bloomM.setMatrixAt(i,m4);
-     bloomM.setColorAt(i,c4.set([0xD9497A,0xE3648F,0xCC3B6E,0xEB7FA2][i%4]));});   // the deep rose-pink of Taiwan cherry
-   leafM.count=0;bloomM.count=0;scene.add(leafM,bloomM);
-   // petals drifting down while it is in bloom
-   const PET=46,petM=new THREE.InstancedMesh(new THREE.PlaneGeometry(.035,.028),new THREE.MeshToonMaterial(Object.assign({color:0xE3648F,gradientMap:gradMap,side:THREE.DoubleSide},ONLY_MOUNTAIN)),PET);
-   const petals=[];for(let i=0;i<PET;i++)petals.push({t:NR()*8,x:0,y:-99,z:0,vx:0,vz:0,spin:NR()*6});petM.count=0;scene.add(petM);
+   const cyl=(r0,r1,len,seg,c,x0,y0,z0,an,tilt)=>{const ca=Math.cos(an),sa=Math.sin(an);   // a limb from (x0,y0,z0), leaning `tilt` from upright toward `an`
+     return {part:{geo:new THREE.CylinderGeometry(r1,r0,len,seg),c,x:x0+ca*Math.sin(tilt)*len/2,y:y0+Math.cos(tilt)*len/2,z:z0+sa*Math.sin(tilt)*len/2,rz:-ca*tilt,rx:sa*tilt},
+       end:[x0+ca*Math.sin(tilt)*len,y0+Math.cos(tilt)*len,z0+sa*Math.sin(tilt)*len]};};
+   // a crown of limbs: `n` limbs from height y0, each with `tw` twigs; returns the parts and the twig tips (where leaves and flowers go)
+   function crown(R,{bark,n,y0,tilt,len,tw,tLen,tTilt,r0=.075,spread=.3}){const parts=[],tips=[];
+     for(let i=0;i<n;i++){const an=i/n*Math.PI*2+(R()-.5)*spread*2,t=tilt[0]+R()*(tilt[1]-tilt[0]),l=len[0]+R()*(len[1]-len[0]);
+       const L=cyl(r0,r0*.45,l,6,bark,0,y0,0,an,t);parts.push(L.part);
+       for(let j=0;j<tw;j++){const a2=an+(R()-.5)*1.8,t2=tTilt[0]+R()*(tTilt[1]-tTilt[0]),l2=tLen[0]+R()*(tLen[1]-tLen[0]);
+         const T=cyl(r0*.4,r0*.15,l2,5,bark,L.end[0],L.end[1],L.end[2],a2,t2);parts.push(T.part);tips.push(T.end);}}
+     return {parts,tips};}
+   const SPECIES=[];
+   function species(def){const R=rng(def.seed);
+     const {parts,tips}=def.frame(R);
+     const g=new THREE.Group();g.position.set(TX,TY,TZ);g.visible=false;scene.add(g);
+     g.add(new THREE.Mesh(build(parts),windMaterial('mt-'+def.key,.0016)));
+     const mk=(spec,key)=>{if(!spec)return null;const im=new THREE.InstancedMesh(spec.geo,windMaterial('mt-'+def.key+key,.0016),spec.n);
+       for(let i=0;i<spec.n;i++){const t=tips[Math.floor(R()*tips.length)],sp=spec.spread,s=spec.size[0]+R()*(spec.size[1]-spec.size[0]);
+         const up=spec.up||0;v4.set(t[0]+(R()-.5)*2*sp,t[1]+up+(R()-.5)*sp*1.2,t[2]+(R()-.5)*2*sp);
+         q4.setFromEuler(new THREE.Euler(spec.flat?(R()-.5)*.6:R()*3,R()*6.28,spec.flat?(R()-.5)*.6:R()*3));m4.compose(v4,q4,s4.set(s,s*(spec.squash||1),s));im.setMatrixAt(i,m4);
+         im.setColorAt(i,c4.set(spec.colors[i%spec.colors.length]).multiplyScalar(.9+R()*.2));}
+       im.count=0;g.add(im);return im;};
+     const sp={...def,g,tips,leaf:mk(def.leaves,'L'),flower:mk(def.flowers,'F')};SPECIES.push(sp);return sp;}
+   const clump=build([{geo:new THREE.IcosahedronGeometry(1,1),c:0xffffff,jitter:610}]);
+   const disc=n=>build([{geo:new THREE.CircleGeometry(1,n),c:0xffffff,rx:-Math.PI/2},{geo:new THREE.CircleGeometry(1,n),c:0xffffff,rx:Math.PI/2,y:-.002}]);   // a flat open flower, seen from above or below
+   const MONTH=[0,31,59,90,120,151,181,212,243,273,304,334];   // day of year each month begins
+   species({key:'cherry',name:'山櫻花',seed:5150,from:MONTH[0],to:MONTH[2],petal:0xE3648F,petalRate:1,
+     frame:R=>{const t=crown(R,{bark:0x5E4436,n:5,y0:1.9,tilt:[.55,.85],len:[1.3,1.8],tw:3,tLen:[.6,1],tTilt:[.6,1.2]});t.parts.unshift({geo:new THREE.CylinderGeometry(.09,.17,2.1,8),c:0x5E4436,y:1.05,jitter:600});return t;},
+     leaves:{geo:clump,n:40,size:[.16,.24],spread:.4,colors:[0xA9C86C,0x9BBE62]},leafMax:.35,leafLate:true,   // a few young leaves as the flowers go over
+     flowers:{geo:clump,n:140,size:[.13,.25],spread:.45,colors:[0xD9497A,0xE3648F,0xCC3B6E,0xEB7FA2]}});
+   species({key:'tabebuia',name:'黃花風鈴木',seed:5151,from:MONTH[2],to:MONTH[3],petal:0xF2C230,petalRate:1.2,
+     frame:R=>{const t=crown(R,{bark:0x6E6255,n:5,y0:2.0,tilt:[.35,.6],len:[1.4,1.9],tw:3,tLen:[.6,.9],tTilt:[.4,.9]});t.parts.unshift({geo:new THREE.CylinderGeometry(.09,.16,2.2,8),c:0x6E6255,y:1.1,jitter:601});return t;},
+     flowers:{geo:clump,n:190,size:[.15,.26],spread:.55,squash:.8,colors:[0xF7C934,0xF2BC22,0xFAD457,0xEFB21C]}});   // bare branches heaped with yellow: the whole crown turns gold
+   species({key:'tung',name:'油桐',seed:5152,from:MONTH[3],to:MONTH[5],petal:0xF6F2E8,petalRate:1.4,petalSize:2,
+     frame:R=>{const p=[{geo:new THREE.CylinderGeometry(.09,.18,3.4,8),c:0x77706A,y:1.7,jitter:602}],tips=[];
+       for(let tier=0;tier<3;tier++){const t=crown(R,{bark:0x77706A,n:4,y0:2.3+tier*.8,tilt:[1.0,1.25],len:[1.4-tier*.3,1.9-tier*.35],tw:2,tLen:[.5,.8],tTilt:[.7,1.3],r0:.06});p.push(...t.parts);tips.push(...t.tips);}   // branches in whorls, tier above tier
+       return {parts:p,tips};},
+     leaves:{geo:clump,n:70,size:[.3,.45],spread:.45,colors:[0x4F7A3E,0x5C8746,0x46703A],squash:.6},leafMax:1,
+     flowers:{geo:clump,n:200,size:[.09,.15],spread:.5,up:.22,squash:.7,colors:[0xFBF8F0,0xF4EFE4,0xFFFFFF]}});   // clusters of white flowers sitting over the leaves
+   species({key:'flame',name:'鳳凰木',seed:5153,from:MONTH[5],to:MONTH[8],petal:0xE2462B,petalRate:1,
+     frame:R=>{const t=crown(R,{bark:0x8A8178,n:6,y0:2.3,tilt:[.85,1.1],len:[1.7,2.3],tw:3,tLen:[.7,1.1],tTilt:[1.15,1.45],r0:.08});t.parts.unshift({geo:new THREE.CylinderGeometry(.11,.2,2.5,8),c:0x8A8178,y:1.25,jitter:603});return t;},   // limbs reaching out wide from the trunk: an umbrella
+     leaves:{geo:clump,n:90,size:[.42,.62],spread:.5,flat:true,colors:[0x7FA552,0x8DB35C,0x739A4A],squash:.28},leafMax:1,   // fine, feathery foliage in flat, level layers
+     flowers:{geo:clump,n:130,size:[.22,.34],spread:.5,up:.2,flat:true,squash:.4,colors:[0xE2462B,0xEC5A2E,0xD63A26,0xF07A3A]}});   // a fiery layer over the top
+   species({key:'hibiscus',name:'木芙蓉',seed:5154,from:MONTH[8],to:MONTH[10],petal:0xF2B8C6,petalRate:.6,petalSize:2,
+     frame:R=>{const p=[],tips=[];for(let i=0;i<5;i++){const an=i/5*Math.PI*2+(R()-.5),S=cyl(.05,.03,2.1+R()*.5,6,0x7E7060,0,0,0,an,.2+R()*.35);p.push(S.part);   // several stems from the ground: a big shrub
+         for(let j=0;j<3;j++){const T=cyl(.025,.01,.6+R()*.4,5,0x7E7060,S.end[0],S.end[1]-j*.35,S.end[2],an+(R()-.5)*2,.6+R()*.6);p.push(T.part);tips.push(T.end);}}return {parts:p,tips};},
+     leaves:{geo:clump,n:42,size:[.22,.3],spread:.35,colors:[0x5E8A47,0x6A9450,0x557F41]},leafMax:1,
+     flowers:{geo:disc(10),n:110,size:[.13,.18],spread:.45,up:.08,colors:[0xffffff,0xF8F4F2]},dayColour:true});   // facing every which way, so many open toward the window   // big flowers: white at dawn, pink by afternoon, deep pink at dusk
+   species({key:'silkfloss',name:'美人樹',seed:5155,from:MONTH[10],to:365,petal:0xE985B2,petalRate:1,petalSize:1.6,
+     frame:R=>{const prof=[];for(let i=0;i<=10;i++){const y=i/10*2.6;prof.push(new THREE.Vector2(.13+.17*Math.exp(-Math.pow((y-.7)/.6,2)),y));}   // the swollen, bottle-shaped trunk
+       const t=crown(R,{bark:0x7F8A6E,n:5,y0:2.5,tilt:[.5,.9],len:[1.4,1.9],tw:3,tLen:[.6,1],tTilt:[.5,1.1]});
+       t.parts.unshift({geo:new THREE.LatheGeometry(prof,9),c:0x7F8A6E,jitter:604});
+       for(let i=0;i<26;i++){const y=.2+R()*2.2,an=R()*6.28,r=.13+.17*Math.exp(-Math.pow((y-.7)/.6,2));t.parts.push({geo:new THREE.ConeGeometry(.018,.06,4),c:0x6B755C,x:Math.cos(an)*r,y,z:Math.sin(an)*r,rz:-Math.cos(an)*1.57,rx:Math.sin(an)*1.57});}   // its thorns
+       return t;},
+     leaves:{geo:clump,n:35,size:[.2,.3],spread:.4,colors:[0x6F9650,0x7DA25A]},leafMax:.45,
+     flowers:{geo:disc(5),n:190,size:[.1,.14],spread:.5,flat:true,colors:[0xE985B2,0xF09BC0,0xDC6FA0,0xF4B3CF]}});
+   // petals and flowers drifting down from whichever tree is in bloom
+   const PET=50,petM=new THREE.InstancedMesh(new THREE.PlaneGeometry(.035,.028),new THREE.MeshToonMaterial(Object.assign({color:0xE3648F,gradientMap:gradMap,side:THREE.DoubleSide},ONLY_MOUNTAIN)),PET);
+   const petals=[];for(let i=0;i<PET;i++)petals.push({t:Math.random()*8,x:0,y:-99,z:0,vx:0,vz:0,spin:Math.random()*6});petM.count=0;scene.add(petM);
    // wildflowers among the grass: 咸豐草 (white petals, yellow eye), 紫花藿香薊 (lavender puffs), 台灣百合 (white trumpets, spring only)
    const FLOWER={
      bidens:build([{geo:new THREE.CylinderGeometry(.005,.007,.34,4),c:0x7E9157,y:.17},
@@ -1907,25 +1943,33 @@ function plantTaiwanForest(){
      Rw.scale.x=-1;g.add(L,Rw,b);scene.add(g);
      const sp=flowerSpots[Math.floor(NR()*flowerSpots.length)];
      flies.push({g,L,R:Rw,pos:new THREE.Vector3(sp[0],sp[1]+.6,sp[2]),vel:new THREE.Vector3(),target:new THREE.Vector3(),rest:0,next:0,ph:NR()*6,show:0});}
-   let seasonAt=-1e9,season=null;
-   const LEAF_SPRING=new THREE.Color(0xA9C86C),LEAF_SUMMER=new THREE.Color(0x5F8846),LEAF_AUTUMN=new THREE.Color(0xD48A3C),tmpC3=new THREE.Color();
-   function seasonOf(ms){const d=new Date(ms+8*HR),y=d.getUTCFullYear(),doy=(Date.UTC(y,d.getUTCMonth(),d.getUTCDate())-Date.UTC(y,0,1))/864e5;
-     return {bloom:smooth(8,20,doy)*(1-smooth(48,60,doy)),               // flowers from mid-January, gone by the start of March
-       leaf:Math.min(smooth(55,90,doy),1-smooth(318,362,doy)),          // new leaves through March; they fall through December
-       spring:1-smooth(95,140,doy),autumn:smooth(285,322,doy),           // fresh green into May; turning orange from mid-October
-       lily:smooth(92,105,doy)*(1-smooth(170,185,doy))};}                // lilies in April to June
+   let seasonAt=-1e9,active=null,lilyAmt=0;
+   const wrapD=x=>((x+182.5)%365+365)%365-182.5;   // days from a date, the short way round the year
+   const HIB_WHITE=new THREE.Color(0xFFFFFF),HIB_PINK=new THREE.Color(0xF4B6C8),HIB_DEEP=new THREE.Color(0xE07A9A);
+   function updateSeason(ms){const d=new Date(ms+8*HR),y=d.getUTCFullYear(),doy=(Date.UTC(y,d.getUTCMonth(),d.getUTCDate())-Date.UTC(y,0,1))/864e5+(d.getUTCHours()+d.getUTCMinutes()/60)/24;
+     let best=0;active=null;
+     for(const sp of SPECIES){const d1=wrapD(doy-sp.from),d2=wrapD(doy-sp.to);
+       const pres=smooth(-1.5,1.5,d1)*(1-smooth(-1.5,1.5,d2));          // grows in round the first day, sinks away round the last
+       const bloom=smooth(-1,7,d1)*(1-smooth(-7,1,d2));                  // the flowers open over the first week and fade over the last
+       sp.g.visible=pres>.002;sp.g.scale.setScalar(.12+.88*pres);sp.bloom=bloom;
+       if(sp.flower)sp.flower.count=Math.round(sp.flowers.n*bloom);
+       if(sp.leaf)sp.leaf.count=Math.round(sp.leaves.n*sp.leafMax*(sp.leafLate?smooth(25,55,d1):1)*smooth(-1.5,3,d1));
+       if(pres*bloom>best){best=pres*bloom;active=sp;}}
+     lilyAmt=smooth(92,105,doy)*(1-smooth(170,185,doy));                 // lilies in April to June
+     fl.lily.count=Math.round(FCOUNT.lily*lilyAmt);
+     if(active)petM.material.color.set(active.petal);}
    natureTick=(dt,now)=>{
      const ms=tpeMs();
-     if(Math.abs(ms-seasonAt)>60e3){seasonAt=ms;season=seasonOf(ms);
-       leafM.count=Math.round(LEAVES*season.leaf);bloomM.count=Math.round(BLOOMS*season.bloom);fl.lily.count=Math.round(FCOUNT.lily*season.lily);
-       tmpC3.copy(LEAF_SUMMER).lerp(LEAF_SPRING,season.spring).lerp(LEAF_AUTUMN,season.autumn);leafM.material.color.copy(tmpC3);}
-     // falling petals
-     const fall=season.bloom>.3;let pc=0;
-     for(const p of petals){if(!fall&&p.y<-50)continue;p.t-=dt;
-       if(p.y<-50||p.t<0&&p.y<TY){if(!fall){p.y=-99;continue;}const t=tips[Math.floor(Math.random()*tips.length)];p.x=TX+t[0]+(Math.random()-.5)*.8;p.y=TY+t[1];p.z=TZ+t[2]+(Math.random()-.5)*.8;p.vx=(Math.random()-.3)*.25;p.vz=(Math.random()-.5)*.2;p.t=2+Math.random()*6;}
+     if(Math.abs(ms-seasonAt)>20e3){seasonAt=ms;updateSeason(ms);}
+     { // 木芙蓉 changes colour through the day: white in the morning, pink in the afternoon, deep pink by dusk
+       const hib=SPECIES.find(s=>s.dayColour);if(hib&&hib.g.visible){const h=tpeParts(ms).hour;hib.flower.material.color.copy(HIB_WHITE).lerp(HIB_PINK,smooth(9,15,h)).lerp(HIB_DEEP,smooth(15,18.5,h));}}
+     // petals (or whole flowers) drifting down from the tree in bloom
+     const fall=active&&active.bloom>.3;let pc=0;const src=active,sc=src?src.g.scale.x:1,ps=src&&src.petalSize||1;
+     for(const p of petals){if(!fall&&p.y<-50)continue;p.t-=dt*(src?src.petalRate:1);
+       if(p.y<-50||p.t<0&&p.y<TY){if(!fall){p.y=-99;continue;}const t=src.tips[Math.floor(Math.random()*src.tips.length)];p.x=TX+t[0]*sc+(Math.random()-.5)*.8;p.y=TY+t[1]*sc;p.z=TZ+t[2]*sc+(Math.random()-.5)*.8;p.vx=(Math.random()-.3)*.25;p.vz=(Math.random()-.5)*.2;p.t=2+Math.random()*6;}
        p.y-=dt*(.32+.1*Math.sin(now/600+p.spin));p.x+=dt*(p.vx+.12*Math.sin(now/900+p.spin));p.z+=dt*p.vz;
        if(p.y<mountainH(p.x,p.z)+.01){p.y=-99;continue;}
-       q4.setFromEuler(new THREE.Euler(now/400+p.spin,now/700+p.spin*2,0));m4.compose(v4.set(p.x,p.y,p.z),q4,s4.set(1,1,1));petM.setMatrixAt(pc++,m4);}
+       q4.setFromEuler(new THREE.Euler(now/400+p.spin,now/700+p.spin*2,0));m4.compose(v4.set(p.x,p.y,p.z),q4,s4.set(ps,ps,ps));petM.setMatrixAt(pc++,m4);}
      petM.count=pc;petM.instanceMatrix.needsUpdate=true;
      // butterflies: out on fair days, resting on a flower now and then
      const want=smooth(.35,.6,dayness)*(1-smooth(.05,.2,wx.rain))*(1-smooth(.5,.8,wx.thunder));
