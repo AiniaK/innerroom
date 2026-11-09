@@ -1183,6 +1183,36 @@ add(rbox(.8,.2,.78,.04),M.oakDark,0,.12,0,acG,{act:aA});
 add(rbox(.62,.16,.66,.06),M.sofa,0,.3,.04,acG,{act:aA});
 add(rbox(.8,.5,.16,.06),M.sofa,0,.55,-.32,acG,{rx:-.12,act:aA});
 add(rbox(.14,.36,.78,.06),M.sofa,-.34,.4,0,acG,{act:aA});add(rbox(.14,.36,.78,.06),M.sofa,.34,.4,0,acG,{act:aA});
+// a knitted throw left over the armchair's back: a short flap in front, over the top, a longer fall behind with a slanting hem,
+// soft folds, and a fringe along the hem. Cream chunky knit with terracotta bands, like the cushion on the bed.
+{const tex=ctex(256,512,(g,w,h)=>{g.fillStyle='#ECDFC8';g.fillRect(0,0,w,h);
+   for(const [y0,y1] of [[.06,.11],[.14,.16],[.84,.86],[.89,.94]]){g.fillStyle='#C2714C';g.fillRect(0,y0*h,w,(y1-y0)*h);}   // terracotta bands near each end
+   for(let x=0;x<w;x+=8)for(let y=0;y<h;y+=10){g.fillStyle='rgba(120,90,60,.10)';g.beginPath();g.ellipse(x+2,y+5,1.6,4.2,.35,0,7);g.fill();g.beginPath();g.ellipse(x+6,y+5,1.6,4.2,-.35,0,7);g.fill();}   // knit stitches: little Vs in columns
+   for(let x=8;x<w;x+=16){g.fillStyle='rgba(255,255,255,.18)';g.fillRect(x,0,1.5,h);}});
+ const mt=new THREE.MeshToonMaterial({map:tex,gradientMap:gradMap,side:THREE.DoubleSide});
+ // the path the throw follows over the back cushion (local y,z; the cushion leans back .12 rad, front face z≈-.24, back face z≈-.40, top y≈.81)
+ const tilt=y=>-(y-.55)*.12,PATH=[];
+ for(let i=0;i<=6;i++){const y=.63+i/6*.16;PATH.push([y,-.225+tilt(y)]);}                                   // up the front face
+ for(let i=1;i<8;i++){const a=i/8*Math.PI;PATH.push([.81+.022*Math.sin(a),-.32+tilt(.81)+.095*Math.cos(Math.PI-a)]);}   // over the rounded top
+ for(let i=0;i<=10;i++){const y=.79-i/10*.5;PATH.push([y,-.415+tilt(Math.max(y,.3))]);}                  // down the back
+ for(let i=1;i<=5;i++){const y=.29-i/5*.2;PATH.push([y,-.42+tilt(.3)-.01*i]);}                             // hanging free below the cushion
+ const cum=[0];for(let i=1;i<PATH.length;i++)cum.push(cum[i-1]+Math.hypot(PATH[i][0]-PATH[i-1][0],PATH[i][1]-PATH[i-1][1]));const TL=cum[cum.length-1];
+ const at=d=>{d=Math.max(0,Math.min(TL,d));let i=1;while(i<cum.length-1&&cum[i]<d)i++;const f=(d-cum[i-1])/(cum[i]-cum[i-1]);const a=PATH[i-1],b=PATH[i];
+   const y=a[0]+(b[0]-a[0])*f,z=a[1]+(b[1]-a[1])*f,ty=b[0]-a[0],tz=b[1]-a[1],tl=Math.hypot(ty,tz);return {y,z,ny:-tz/tl,nz:ty/tl};};   // normal pointing away from the cushion
+ const NU=26,NV=70,X0=-.2,X1=.3,pos=[],uv=[],idx=[];
+ for(let j=0;j<=NV;j++)for(let i=0;i<=NU;i++){const u=i/NU,x=X0+(X1-X0)*u;
+   const len=TL-.12*u;                                  // the hem slants: shorter on one side
+   const d=j/NV*len,P=at(d),hang=Math.max(0,(d-.55)/(TL-.55));
+   const fold=(.006+.016*hang)*Math.sin(u*Math.PI*3.2+hang*1.5)+.004*Math.sin(u*Math.PI*9+j*.2);   // soft folds, deeper where it hangs free
+   const sag=.025*hang*hang*Math.sin(u*Math.PI);           // the middle of the fall bellies out a little
+   pos.push(x+.01*hang*Math.sin(u*7),P.y,P.z);const k=pos.length-3;pos[k+1]+=P.ny*(.018+fold+sag);pos[k+2]+=P.nz*(.018+fold+sag);
+   uv.push(u,1-j/NV);}
+ for(let j=0;j<NV;j++)for(let i=0;i<NU;i++){const a=j*(NU+1)+i,b=a+1,c=a+NU+1,dd=c+1;idx.push(a,c,b,b,c,dd);}
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(idx);geo.computeVertexNormals();
+ add(geo,mt,0,0,0,acG,{act:aA});
+ // the fringe: little tassels along the hem
+ const fm=new THREE.MeshToonMaterial({color:0xE6D6BA,gradientMap:gradMap}),fg=new THREE.CylinderGeometry(.004,.002,.045,3).translate(0,-.022,0);
+ for(let i=0;i<=NU;i++){const k=(NV*(NU+1)+i)*3;add(fg,fm,pos[k],pos[k+1],pos[k+2],acG,{act:aA,ray:false,rx:(i%3-1)*.15,rz:(i%2-.5)*.2,cast:false});}}
 const lampAct={type:'lamp',label:'落地燈'};
 add(new THREE.CylinderGeometry(.15,.17,.025,32),M.metal,-4.55,.012,-3.05,scene,{act:lampAct});
 add(new THREE.CylinderGeometry(.012,.012,1.45,10),M.metal,-4.55,.73,-3.05,scene,{act:lampAct});
