@@ -306,7 +306,19 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.05;
 renderer.useLegacyLights=true;
 renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.shadowMap.type=THREE.PCFShadowMap;   // filtered over a wider footprint (shadow.radius) so edges are soft instead of stair-stepped
+/* soft shadow edges: three's PCF takes 17 fixed taps, which turns into a dotted pattern when spread wide. Instead sample a dense grid
+   over the radius, nudged per pixel by a little noise, so the penumbra is a smooth gradient (lighter grid on phones and tablets). */
+{const lo=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),N=lo?5:7;
+ const a=THREE.ShaderChunk.shadowmap_pars_fragment,i=a.indexOf('#if defined( SHADOWMAP_TYPE_PCF )'),j=a.indexOf('#elif defined( SHADOWMAP_TYPE_PCF_SOFT )');
+ if(i>0&&j>i&&a.slice(i,j).includes('dx0'))THREE.ShaderChunk.shadowmap_pars_fragment=a.slice(0,i)+`#if defined( SHADOWMAP_TYPE_PCF )
+      vec2 texelSize=vec2(1.)/shadowMapSize;float stp=2.*shadowRadius/${N-1}.;
+      vec2 jit=vec2(fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715)))),fract(52.9829189*fract(dot(gl_FragCoord.yx,vec2(.06711056,.00583715)))))-.5;
+      vec2 o0=shadowCoord.xy+texelSize*(jit*stp-shadowRadius);
+      shadow=0.;
+      for(int y=0;y<${N};y++)for(int x=0;x<${N};x++)shadow+=texture2DCompare(shadowMap,o0+vec2(float(x),float(y))*stp*texelSize,shadowCoord.z);
+      shadow*=${(1/(N*N)).toFixed(6)};
+    `+a.slice(j);}
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(70,1,0.05,1500);
 camera.rotation.order='YXZ';
@@ -2234,8 +2246,8 @@ const rain=new THREE.LineSegments(rgeo,new THREE.LineBasicMaterial({color:0xd4dc
 const hemi=new THREE.HemisphereLight(0xdfe9f2,0xa8937a,.4);scene.add(hemi);
 const amb=new THREE.AmbientLight(0xfff0dc,.25);scene.add(amb);
 const sun=new THREE.DirectionalLight(0xffffff,1.6);sun.castShadow=true;
-sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:1,far:70});
-sun.shadow.bias=-.0004;sun.shadow.normalBias=.018;sun.target.position.set(0,0,0);scene.add(sun,sun.target);
+{const S=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)?2048:4096;sun.shadow.mapSize.set(S,S);}   // finer shadows on computers; phones keep the lighter mapObject.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:1,far:70});
+sun.shadow.bias=-.0004;sun.shadow.normalBias=.018;sun.shadow.radius=5.5;sun.target.position.set(0,0,0);scene.add(sun,sun.target);
 const moon=new THREE.DirectionalLight(0x9fb2d6,0);moon.position.set(-10,25,-15);scene.add(moon);
 const balFill=new THREE.PointLight(0xdfe8f0,0,7,1.8);balFill.position.set(-2.8,2.1,-3.25);scene.add(balFill);   // daylight spilling in at the balcony door: kept at the doorway so it doesn't floodlight the white wall
 const winFill=new THREE.PointLight(0xe6eef0,0,7,1.5);winFill.position.set(3.8,1.8,-2.9);scene.add(winFill);
