@@ -180,6 +180,7 @@ function loadState(c) {
   const exItems = (c.exhibits && c.exhibits.items) || {};
   ex = {};
   Object.keys(catalog.exhibits).forEach(id => { ex[id] = Object.assign({}, catalog.exhibits[id].def, exItems[id] || {}); });
+  Object.keys(exItems).forEach(id => { const s = exItems[id]; if (!catalog.exhibits[id] && s && s.custom && s.img) ex[id] = Object.assign({}, CUSTOM_DEF, s); });   // 後台新增的展品
   tv = c.tv && c.tv.src ? clone(c.tv) : null;
   tvView = Object.assign({}, catalog.tv.def, tv && tv.view || {});
   const m = c.music || {};
@@ -205,11 +206,18 @@ function collectTexts() {
   });
   return out;
 }
-function exWidthOf(id) { const s = ex[id]; return Math.round(catalog.exhibits[id].OW * (s.scale > 0 ? s.scale : 1) * 100); }
+// 展品的基本資料：原本就有的來自 catalog，後台新增的由自己的圖片尺寸算出（畫框每邊 3.5 公分）
+const CUSTOM_DEF = { hidden: false, mode: 'hang', along: 0, height: 1.5, desc: '' };
+function exCat(id) {
+  if (catalog.exhibits[id]) return catalog.exhibits[id];
+  const s = ex[id];
+  return { kind: s.kind, W: s.W, H: s.H, OW: s.W + .07, OH: s.H + .07, img: s.img, video: s.video || null, custom: true, def: Object.assign({}, CUSTOM_DEF, { kind: s.kind, title: s.title }) };
+}
+function exWidthOf(id) { const s = ex[id]; return Math.round(exCat(id).OW * (s.scale > 0 ? s.scale : 1) * 100); }
 function collectExhibits() {
   const W = catalog.wall;
   document.querySelectorAll('#exList [data-ex]').forEach(r => {
-    const id = r.dataset.ex, s = ex[id], E = catalog.exhibits[id], f = n => r.querySelector(`[data-f=${n}]`);
+    const id = r.dataset.ex, s = ex[id], E = exCat(id), f = n => r.querySelector(`[data-f=${n}]`);
     s.kind = f('kind').value.trim() || E.kind;
     s.title = f('title').value.trim() || E.def.title;
     s.desc = f('desc').value.trim();
@@ -261,7 +269,7 @@ async function start() {
   contentSha = remote.sha || null;
   loadState(remote.content);
   savedRefs = refsOf(remote.content || {});
-  renderTexts(); renderExhibits(); renderSettings(); setupTV(); renderMusic(); setupTabs();
+  renderTexts(); renderExhibits(); setupExAdd(); renderSettings(); setupTV(); renderMusic(); setupTabs();
   baseline = sectionsOf(buildContent());
   status('已載入網站目前的內容');
   refreshFiles();
@@ -304,9 +312,9 @@ function renderTexts() {
 
 /* ======================= 展品 ======================= */
 function renderExhibits() {
-  $('#exList').innerHTML = Object.keys(catalog.exhibits).map(id => {
-    const E = catalog.exhibits[id], s = ex[id];
-    return `<div class="adm-row ex${s.popup === false ? ' off' : ''}" data-ex="${esc(id)}"><div class="k">展品<br>${esc(id)}<br><img src="${esc(E.img)}" alt="" style="width:100%;max-width:120px;margin-top:8px;border:4px solid #D9B98E;border-radius:3px;box-sizing:border-box"></div><div class="f">
+  $('#exList').innerHTML = Object.keys(ex).map(id => {
+    const E = exCat(id), s = ex[id];
+    return `<div class="adm-row ex${s.popup === false ? ' off' : ''}" data-ex="${esc(id)}"><div class="k">${E.custom ? (E.video ? '新增的影片' : '新增的照片') : '展品'}<br>${esc(id)}<br><img src="${esc(viewURL(E.img))}" alt="" style="width:100%;max-width:120px;margin-top:8px;border:4px solid #D9B98E;border-radius:3px;box-sizing:border-box">${E.custom ? `<br><button type="button" class="btn small ghost" data-del-ex="${esc(id)}" style="margin-top:8px">刪除這件展品</button>` : ''}</div><div class="f">
       <input type="text" data-f="kind" maxlength="20" value="${esc(s.kind || E.kind)}" placeholder="類別" aria-label="類別">
       <input type="text" data-f="title" maxlength="40" value="${esc(s.title)}" placeholder="名稱" aria-label="名稱">
       <textarea data-f="desc" maxlength="800" rows="3" placeholder="介紹文字" aria-label="介紹文字">${esc(s.desc || '')}</textarea>
@@ -325,11 +333,11 @@ function renderExhibits() {
     g.fillStyle = '#F3EADB'; g.fillRect(X(W.z1), Y(W.h), w, h); g.strokeStyle = '#CDBB9E'; g.lineWidth = 1; g.strokeRect(X(W.z1), Y(W.h), w, h);
     g.fillStyle = '#D9C6A6'; g.fillRect(X(W.z1), Y(0), w, 3);
     g.fillStyle = '#9C8A72'; g.font = '15px sans-serif'; g.textAlign = 'left'; g.fillText('← 南', X(W.z1), cv.height - 5); g.textAlign = 'right'; g.fillText('北 →', X(W.z0), cv.height - 5);
-    const ids = Object.keys(catalog.exhibits).sort((a, b) => (a === sel) - (b === sel));
+    const ids = Object.keys(ex).sort((a, b) => (a === sel) - (b === sel));
     for (const id of ids) {
       const r = document.querySelector(`#exList [data-ex="${id}"]`); if (!r) continue;
       const f = n => r.querySelector(`[data-f=${n}]`); if (f('hidden').checked) continue;
-      const E = catalog.exhibits[id], ww = (+f('width').value || E.OW * 100) / 100, hh = ww * E.OH / E.OW, z = +f('along').value || 0;
+      const E = exCat(id), ww = (+f('width').value || E.OW * 100) / 100, hh = ww * E.OH / E.OW, z = +f('along').value || 0;
       const cy = f('mode').value === 'hang' ? (+f('height').value || 1.5) : hh / 2;
       const x0 = X(z + ww / 2), x1 = X(z - ww / 2), y0 = Y(cy + hh / 2), y1 = Y(cy - hh / 2), me = id === sel;
       g.strokeStyle = me ? '#D23B2E' : '#8A6A4A'; g.lineWidth = me ? 4 : 2; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
@@ -342,6 +350,78 @@ function renderExhibits() {
     r.addEventListener('change', e => { if (e.target.dataset.f === 'popup') r.classList.toggle('off', !e.target.checked); draw(); markDirty(); });
   });
   draw();
+  document.querySelectorAll('[data-del-ex]').forEach(b => b.onclick = () => {
+    const id = b.dataset.delEx;
+    if (!confirm(`要刪除「${ex[id].title || id}」嗎？按「儲存並更新房間」之後，網站上就不會再有這件展品。`)) return;
+    collectExhibits(); delete ex[id]; renderExhibits(); markDirty();
+    status('已刪除展品，記得按「儲存並更新房間」。上傳過的檔案還留在「影片與音樂」的檔案清單裡，不需要的話可以在那裡刪除。');
+  });
+}
+
+/* 新增展品：照片先在瀏覽器縮到長邊 2000 像素內並轉成 JPG；影片另外擷取一張封面。上傳後加進清單，等房主按儲存 */
+function imageToJpeg(src, max) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement('canvas');
+      c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+      c.toBlob(b => b ? res({ blob: b, w: im.naturalWidth, h: im.naturalHeight }) : rej(err('cover_failed')), 'image/jpeg', .9);
+    };
+    im.onerror = () => rej(err('cover_failed'));
+    im.src = src;
+  });
+}
+function videoPoster(file) {
+  return new Promise((res, rej) => {
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = URL.createObjectURL(file);
+    const fail_ = () => rej(err('cover_failed'));
+    v.onerror = fail_; setTimeout(fail_, 20000);
+    v.onloadedmetadata = () => { v.currentTime = Math.min(1, (v.duration || 2) / 3); };
+    v.onseeked = () => {
+      const k = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight)), c = document.createElement('canvas');
+      c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k); c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      c.toBlob(b => { URL.revokeObjectURL(v.src); b ? res({ blob: b, w: v.videoWidth, h: v.videoHeight }) : fail_(); }, 'image/jpeg', .88);
+    };
+  });
+}
+// 新展品的初始位置：白牆上目前最空的地方
+function freeAlong(halfW) {
+  const W = catalog.wall, taken = Object.keys(ex).filter(id => !ex[id].hidden).map(id => { const E = exCat(id), h = E.OW * (ex[id].scale > 0 ? ex[id].scale : 1) / 2; return [ex[id].along - h, ex[id].along + h]; });
+  let best = 0, bestGap = -1;
+  for (let z = W.zMin + halfW; z <= W.zMax - halfW; z += .05) {
+    const gap = Math.min(...taken.map(([a, b]) => Math.max(a - (z + halfW), (z - halfW) - b)), 9);
+    if (gap > bestGap) { bestGap = gap; best = z; }
+  }
+  return +best.toFixed(2);
+}
+function setupExAdd() {
+  const ui = uploadUIFor('#exStat', '#exProg');
+  $('#exFile').onchange = async e => {
+    const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+    const isVideo = /^video\//.test(file.type) || /\.(mp4|webm)$/i.test(file.name);
+    const isImage = /^image\/(jpeg|png|webp)$/.test(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
+    if (!isVideo && !isImage) { ui.say('只支援 JPG、PNG、WebP 照片，或 MP4、WebM 影片。', true); return; }
+    const name = (file.name || '').replace(/\.[^.]+$/, '').slice(0, 40);
+    let pic;
+    try { ui.say(isVideo ? '擷取影片封面中…' : '整理照片中…'); pic = isVideo ? await videoPoster(file) : await imageToJpeg(URL.createObjectURL(file), 2000); }
+    catch { ui.say(isVideo ? '讀不到這支影片的畫面，請換成 MP4（H.264）再試。' : '讀不到這張照片，請換一張再試。', true); return; }
+    const imgPath = newPath('ex', file, 'jpg');
+    try { await uploadMedia(pic.blob, imgPath, ui); }
+    catch (er) { ui.progress(null); ui.say('上傳沒有成功：' + explain(er), true); return; }
+    const add = async videoPath => {
+      const a = pic.w / pic.h, L = .7, W = a >= 1 ? L : L * a, H = a >= 1 ? L / a : L;   // 長邊 70 公分
+      const id = 'ex-' + stamp().replace(/[^0-9]/g, '').slice(-10);
+      collectExhibits();
+      ex[id] = Object.assign({}, CUSTOM_DEF, { custom: true, img: imgPath, ...(videoPath ? { video: videoPath } : {}), W: +W.toFixed(3), H: +H.toFixed(3),
+        kind: videoPath ? '影像' : '攝影紀錄', title: name || '新的展品', along: freeAlong(W / 2 + .035), height: 1.5, popup: true, hover: true });
+      renderExhibits(); markDirty(); refreshFiles();
+      ui.say('已加入清單最後面。可以修改名稱、介紹和位置，完成後按上方的「儲存並更新房間」。');
+      const row = document.querySelector(`#exList [data-ex="${id}"]`); if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    if (!isVideo) { await add(null); return; }
+    await pickAndUpload(file, 'ex', ui, true, async ({ path }) => add(path));
+  };
 }
 
 /* ======================= 房間設定 ======================= */
@@ -684,9 +764,10 @@ function refsOf(c) {
   const s = new Set();
   if (c.tv && c.tv.src) s.add(c.tv.src);
   ((c.music && c.music.tracks) || []).forEach(t => { if (t.src) s.add(t.src); if (t.cover) s.add(t.cover); });
+  Object.values((c.exhibits && c.exhibits.items) || {}).forEach(e => { if (e && e.custom) { if (e.img) s.add(e.img); if (e.video) s.add(e.video); } });
   return s;
 }
-function currentRefs() { return refsOf({ tv, music }); }
+function currentRefs() { return refsOf({ tv, music, exhibits: { items: ex } }); }
 async function refreshFiles() {
   const st = $('#filesStat'); st.textContent = '讀取中…'; st.classList.remove('err');
   try {

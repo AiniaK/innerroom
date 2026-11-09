@@ -136,7 +136,10 @@ table.files th{color:var(--muted);font-weight:400}
 
     <section id="tab-ex" role="tabpanel">
       <h3>展品</h3>
-      <p class="note">每個展品右邊都有白牆的即時示意（面向白牆看）：紅框是這件展品，棕框是其他展品，修改數字時會立刻更新。水平位置以公尺計，數字越大越靠左；高度是畫框中心離地的高度；寬度是畫框的寬（公分）。勾選「收進收納箱」就不會出現在牆上，取消勾選就放回牆上。</p>
+      <p class="note">每個展品右邊都有白牆的即時示意（面向白牆看）：紅框是這件展品，棕框是其他展品，修改數字時會立刻更新。水平位置以公尺計，數字越大越靠左；高度是畫框中心離地的高度；寬度是畫框的寬（公分）。勾選「收進收納箱」就不會出現在牆上，取消勾選就放回牆上。新增的展品會先排在清單最後，上傳完成後記得按上方的「儲存並更新房間」，大約一分鐘後網站就會出現。</p>
+      <div class="field"><label for="exFile">新增展品：上傳照片（JPG、PNG、WebP）或影片（MP4、WebM）</label><input type="file" id="exFile" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.webm"></div>
+      <div class="progress" hidden id="exProg"><i></i></div>
+      <div class="ustat" id="exStat" role="status"></div>
       <div id="exList"></div>
     </section>
 

@@ -47,10 +47,15 @@ export function validateContent(c) {
   for (const [id, s] of Object.entries(ex.items)) {
     if (!KEY.test(id) || !isObj(s)) fail(400, 'invalid_content', 'exhibits.items');
     if (s.mode !== undefined && !['hang', 'lean'].includes(s.mode)) fail(400, 'invalid_content', id + '.mode');
+    // 後台新增的展品：自帶圖片（影片另附封面圖）與畫面尺寸（公尺）
+    const custom = bool(s.custom, id + '.custom');
+    if (custom && (!isMediaRef(s.img) || !/\.(jpe?g|png|webp)$/i.test(s.img))) fail(400, 'invalid_content', id + '.img');
+    if (custom && s.video !== undefined && (!isMediaRef(s.video) || !/\.(mp4|webm)$/i.test(s.video))) fail(400, 'invalid_content', id + '.video');
     exItems[id] = prune({
       kind: str(s.kind, 40, id + '.kind'), title: str(s.title, 80, id + '.title'), desc: str(s.desc, 1600, id + '.desc'),
       hidden: bool(s.hidden, id + '.hidden'), popup: bool(s.popup, id + '.popup'), hover: bool(s.hover, id + '.hover'),
       mode: s.mode, along: num(s.along, -10, 10, id + '.along'), height: num(s.height, 0, 5, id + '.height'), scale: num(s.scale, .05, 10, id + '.scale'),
+      ...(custom ? { custom: true, img: s.img, video: s.video, W: num(s.W, .05, 3, id + '.W') ?? .6, H: num(s.H, .05, 3, id + '.H') ?? .6 } : {}),
     });
   }
   if (Object.keys(exItems).length > 100) fail(400, 'invalid_content', 'exhibits.items');

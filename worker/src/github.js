@@ -113,6 +113,7 @@ export function refsInContent(c) {
   const s = new Set();
   if (c && c.tv && c.tv.src) s.add(c.tv.src);
   ((c && c.music && c.music.tracks) || []).forEach(t => { if (t && t.src) s.add(t.src); if (t && t.cover) s.add(t.cover); });
+  Object.values((c && c.exhibits && c.exhibits.items) || {}).forEach(e => { if (e && e.custom) { if (e.img) s.add(e.img); if (e.video) s.add(e.video); } });   // 後台新增的展品
   return s;
 }
 

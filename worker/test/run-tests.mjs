@@ -190,6 +190,23 @@ await test('內容檢查：拒絕危險的網址和不合理的值', async () =>
   const back = await call('GET', '/api/content', { token: owner });
   await call('PUT', '/api/content', { token: owner, body: { content: { ...back.data.content, tv: { src: 'media/tv-adventure.mp4', name: 'adventure.mp4' } }, sha: back.data.sha } });
 });
+await test('展品：後台新增的照片／影片展品可以儲存，檔案受保護不能刪', async () => {
+  const { data } = await call('GET', '/api/content', { token: owner });
+  const withEx = items => ({ ...data.content, exhibits: { items } });
+  const good = { custom: true, img: 'media/ex-sea-20261109-120000.jpg', video: 'media/ex-sea-20261109-120000.mp4', W: .7, H: .39, kind: '影像', title: '海', mode: 'hang', along: 0, height: 1.5, extra: 'x' };
+  for (const bad of [{ ...good, img: 'javascript:1' }, { ...good, img: 'media/a.mp4' }, { ...good, video: 'media/a.jpg' }, { ...good, W: 9 }, { custom: true, title: '沒有圖' }]) {
+    assert.equal((await call('PUT', '/api/content', { token: owner, body: { content: withEx({ ex1: bad }), sha: data.sha } })).status, 400, JSON.stringify(bad));
+  }
+  const r = await call('PUT', '/api/content', { token: owner, body: { content: withEx({ ex1: good, cougar: { title: '美洲獅', img: 'media/x.jpg' } }), sha: data.sha, sections: ['展品'] } });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const back = await call('GET', '/api/content', { token: owner });
+  const e = back.data.content.exhibits.items;
+  assert.equal(e.ex1.img, good.img); assert.equal(e.ex1.video, good.video); assert.equal(e.ex1.W, .7); assert.equal(e.ex1.extra, undefined);
+  assert.equal(e.cougar.img, undefined);   // 原本就有的展品不能被換圖
+  const del = await call('DELETE', '/api/media?path=' + encodeURIComponent(good.img), { token: owner });
+  assert.equal(del.status, 409); assert.equal(del.data.error, 'in_use');
+  await call('PUT', '/api/content', { token: owner, body: { content: { ...back.data.content, exhibits: { items: {} } }, sha: back.data.sha } });
+});
 await test('上傳：串流轉交給 GitHub、內容不變、檔名和大小有限制', async () => {
   const bytes = Buffer.from(Array.from({ length: 3000 }, (_, i) => i % 256));
   const raw = JSON.stringify({ encoding: 'base64', content: bytes.toString('base64') });

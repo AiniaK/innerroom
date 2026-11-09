@@ -1326,7 +1326,13 @@ function placeExhibit(id){const o=exObj[id],st=exState[id];if(!o)return;const E=
   o.g.traverse(m=>m.layers.set(st.hidden?1:0));   // put away: neither drawn nor clickable
   const k=exSolid[id];if(k!=null&&typeof solids!=='undefined')solids[k]=(!st.hidden&&st.mode!=='hang')?[EX_WALL_X,EX_WALL_X+.23,st.along-half-.02,st.along+half+.02]:[99,99,99,99];}
 Object.keys(EXHIBITS).forEach(id=>{buildExhibit(id);placeExhibit(id);});
-function applyExhibits(d){const items=(d&&d.items)||{};Object.keys(EXHIBITS).forEach(id=>{exState[id]=Object.assign({},EXHIBITS[id].def,items[id]||{});placeExhibit(id);});
+// exhibits the owner added from the admin page: their picture (and clip) live in media/, they get a frame built on the spot
+function addCustomExhibit(id,s){if(EXHIBITS[id]||!s||!s.custom||!s.img)return;const kind=s.kind||(s.video?'影像':'攝影紀錄');
+  EXHIBITS[id]={kind,img:s.img,video:s.video||null,W:clamp(+s.W||.6,.05,3),H:clamp(+s.H||.6,.05,3),
+    def:{kind,title:s.title||'',desc:s.desc||'',hidden:false,mode:'hang',along:0,height:1.5}};
+  exState[id]=Object.assign({},EXHIBITS[id].def);buildExhibit(id);
+  if(typeof solids!=='undefined')exSolid[id]=solids.push([99,99,99,99])-1;}
+function applyExhibits(d){const items=(d&&d.items)||{};Object.keys(items).forEach(id=>addCustomExhibit(id,items[id]));Object.keys(EXHIBITS).forEach(id=>{exState[id]=Object.assign({},EXHIBITS[id].def,items[id]||{});placeExhibit(id);});
   if(!modal.hidden&&card.querySelector('#exView'))openExhibit(card.querySelector('#exView').dataset.id,true);}
 // the enlarged view: the picture on one side, its title and story on the other; the owner gets the tools beneath
 function openExhibit(id,keep){const E=EXHIBITS[id],st=exState[id];if(!E)return;
