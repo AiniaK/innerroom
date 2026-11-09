@@ -1854,64 +1854,245 @@ function plantTaiwanForest(){
   {const NR=rng(5150),nr=(a,b)=>a+(b-a)*NR();
    /* the magic tree: one spot outside the window that is always some tree in flower, changing with Taipei's calendar —
       山櫻花 Jan–Feb, 黃花風鈴木 Mar, 油桐 Apr–May, 鳳凰木 Jun–Aug, 木芙蓉 Sep–Oct, 美人樹 Nov–Dec.
+      Each is grown branch by branch (trunk, limbs, boughs, twigs), dressed in real leaves of its own shape and its own flowers.
       Round each change the old tree sinks away while the new one grows up in its place. */
    const TX=2.55,TZ=-9.9,TY=mountainH(TX,TZ)-.05;
-   const m4=new THREE.Matrix4(),q4=new THREE.Quaternion(),v4=new THREE.Vector3(),s4=new THREE.Vector3(),c4=new THREE.Color();
-   const cyl=(r0,r1,len,seg,c,x0,y0,z0,an,tilt)=>{const ca=Math.cos(an),sa=Math.sin(an);   // a limb from (x0,y0,z0), leaning `tilt` from upright toward `an`
-     return {part:{geo:new THREE.CylinderGeometry(r1,r0,len,seg),c,x:x0+ca*Math.sin(tilt)*len/2,y:y0+Math.cos(tilt)*len/2,z:z0+sa*Math.sin(tilt)*len/2,rz:-ca*tilt,rx:sa*tilt},
-       end:[x0+ca*Math.sin(tilt)*len,y0+Math.cos(tilt)*len,z0+sa*Math.sin(tilt)*len]};};
-   // a crown of limbs: `n` limbs from height y0, each with `tw` twigs; returns the parts and the twig tips (where leaves and flowers go)
-   function crown(R,{bark,n,y0,tilt,len,tw,tLen,tTilt,r0=.075,spread=.3}){const parts=[],tips=[];
-     for(let i=0;i<n;i++){const an=i/n*Math.PI*2+(R()-.5)*spread*2,t=tilt[0]+R()*(tilt[1]-tilt[0]),l=len[0]+R()*(len[1]-len[0]);
-       const L=cyl(r0,r0*.45,l,6,bark,0,y0,0,an,t);parts.push(L.part);
-       for(let j=0;j<tw;j++){const a2=an+(R()-.5)*1.8,t2=tTilt[0]+R()*(tTilt[1]-tTilt[0]),l2=tLen[0]+R()*(tLen[1]-tLen[0]);
-         const T=cyl(r0*.4,r0*.15,l2,5,bark,L.end[0],L.end[1],L.end[2],a2,t2);parts.push(T.part);tips.push(T.end);}}
-     return {parts,tips};}
+   const m4=new THREE.Matrix4(),q4=new THREE.Quaternion(),q5=new THREE.Quaternion(),v4=new THREE.Vector3(),s4=new THREE.Vector3(),c4=new THREE.Color();
+   const V=(x,y,z)=>new THREE.Vector3(x,y,z),UPV=V(0,1,0),ZV=V(0,0,1),col=c=>new THREE.Color(c);
+   // the whole tree sways from its foot as one; leaves and flowers also flutter on their own
+   function treeMat(key,amp,flutter,ds){const m=new THREE.MeshToonMaterial(Object.assign({vertexColors:true,gradientMap:gradMap,side:ds?THREE.DoubleSide:THREE.FrontSide},ONLY_MOUNTAIN));
+     m.customProgramCacheKey=()=>'mtree-'+key;
+     m.onBeforeCompile=sh=>{sh.uniforms.uTime=WIND.uTime;sh.uniforms.uGust=WIND.uGust;
+       sh.vertexShader='uniform float uTime;uniform float uGust;\n'+sh.vertexShader.replace('#include <project_vertex>',`
+         vec4 mvPosition=vec4(transformed,1.);vec3 ic=vec3(0.);
+         #ifdef USE_INSTANCING
+           mvPosition=instanceMatrix*mvPosition;ic=instanceMatrix[3].xyz;
+         #endif
+         float hh=max(mvPosition.y,0.);
+         float gust=.55+.45*sin(uTime*.35+.05);
+         float w=(sin(uTime*1.25+.33)*.65+sin(uTime*2.6+.94)*.22+sin(uTime*4.1-5.05)*.08)*gust*uGust;
+         mvPosition.x+=w*${amp.toFixed(5)}*hh*hh;mvPosition.z+=w*${(amp*.35).toFixed(5)}*hh*hh;
+         float fl=sin(uTime*5.3+ic.x*17.+ic.z*13.+ic.y*11.)*(.4+.6*gust)*uGust*${flutter.toFixed(4)};
+         mvPosition.xyz+=vec3(fl,fl*.5,-fl*.7);
+         mvPosition=modelViewMatrix*mvPosition;
+         gl_Position=projectionMatrix*mvPosition;`);};
+     return m;}
+   // a little geometry kit: triangles with colours, merged into one buffer
+   function GB(){const P=[],C=[];return {P,C,
+     tri(a,b,c,ca,cb,cc){P.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z);C.push(ca.r,ca.g,ca.b,cb.r,cb.g,cb.b,cc.r,cc.g,cc.b);},
+     add(geo,M,c){const g=(geo.index?geo.toNonIndexed():geo.clone()).applyMatrix4(M),p=g.attributes.position;const cc=col(c);
+       for(let i=0;i<p.count;i+=3)this.tri(V(p.getX(i),p.getY(i),p.getZ(i)),V(p.getX(i+1),p.getY(i+1),p.getZ(i+1)),V(p.getX(i+2),p.getY(i+2),p.getZ(i+2)),cc,cc,cc);},
+     geo(){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.computeVertexNormals();return g;}};}
+   const mat=(x,y,z,yaw,pitch,roll,s,sy)=>new THREE.Matrix4().compose(V(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch,yaw,roll,'YXZ')),V(s,sy||s,s));
+   /* a blade (a leaf, a leaflet or a petal): length 1 along +z from its stalk, face up (+y).
+      zs/hw: its outline (half-widths at points along it); fold lifts the midrib; curl bends it up (or down) toward the tip;
+      colours run base → middle → tip */
+   function blade(gb,M,{w=.4,zs=[0,.3,.65,1],hw=[0,.85,1,0],fold=.1,curl=0,c0,cm,c1}){
+     const A=col(c0),B=col(cm||c0),Cc=col(c1||cm||c0),cz=z=>z<.45?A.clone().lerp(B,z/.45):B.clone().lerp(Cc,(z-.45)/.55);
+     const n=zs.length,mid=[],L=[],Rr=[],cs=[];
+     for(let i=0;i<n;i++){const z=zs[i],y=curl*z*z;mid.push(V(0,y+(i>0&&i<n-1?fold*w:0),z).applyMatrix4(M));L.push(V(-hw[i]*w,y,z).applyMatrix4(M));Rr.push(V(hw[i]*w,y,z).applyMatrix4(M));cs.push(cz(z));}
+     for(let i=0;i<n-1;i++){
+       if(hw[i]>0){gb.tri(mid[i],L[i],L[i+1],cs[i],cs[i],cs[i+1]);gb.tri(mid[i],Rr[i+1],Rr[i],cs[i],cs[i+1],cs[i]);}
+       if(hw[i+1]>0){gb.tri(mid[i],L[i+1],mid[i+1],cs[i],cs[i+1],cs[i+1]);gb.tri(mid[i],mid[i+1],Rr[i+1],cs[i],cs[i+1],cs[i+1]);}
+       else{gb.tri(mid[i],L[i],mid[i+1],cs[i],cs[i],cs[i+1]);gb.tri(mid[i],mid[i+1],Rr[i],cs[i],cs[i+1],cs[i]);}}}
+   // a flower facing +y, petal length 1: an optional tube (calyx or trumpet), rings of petals, and a centre
+   function flowerGeo(o){const gb=GB();
+     if(o.tube){const {len,r0,r1,c0,c1,sides=7}=o.tube,A=col(c0),B=col(c1);
+       for(let k=0;k<sides;k++){const a0=k/sides*6.2832,a1=(k+1)/sides*6.2832;
+         const p00=V(Math.cos(a0)*r0,-len,Math.sin(a0)*r0),p01=V(Math.cos(a1)*r0,-len,Math.sin(a1)*r0),p10=V(Math.cos(a0)*r1,0,Math.sin(a0)*r1),p11=V(Math.cos(a1)*r1,0,Math.sin(a1)*r1);
+         gb.tri(p00,p10,p01,A,B,A);gb.tri(p01,p10,p11,A,B,B);}}
+     for(const r of o.rings){const n=r.n||5;
+       for(let i=0;i<n;i++){const a=i/n*6.2832+(r.rot||0),p=r.petal?r.petal(i):{};const pr={...r,...p};
+         const M=new THREE.Matrix4().makeRotationY(-a).multiply(mat(0,pr.y||0,pr.r0||0,0,-(pr.cup||0),0,pr.len||1));
+         blade(gb,M,{w:pr.w,zs:pr.zs||[0,.25,.55,.82,1],hw:pr.hw||[.25,.7,1,.85,0],fold:pr.fold||.04,curl:pr.curl||0,c0:pr.c0,cm:pr.cm,c1:pr.c1});}}
+     for(const c of o.centre||[])gb.add(c.geo,mat(c.x||0,c.y||0,c.z||0,c.ry||0,c.rx||0,c.rz||0,c.s||1,c.sy),c.c);
+     return gb.geo();}
+   // leaves: built from blades round the top of a stalk
+   function leafGeo(o){const gb=GB();
+     if(o.stalk)gb.add(new THREE.CylinderGeometry(.012,.016,o.stalk,3).rotateX(Math.PI/2).translate(0,0,o.stalk/2),new THREE.Matrix4(),o.c0);
+     for(const l of o.lobes){const M=mat(l.x||0,0,(o.stalk||0)+(l.z||0),l.a||0,-(l.lift||0),0,l.len||1);blade(gb,M,{w:o.w,zs:o.zs,hw:o.hw,fold:o.fold==null?.12:o.fold,curl:o.curl||0,c0:o.c0,cm:o.cm,c1:o.c1});}
+     return gb.geo();}
+   // a feathery 鳳凰木 frond: a rachis set with pairs of tiny leaflets (diamonds, to keep it light)
+   function frondGeo(o){const gb=GB(),A=col(o.c0),B=col(o.c1);
+     gb.add(new THREE.CylinderGeometry(.006,.01,1,3).rotateX(Math.PI/2).translate(0,0,.5),new THREE.Matrix4(),o.c0);
+     for(let i=0;i<o.pairs;i++){const z=.12+i/(o.pairs-1)*.86,l=o.len*(1-.45*Math.pow(i/(o.pairs-1),2)),c=A.clone().lerp(B,i/o.pairs),y=-.25*z*z;
+       for(const s of [-1,1]){const dz=.35*l;const p0=V(0,y,z),p1=V(s*l*.5,y+.015,z+dz*.5+.03),p2=V(s*l,y-.01,z+dz),p3=V(s*l*.5,y+.015,z+dz*.5-.03);
+         if(s<0){gb.tri(p0,p1,p2,c,c,c);gb.tri(p0,p2,p3,c,c,c);}else{gb.tri(p0,p2,p1,c,c,c);gb.tri(p0,p3,p2,c,c,c);}}}
+     return gb.geo();}
+   /* grow a tree: each branch is a tapering tube that bends a little as it goes and leans toward the light (or droops);
+      it puts out side branches along its upper part, each turned by the golden angle from the last.
+      L[d] describes branches at depth d (0 = trunk): len (trunk: absolute; others: fraction of the parent), rad (fraction of the parent's
+      radius where it leaves), ang (angle off the parent), up (lean per segment: + up, − droop), wob, kids, from (where along the parent
+      branches start), short (how much shorter branches near the parent's tip are), whorl (kids in rings) */
+   function grow(R,S){const Z=S.size||1;S.L[0]={...S.L[0],len:S.L[0].len*Z,rad:S.L[0].rad*Z};const P=[],C=[],I=[],twigs=[],tips=[],segs=[];const bk=col(S.bark),bk2=col(S.bark2||S.bark),tc=new THREE.Color();
+     function tube(pts,rads,sides){const base=P.length/3;let N=null;
+       for(let i=0;i<pts.length;i++){const T=(i<pts.length-1?pts[i+1].clone().sub(pts[i]):pts[i].clone().sub(pts[i-1])).normalize();
+         if(!N)N=Math.abs(T.y)<.9?V(0,1,0):V(1,0,0);N=N.clone().sub(T.clone().multiplyScalar(N.dot(T))).normalize();const B=T.clone().cross(N);
+         for(let k=0;k<sides;k++){const a=k/sides*6.2832,o=N.clone().multiplyScalar(Math.cos(a)).addScaledVector(B,Math.sin(a));
+           const rr=rads[i]*(1+(R()-.5)*.12);P.push(pts[i].x+o.x*rr,pts[i].y+o.y*rr,pts[i].z+o.z*rr);
+           tc.copy(bk).lerp(bk2,R()).multiplyScalar(.82+.18*Math.min(1,pts[i].y/2.5));C.push(tc.r,tc.g,tc.b);}}
+       for(let i=0;i<pts.length-1;i++)for(let k=0;k<sides;k++){const a=base+i*sides+k,b=base+i*sides+(k+1)%sides;I.push(a,b,a+sides,b,b+sides,a+sides);}}
+     const D=S.L.length-1;
+     function branch(p0,dir,len,rad,d){const L=S.L[d],n=Math.max(2,Math.min(12,Math.round(len/(d<2?.22:.16))));
+       const pts=[p0.clone()],rads=[rad];let dd=dir.clone(),p=p0.clone();
+       for(let i=1;i<=n;i++){dd.x+=(R()-.5)*L.wob;dd.z+=(R()-.5)*L.wob;dd.y+=(R()-.5)*L.wob*.5+(L.up||0);
+         if(L.out){dd.x+=p.x*L.out;dd.z+=p.z*L.out;}dd.normalize();
+         p=p.clone().addScaledVector(dd,len/n);pts.push(p);const t=i/n;rads.push(rad*(1-t*(1-(L.tip||.35)))*(S.prof&&d===0?S.prof(t):1));}
+       tube(pts,rads,d===0?10:d===1?7:d===2?5:3);
+       for(let i=0;i<n;i++)segs.push({a:pts[i],b:pts[i+1],d});
+       if(d===D||!L.kids){twigs.push(pts);tips.push(p.toArray());return;}
+       const K=S.L[d+1],nk=L.kids,wh=L.whorl||1;
+       for(let k=0;k<nk;k++){const grp=Math.floor(k/wh),ng=Math.ceil(nk/wh);
+         const t=L.from+(1-L.from)*(wh>1?(grp+.3+R()*.2)/ng:(k+.25+R()*.6)/nk);
+         const fi=t*n,i=Math.min(n-1,Math.floor(fi)),f=fi-i,cp=pts[i].clone().lerp(pts[i+1],f),cr=rads[i]+(rads[i+1]-rads[i])*f;
+         const pd=pts[i+1].clone().sub(pts[i]).normalize(),ax=Math.abs(pd.y)<.9?UPV:V(1,0,0),u=ax.clone().cross(pd).normalize(),v=pd.clone().cross(u);
+         const az=wh>1?(k%wh)/wh*6.2832+grp*1.1+(R()-.5)*.5:k*2.39996+R()*.7,ang=K.ang*(.8+R()*.4);
+         const pp=u.clone().multiplyScalar(Math.cos(az)).addScaledVector(v,Math.sin(az));
+         const cd=pd.clone().multiplyScalar(Math.cos(ang)).addScaledVector(pp,Math.sin(ang)).normalize();
+         branch(cp,cd,len*K.len*(.75+R()*.5)*(1-(K.short||0)*t),Math.max(cr*K.rad,.005),d+1);}
+       if(L.lead){const ld=dd.clone();branch(p,ld,len*L.lead,rads[n],d);}}   // carry on as the leader
+     const stems=S.stems||1;
+     for(let s=0;s<stems;s++){const a=s/stems*6.2832+R()*.6,lean=stems>1?S.stemLean[0]+R()*(S.stemLean[1]-S.stemLean[0]):S.lean||.05;
+       const dir=V(Math.cos(a)*Math.sin(lean),Math.cos(lean),Math.sin(a)*Math.sin(lean)).normalize();
+       branch(V(stems>1?Math.cos(a)*.06:0,-.1,stems>1?Math.sin(a)*.06:0),dir,S.L[0].len*(stems>1?.8+R()*.4:1),S.L[0].rad,0);}
+     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.setIndex(I);g.computeVertexNormals();
+     return {geo:g,twigs,tips,segs,Z};}
+   // a random point on the outer branches (twigs count fully, boughs a little), with the direction of growth there
+   function sampler(R,segs,D,boughs){const pool=[],cum=[];let tot=0;
+     for(const s of segs){const wgt=s.d===D?1:s.d===D-1?boughs:0;if(!wgt)continue;tot+=s.a.distanceTo(s.b)*wgt;pool.push(s);cum.push(tot);}
+     return ()=>{const x=R()*tot;let lo=0,hi=cum.length-1;while(lo<hi){const m=(lo+hi)>>1;if(cum[m]<x)lo=m+1;else hi=m;}
+       const s=pool[lo],t=R();return {p:s.a.clone().lerp(s.b,t),d:s.b.clone().sub(s.a).normalize()};};}
+   const shuffle=(R,a)=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+   const basisQ=(z,upHint,roll)=>{const y=upHint.clone().sub(z.clone().multiplyScalar(upHint.dot(z)));if(y.lengthSq()<1e-4)y.set(1,0,0);y.normalize();const x=y.clone().cross(z);
+     m4.makeBasis(x,y,z);const q=new THREE.Quaternion().setFromRotationMatrix(m4);if(roll)q.multiply(q5.setFromAxisAngle(ZV,roll));return q;};
    const SPECIES=[];
-   function species(def){const R=rng(def.seed);
-     const {parts,tips}=def.frame(R);
+   function species(def){const R=rng(def.seed),T=grow(R,def.tree),D=def.tree.L.length-1;
      const g=new THREE.Group();g.position.set(TX,TY,TZ);g.visible=false;scene.add(g);
-     g.add(new THREE.Mesh(build(parts),windMaterial('mt-'+def.key,.0016)));
-     const mk=(spec,key)=>{if(!spec)return null;const im=new THREE.InstancedMesh(spec.geo,windMaterial('mt-'+def.key+key,.0016),spec.n);
-       for(let i=0;i<spec.n;i++){const t=tips[Math.floor(R()*tips.length)],sp=spec.spread,s=spec.size[0]+R()*(spec.size[1]-spec.size[0]);
-         const up=spec.up||0;v4.set(t[0]+(R()-.5)*2*sp,t[1]+up+(R()-.5)*sp*1.2,t[2]+(R()-.5)*2*sp);
-         q4.setFromEuler(new THREE.Euler(spec.flat?(R()-.5)*.6:R()*3,R()*6.28,spec.flat?(R()-.5)*.6:R()*3));m4.compose(v4,q4,s4.set(s,s*(spec.squash||1),s));im.setMatrixAt(i,m4);
-         im.setColorAt(i,c4.set(spec.colors[i%spec.colors.length]).multiplyScalar(.9+R()*.2));}
+     g.add(new THREE.Mesh(T.geo,treeMat(def.key,.0016,0,false)));
+     if(def.extra)g.add(new THREE.Mesh(def.extra(R),treeMat(def.key,.0016,0,false)));
+     const mk=(list,geo,key,flutter)=>{if(!list||!list.length)return null;shuffle(R,list);
+       const im=new THREE.InstancedMesh(geo,treeMat(def.key+key,.0016,flutter,true),list.length);
+       list.forEach((o,i)=>{m4.compose(o.p,o.q,s4.set(o.s,o.s,o.s));im.setMatrixAt(i,m4);const v=o.v||1;im.setColorAt(i,c4.setRGB(v*(o.tr||1),v,v*(o.tb||1)));});
        im.count=0;g.add(im);return im;};
-     const sp={...def,g,tips,leaf:mk(def.leaves,'L'),flower:mk(def.flowers,'F')};SPECIES.push(sp);return sp;}
-   const clump=build([{geo:new THREE.IcosahedronGeometry(1,1),c:0xffffff,jitter:610}]);
-   const disc=n=>build([{geo:new THREE.CircleGeometry(1,n),c:0xffffff,rx:-Math.PI/2},{geo:new THREE.CircleGeometry(1,n),c:0xffffff,rx:Math.PI/2,y:-.002}]);   // a flat open flower, seen from above or below
+     const lv=def.leaves?def.leaves.place(R,sampler(R,T.segs,D,def.leaves.boughs||.35),T):null,fw=def.flowers.place(R,sampler(R,T.segs,D,def.flowers.boughs||.3),T);
+     const sp={...def,g,tips:T.tips,leaf:lv?mk(lv,def.leaves.geo,'L',.006):null,flower:mk(fw,def.flowers.geo,'F',.004)};
+     if(def.leaves)def.leaves.n=lv.length;def.flowers.n=fw.length;SPECIES.push(sp);return sp;}
+   // leaves set along the outer twigs: each on a short stalk, angled out from the twig, roughly face-up, drooping a touch at the tip
+   const leavesAlong=({n,size,spread=.9,droop=.25,lift=.15})=>(R,at)=>{const out=[];
+     for(let i=0;i<n;i++){const {p,d}=at(),az=R()*6.2832,ax=Math.abs(d.y)<.9?UPV:V(1,0,0),u=ax.clone().cross(d).normalize(),v=d.clone().cross(u);
+       const side=u.clone().multiplyScalar(Math.cos(az)).addScaledVector(v,Math.sin(az));
+       const z=d.clone().multiplyScalar(Math.cos(spread)).addScaledVector(side,Math.sin(spread));z.y+=lift-droop*R();z.normalize();
+       out.push({p:p.addScaledVector(side,.01),q:basisQ(z,UPV.clone().addScaledVector(side,.35),(R()-.5)*.8),s:size[0]+R()*(size[1]-size[0]),v:.85+R()*.25});}
+     return out;};
+   const PETAL=[0,.22,.5,.78,.93,1],OBOV=[.18,.6,.9,1,.8,0];          // a petal: narrow at the base, broadest past the middle, rounded tip
+   const PETAL5=[0,.3,.62,.88,1],OBOV5=[.2,.75,1,.75,0];               // the same with fewer points, for trees carrying thousands of flowers
    const MONTH=[0,31,59,90,120,151,181,212,243,273,304,334];   // day of year each month begins
-   species({key:'cherry',name:'山櫻花',seed:5150,from:MONTH[0],to:MONTH[2],petal:0xE3648F,petalRate:1,
-     frame:R=>{const t=crown(R,{bark:0x5E4436,n:5,y0:1.9,tilt:[.55,.85],len:[1.3,1.8],tw:3,tLen:[.6,1],tTilt:[.6,1.2]});t.parts.unshift({geo:new THREE.CylinderGeometry(.09,.17,2.1,8),c:0x5E4436,y:1.05,jitter:600});return t;},
-     leaves:{geo:clump,n:40,size:[.16,.24],spread:.4,colors:[0xA9C86C,0x9BBE62]},leafMax:.35,leafLate:true,   // a few young leaves as the flowers go over
-     flowers:{geo:clump,n:140,size:[.13,.25],spread:.45,colors:[0xD9497A,0xE3648F,0xCC3B6E,0xEB7FA2]}});
+
+   /* 山櫻花 (Prunus campanulata): a dark, rather upright little tree; deep rosy bells hang in clusters of two to five all along bare twigs,
+      each with a crimson calyx; fresh leaves only come as the flowers go over */
+   species({key:'cherry',name:'山櫻花',seed:5150,from:MONTH[0],to:MONTH[2],petal:0xD8507E,petalRate:1,
+     tree:{bark:0x4E352C,bark2:0x6A4B3E,lean:.06,size:1.5,L:[{len:1.7,rad:.15,kids:5,from:.62,wob:.12,up:.01,tip:.55},
+       {len:.95,rad:.62,ang:.75,kids:4,from:.25,wob:.22,up:.03,short:.3,out:.02},
+       {len:.58,rad:.6,ang:.7,kids:4,from:.2,wob:.3,up:.015,short:.35},
+       {len:.55,rad:.55,ang:.65,kids:3,from:.3,wob:.35,up:-.01,short:.3},
+       {len:.6,rad:.6,ang:.6,wob:.4,up:-.03}]},
+     leaves:{geo:leafGeo({stalk:.12,w:.32,zs:[0,.3,.65,1],hw:[.2,.9,.85,0],lobes:[{}],c0:0xA8C86A,cm:0x92BA58,c1:0x86AE4E}),
+       place:leavesAlong({n:2000,size:[.085,.12],droop:.4}),boughs:.2},leafMax:1,leafLate:true,
+     flowers:{geo:flowerGeo({tube:{len:.55,r0:.06,r1:.2,c0:0x7E1636,c1:0xA61F48},
+         rings:[{n:5,len:.78,w:.5,cup:1.05,curl:.25,r0:.12,zs:PETAL5,hw:OBOV5,c0:0xB8235A,cm:0xD23E6E,c1:0xE5688F}],
+         centre:[{geo:new THREE.OctahedronGeometry(.07,0),c:0xF0D27A,y:.08,sy:2}]}),
+       place:(R,at)=>{const out=[];for(let c=0;c<720;c++){const {p,d}=at(),k=2+Math.floor(R()*3);   // a cluster hanging from a node
+           for(let j=0;j<k;j++){const f=V((R()-.5)*.7,-1,(R()-.5)*.7).addScaledVector(d,.25).normalize();
+             out.push({p:p.clone().add(V((R()-.5)*.05,-.025-R()*.04,(R()-.5)*.05)),q:new THREE.Quaternion().setFromUnitVectors(UPV,f).multiply(q5.setFromAxisAngle(UPV,R()*6.28)),s:.048+R()*.014,v:.85+R()*.25});}}
+         return out;},boughs:.45}});
+
+   /* 黃花風鈴木 (Handroanthus chrysanthus): bare grey branches, the crown turned to gold by clusters of ruffled yellow trumpets at every twig end */
    species({key:'tabebuia',name:'黃花風鈴木',seed:5151,from:MONTH[2],to:MONTH[3],petal:0xF2C230,petalRate:1.2,
-     frame:R=>{const t=crown(R,{bark:0x6E6255,n:5,y0:2.0,tilt:[.35,.6],len:[1.4,1.9],tw:3,tLen:[.6,.9],tTilt:[.4,.9]});t.parts.unshift({geo:new THREE.CylinderGeometry(.09,.16,2.2,8),c:0x6E6255,y:1.1,jitter:601});return t;},
-     flowers:{geo:clump,n:190,size:[.15,.26],spread:.55,squash:.8,colors:[0xF7C934,0xF2BC22,0xFAD457,0xEFB21C]}});   // bare branches heaped with yellow: the whole crown turns gold
-   species({key:'tung',name:'油桐',seed:5152,from:MONTH[3],to:MONTH[5],petal:0xF6F2E8,petalRate:1.4,petalSize:2,
-     frame:R=>{const p=[{geo:new THREE.CylinderGeometry(.09,.18,3.4,8),c:0x77706A,y:1.7,jitter:602}],tips=[];
-       for(let tier=0;tier<3;tier++){const t=crown(R,{bark:0x77706A,n:4,y0:2.3+tier*.8,tilt:[1.0,1.25],len:[1.4-tier*.3,1.9-tier*.35],tw:2,tLen:[.5,.8],tTilt:[.7,1.3],r0:.06});p.push(...t.parts);tips.push(...t.tips);}   // branches in whorls, tier above tier
-       return {parts:p,tips};},
-     leaves:{geo:clump,n:70,size:[.3,.45],spread:.45,colors:[0x4F7A3E,0x5C8746,0x46703A],squash:.6},leafMax:1,
-     flowers:{geo:clump,n:200,size:[.09,.15],spread:.5,up:.22,squash:.7,colors:[0xFBF8F0,0xF4EFE4,0xFFFFFF]}});   // clusters of white flowers sitting over the leaves
+     tree:{bark:0x6E665C,bark2:0x8A8074,lean:.05,size:1.45,L:[{len:2.1,rad:.15,kids:4,from:.6,wob:.1,up:.01,tip:.55},
+       {len:.95,rad:.62,ang:.55,kids:4,from:.3,wob:.2,up:.04,short:.25,out:.015},
+       {len:.6,rad:.6,ang:.6,kids:3,from:.25,wob:.28,up:.03,short:.3},
+       {len:.55,rad:.55,ang:.6,kids:3,from:.3,wob:.32,up:.02,short:.3},
+       {len:.55,rad:.6,ang:.55,wob:.35,up:.02}]},
+     flowers:{geo:flowerGeo({tube:{len:1.05,r0:.07,r1:.3,c0:0xD99A12,c1:0xF0BB25},
+         rings:[{n:5,len:.6,w:.85,cup:.45,curl:-.35,r0:.26,zs:PETAL5,hw:[.5,.9,1,.8,0],fold:-.05,c0:0xF2BE22,cm:0xF8CC34,c1:0xFCDB55}],
+         centre:[{geo:new THREE.OctahedronGeometry(.05,0),c:0xB5641A,y:-.15}]}),
+       place:(R,at,T)=>{const out=[];for(let c=0;c<T.twigs.length*2.1;c++){const tw=T.twigs[Math.floor(R()*T.twigs.length)],e=tw[tw.length-1],dd=e.clone().sub(tw[tw.length-2]).normalize();
+           const k=6+Math.floor(R()*5);for(let j=0;j<k;j++){const f=V(R()-.5,R()-.5,R()-.5).multiplyScalar(1.6).add(dd).add(V(0,.5,0)).normalize();   // a round posy of trumpets
+             out.push({p:e.clone().addScaledVector(f,.05+R()*.05).add(V((R()-.5)*.08,(R()-.5)*.06,(R()-.5)*.08)),q:new THREE.Quaternion().setFromUnitVectors(UPV,f).multiply(q5.setFromAxisAngle(UPV,R()*6.28)),s:.07+R()*.018,v:.88+R()*.2});}}
+         return out;}}});
+
+   /* 油桐 (Vernicia montana): a straight grey trunk with its branches in level whorls, tier above tier; big three-lobed leaves,
+      and loose sprays of white flowers, each petal flushed red at the base, held over the leaves */
+   species({key:'tung',name:'油桐',seed:5152,from:MONTH[3],to:MONTH[5],petal:0xF8F4EA,petalRate:1.4,petalSize:2,
+     tree:{bark:0x6F6A64,bark2:0x858079,lean:.03,size:1.25,L:[{len:5.2,rad:.16,kids:15,whorl:5,from:.36,wob:.06,up:.01,tip:.25},
+       {len:.42,rad:.55,ang:1.25,kids:3,from:.3,wob:.18,up:.012,short:.7},
+       {len:.5,rad:.6,ang:.6,kids:3,from:.35,wob:.25,up:.02,short:.3},
+       {len:.55,rad:.6,ang:.55,wob:.3,up:.03}]},
+     leaves:{geo:leafGeo({stalk:.35,w:.55,zs:[0,.3,.65,1],hw:[.35,.95,.8,0],fold:.08,curl:-.12,lobes:[{len:1},{a:.75,len:.72},{a:-.75,len:.72}],c0:0x4C7438,cm:0x5A8443,c1:0x6A9450}),
+       place:leavesAlong({n:2200,size:[.15,.21],spread:1.05,droop:.35,lift:.1}),boughs:.4},leafMax:1,
+     flowers:{geo:flowerGeo({rings:[{n:5,len:1,w:.62,cup:.28,curl:.12,r0:.05,zs:PETAL5,hw:OBOV5,c0:0xD86A5A,cm:0xFFF8EE,c1:0xFFFDF7}],
+         centre:[{geo:new THREE.OctahedronGeometry(.1,0),c:0xE9D46A,y:.06,sy:1.4}]}),
+       place:(R,at,T)=>{const out=[];for(const tw of T.twigs){const e=tw[tw.length-1];const k=12+Math.floor(R()*9);   // a spray at each twig end, lifted above the leaves
+           for(let j=0;j<k;j++){const f=V((R()-.5)*1.2,1,(R()-.5)*1.2).normalize();
+             out.push({p:e.clone().add(V((R()-.5)*.22,.04+R()*.13,(R()-.5)*.22)),q:new THREE.Quaternion().setFromUnitVectors(UPV,f).multiply(q5.setFromAxisAngle(UPV,R()*6.28)),s:.055+R()*.012,v:.92+R()*.1});}}
+         return out;}}});
+
+   /* 鳳凰木 (Delonix regia): a short trunk, great limbs flung out wide into a flat-topped umbrella of fine feathery fronds,
+      and over it all the scarlet flowers — four red petals and one white-and-yellow standard — with long red stamens */
    species({key:'flame',name:'鳳凰木',seed:5153,from:MONTH[5],to:MONTH[8],petal:0xE2462B,petalRate:1,
-     frame:R=>{const t=crown(R,{bark:0x8A8178,n:6,y0:2.3,tilt:[.85,1.1],len:[1.7,2.3],tw:3,tLen:[.7,1.1],tTilt:[1.15,1.45],r0:.08});t.parts.unshift({geo:new THREE.CylinderGeometry(.11,.2,2.5,8),c:0x8A8178,y:1.25,jitter:603});return t;},   // limbs reaching out wide from the trunk: an umbrella
-     leaves:{geo:clump,n:90,size:[.42,.62],spread:.5,flat:true,colors:[0x7FA552,0x8DB35C,0x739A4A],squash:.28},leafMax:1,   // fine, feathery foliage in flat, level layers
-     flowers:{geo:clump,n:130,size:[.22,.34],spread:.5,up:.2,flat:true,squash:.4,colors:[0xE2462B,0xEC5A2E,0xD63A26,0xF07A3A]}});   // a fiery layer over the top
+     tree:{bark:0x958B81,bark2:0xA89E93,lean:.04,size:1.45,L:[{len:1.85,rad:.2,kids:5,from:.82,wob:.08,tip:.6},
+       {len:1.55,rad:.6,ang:1.0,kids:5,from:.25,wob:.14,up:-.012,short:.3},
+       {len:.55,rad:.6,ang:.7,kids:3,from:.25,wob:.22,up:.035,short:.3},
+       {len:.6,rad:.55,ang:.6,kids:3,from:.3,wob:.28,up:.05,short:.3},
+       {len:.55,rad:.6,ang:.55,wob:.3,up:.04}]},
+     leaves:{geo:frondGeo({pairs:11,len:.17,c0:0x6E9C44,c1:0x8DBA5A}),
+       place:(R,at)=>{const out=[];for(let i=0;i<2400;i++){const {p,d}=at(),side=V(R()-.5,0,R()-.5).normalize();   // fronds held level, splayed out
+           const z=d.clone().setY(0).normalize().multiplyScalar(.5).add(side).setY((R()-.6)*.25).normalize();
+           out.push({p,q:basisQ(z,UPV,(R()-.5)*.4),s:.3+R()*.12,v:.85+R()*.25});}return out;},boughs:.35},leafMax:1,
+     flowers:{geo:flowerGeo({rings:[{n:5,len:1,w:.6,cup:.35,curl:.1,r0:.04,zs:PETAL5,hw:[.12,.6,1,.8,0],c0:0xC7301B,cm:0xE5391F,c1:0xF0562A,
+           petal:i=>i===0?{cup:1.0,c0:0xFBEFC8,cm:0xF6DFA0,c1:0xEE7A4A}:{}}],
+         centre:[...[0,1,2,3,4,5,6,7].map(i=>({geo:new THREE.CylinderGeometry(.006,.01,.9,3).translate(0,.45,0),c:0xC22A18,rx:-.7-(i%3)*.12,ry:i*.25-.9,s:1})),{geo:new THREE.OctahedronGeometry(.06,0),c:0x8E2A16}]}),
+       place:(R,at,T)=>{const out=[];const ys=T.twigs.map(tw=>tw[tw.length-1].y).sort((a,b)=>a-b),cut=ys[Math.floor(ys.length*.35)],high=T.twigs.filter(tw=>tw[tw.length-1].y>cut);
+         for(const tw of high){const e=tw[tw.length-1];const k=8+Math.floor(R()*8);   // corymbs over the crown's top
+           for(let j=0;j<k;j++){const f=V((R()-.5)*1.4,1,(R()-.5)*1.4).normalize();
+             out.push({p:e.clone().add(V((R()-.5)*.32,.06+R()*.12,(R()-.5)*.32)),q:new THREE.Quaternion().setFromUnitVectors(UPV,f).multiply(q5.setFromAxisAngle(UPV,R()*6.28)),s:.068+R()*.016,v:.88+R()*.2});}}
+         return out;}}});
+
+   /* 木芙蓉 (Hibiscus mutabilis): a big many-stemmed shrub with broad five-lobed leaves and large, half-double flowers that open white,
+      blush pink through the afternoon and are deep pink by dusk (the tint is set each frame) */
    species({key:'hibiscus',name:'木芙蓉',seed:5154,from:MONTH[8],to:MONTH[10],petal:0xF2B8C6,petalRate:.6,petalSize:2,
-     frame:R=>{const p=[],tips=[];for(let i=0;i<5;i++){const an=i/5*Math.PI*2+(R()-.5),S=cyl(.05,.03,2.1+R()*.5,6,0x7E7060,0,0,0,an,.2+R()*.35);p.push(S.part);   // several stems from the ground: a big shrub
-         for(let j=0;j<3;j++){const T=cyl(.025,.01,.6+R()*.4,5,0x7E7060,S.end[0],S.end[1]-j*.35,S.end[2],an+(R()-.5)*2,.6+R()*.6);p.push(T.part);tips.push(T.end);}}return {parts:p,tips};},
-     leaves:{geo:clump,n:42,size:[.22,.3],spread:.35,colors:[0x5E8A47,0x6A9450,0x557F41]},leafMax:1,
-     flowers:{geo:disc(10),n:110,size:[.13,.18],spread:.45,up:.08,colors:[0xffffff,0xF8F4F2]},dayColour:true});   // facing every which way, so many open toward the window   // big flowers: white at dawn, pink by afternoon, deep pink at dusk
+     tree:{bark:0x7A6C5C,bark2:0x8E7F6B,stems:6,stemLean:[.15,.45],size:1.3,L:[{len:1.5,rad:.05,kids:4,from:.4,wob:.18,up:.01,tip:.45},
+       {len:.6,rad:.65,ang:.7,kids:3,from:.3,wob:.25,up:.02,short:.3},
+       {len:.6,rad:.6,ang:.6,wob:.3,up:.03}]},
+     leaves:{geo:leafGeo({stalk:.3,w:.42,zs:[0,.3,.65,1],hw:[.3,.95,.7,0],fold:.06,curl:-.1,lobes:[{len:1},{a:.6,len:.85},{a:-.6,len:.85},{a:1.2,len:.6},{a:-1.2,len:.6}],c0:0x547E40,cm:0x5F8A49,c1:0x6C9553}),
+       place:leavesAlong({n:1300,size:[.14,.19],spread:1.1,droop:.4,lift:.05}),boughs:.6},leafMax:1,
+     flowers:{geo:flowerGeo({rings:[{n:5,len:1,w:.95,cup:.3,curl:.18,r0:.04,zs:PETAL,hw:[.3,.75,.95,1,.85,0],fold:.02,c0:0xF4DCE2,cm:0xFFFFFF,c1:0xFFFFFF},
+           {n:5,len:.62,w:.9,cup:.75,curl:.12,r0:.03,rot:.63,zs:PETAL,hw:[.3,.75,.95,1,.85,0],fold:.02,c0:0xF0D2DA,cm:0xFDF7F8,c1:0xFFFFFF}],
+         centre:[{geo:new THREE.CylinderGeometry(.03,.045,.38,5).translate(0,.19,0),c:0xF4EAC4},{geo:new THREE.OctahedronGeometry(.06,0),c:0xEED37A,y:.38}]}),
+       place:(R,at,T)=>{const out=[];for(let i=0;i<T.twigs.length*3.2;i++){const tw=T.twigs[Math.floor(R()*T.twigs.length)],j=Math.max(1,tw.length-1-Math.floor(R()*2)),e=tw[j];   // at and near the twig ends
+           const f=e.clone().setY(0).normalize().multiplyScalar(.9).add(V((R()-.5)*1.1,.7+R()*.6,(R()-.5)*1.1)).normalize();
+           out.push({p:e.clone().addScaledVector(f,.04),q:new THREE.Quaternion().setFromUnitVectors(UPV,f).multiply(q5.setFromAxisAngle(UPV,R()*6.28)),s:.075+R()*.02,v:.95+R()*.06});}
+         return out;},boughs:.5},dayColour:true});
+
+   /* 美人樹 (Ceiba speciosa): a green, bottle-bellied trunk studded with thorns; spreading branches with few leaves left
+      and masses of pink flowers, narrow petals paling to a cream, streaked throat round a long cream column */
+   const silkProf=t=>1+1.1*Math.exp(-Math.pow((t-.22)/.2,2));
    species({key:'silkfloss',name:'美人樹',seed:5155,from:MONTH[10],to:365,petal:0xE985B2,petalRate:1,petalSize:1.6,
-     frame:R=>{const prof=[];for(let i=0;i<=10;i++){const y=i/10*2.6;prof.push(new THREE.Vector2(.13+.17*Math.exp(-Math.pow((y-.7)/.6,2)),y));}   // the swollen, bottle-shaped trunk
-       const t=crown(R,{bark:0x7F8A6E,n:5,y0:2.5,tilt:[.5,.9],len:[1.4,1.9],tw:3,tLen:[.6,1],tTilt:[.5,1.1]});
-       t.parts.unshift({geo:new THREE.LatheGeometry(prof,9),c:0x7F8A6E,jitter:604});
-       for(let i=0;i<26;i++){const y=.2+R()*2.2,an=R()*6.28,r=.13+.17*Math.exp(-Math.pow((y-.7)/.6,2));t.parts.push({geo:new THREE.ConeGeometry(.018,.06,4),c:0x6B755C,x:Math.cos(an)*r,y,z:Math.sin(an)*r,rz:-Math.cos(an)*1.57,rx:Math.sin(an)*1.57});}   // its thorns
-       return t;},
-     leaves:{geo:clump,n:35,size:[.2,.3],spread:.4,colors:[0x6F9650,0x7DA25A]},leafMax:.45,
-     flowers:{geo:disc(5),n:190,size:[.1,.14],spread:.5,flat:true,colors:[0xE985B2,0xF09BC0,0xDC6FA0,0xF4B3CF]}});
+     tree:{bark:0x75866A,bark2:0x8C9A78,lean:.04,size:1.2,prof:silkProf,L:[{len:2.6,rad:.15,kids:6,from:.66,wob:.08,tip:.5},
+       {len:1.0,rad:.55,ang:1.0,kids:4,from:.25,wob:.18,up:.005,short:.3,out:.012},
+       {len:.58,rad:.6,ang:.65,kids:3,from:.25,wob:.26,up:.02,short:.3},
+       {len:.55,rad:.55,ang:.6,kids:3,from:.3,wob:.3,up:.01,short:.3},
+       {len:.55,rad:.6,ang:.55,wob:.34,up:0}]},
+     extra:R=>{const gb=GB();for(let i=0;i<70;i++){const t=.04+R()*.6,y=-.1+t*2.6*1.2,an=R()*6.28,r=.15*1.2*(1-t*.5)*silkProf(t);   // its thorns
+         gb.add(new THREE.ConeGeometry(.022,.07,4),new THREE.Matrix4().makeRotationY(-an).multiply(mat(r,y,0,0,0,-Math.PI/2,1)),0x5E6B50);}
+       return gb.geo();},
+     leaves:{geo:leafGeo({stalk:.4,w:.28,zs:[0,.3,.65,1],hw:[.2,.9,.8,0],fold:.08,lobes:[{len:.8},{a:.65,len:.7},{a:-.65,len:.7},{a:1.25,len:.55},{a:-1.25,len:.55}],c0:0x648C48,cm:0x6F9650,c1:0x7DA25A}),
+       place:leavesAlong({n:1000,size:[.11,.15],spread:1,droop:.4}),boughs:.4},leafMax:.5,
+     flowers:{geo:flowerGeo({rings:[{n:5,len:1,w:.42,cup:.4,curl:-.35,r0:.05,zs:PETAL5,hw:[.3,.75,1,.8,0],c0:0xFBEBCB,cm:0xEC80B2,c1:0xDB5A98}],
+         centre:[{geo:new THREE.CylinderGeometry(.035,.045,.55,5).translate(0,.27,0),c:0xF5E9CC},{geo:new THREE.OctahedronGeometry(.07,0),c:0xF0DDB0,y:.56}]}),
+       place:(R,at)=>{const out=[];for(let i=0;i<3000;i++){const {p,d}=at(),f=V((R()-.5)*1.3,.5+R()*.8,(R()-.5)*1.3).addScaledVector(d,.5).normalize();
+           out.push({p:p.addScaledVector(f,.03),q:new THREE.Quaternion().setFromUnitVectors(UPV,f).multiply(q5.setFromAxisAngle(UPV,R()*6.28)),s:.062+R()*.016,v:.85+R()*.25});}
+         return out;},boughs:.4}});
    // petals and flowers drifting down from whichever tree is in bloom
    const PET=50,petM=new THREE.InstancedMesh(new THREE.PlaneGeometry(.035,.028),new THREE.MeshToonMaterial(Object.assign({color:0xE3648F,gradientMap:gradMap,side:THREE.DoubleSide},ONLY_MOUNTAIN)),PET);
    const petals=[];for(let i=0;i<PET;i++)petals.push({t:Math.random()*8,x:0,y:-99,z:0,vx:0,vz:0,spin:Math.random()*6});petM.count=0;scene.add(petM);
