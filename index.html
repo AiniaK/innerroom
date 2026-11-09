@@ -2335,6 +2335,31 @@ const OVERRIDE={clear:{cloud:.08,rain:0,thunder:0,mist:0},cloudy:{cloud:.68,rain
 const wx={mist:0,rain:0,cloud:.2,thunder:0,cellAmt:0,curtain:0,flash:0,flashQ:[],state:'clear',label:'晴朗'};
 const tmpC=new THREE.Color(),tmpC2=new THREE.Color(),sunDirV=new THREE.Vector3(),moonDirV=new THREE.Vector3(),cellDirV=new THREE.Vector3(),tmpT=new THREE.Vector3(),tmpB=new THREE.Vector3(),UPV=new THREE.Vector3(0,1,0);
 let dayness=1,moonInfo={phase:.5,fraction:1,alt:0},lastEnvNow=0;
+/* dust in the skylight's sunbeam: a few motes drifting slowly in the shaft of sun under the skylight, glinting as they turn.
+   The shaft leans away from the sun; the motes show only while the sun is up and actually shining. */
+const DUST=(()=>{const N=64,R=rng(4242),seed=new Float32Array(N*4);
+  for(let i=0;i<N;i++){const a=R()*6.2832,r=Math.sqrt(R())*.8;seed.set([Math.cos(a)*r,Math.sin(a)*r,R(),R()*6.2832],i*4);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(N*3),3));g.setAttribute('seed',new THREE.Float32BufferAttribute(seed,4));
+  const u={uTime:{value:0},uAmt:{value:0},uSlant:{value:new THREE.Vector2()},uH:{value:400}};
+  const m=new THREE.ShaderMaterial({uniforms:u,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    vertexShader:`attribute vec4 seed;uniform float uTime,uAmt,uH;uniform vec2 uSlant;varying float vA;
+      void main(){float t=uTime;
+        float y=3.15-mod(seed.z*2.9+t*.006*(.6+seed.w*.1),2.9);                 // sinking very slowly, top to bottom of the room, over and over
+        vec2 c=seed.xy+vec2(sin(t*.11+seed.w*3.),cos(t*.09+seed.w*5.))*.07;      // and wandering a little in the air
+        float drop=3.27-y;vec3 p=vec3(${SKY_HOLE.x.toFixed(2)}+c.x+uSlant.x*drop,y,${SKY_HOLE.z.toFixed(2)}+c.y+uSlant.y*drop);
+        vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;
+        float tw=pow(.5+.5*sin(t*(.7+fract(seed.w*7.)*1.3)+seed.w*9.),3.);       // each turns and catches the light now and then
+        float edge=1.-smoothstep(.55,.8,length(seed.xy));
+        float ends=smoothstep(3.25,2.8,y)*smoothstep(.15,.7,y);
+        vA=uAmt*(.25+.75*tw)*edge*ends;
+        gl_PointSize=clamp(.014*projectionMatrix[1][1]*uH/-mv.z,1.5,6.);}`,
+    fragmentShader:`varying float vA;void main(){vec2 q=gl_PointCoord-.5;float d=dot(q,q)*4.;if(d>1.)discard;gl_FragColor=vec4(vec3(1.,.95,.84)*vA*(1.-d)*(1.-d),1.);}`});
+  const pts=new THREE.Points(g,m);pts.frustumCulled=false;pts.renderOrder=5;scene.add(pts);
+  let amt=-1;   // starts at once at the right brightness
+  return {tick(dt,now){u.uTime.value=now/1000;u.uH.value=renderer.domElement.height*.5;
+    const sy=sunDirV.y;let sx=-sunDirV.x/Math.max(sy,.2),sz=-sunDirV.z/Math.max(sy,.2);const L=Math.hypot(sx,sz);if(L>.9){sx*=.9/L;sz*=.9/L;}u.uSlant.value.set(sx,sz);
+    const want=smooth(.12,.4,sy)*(1-.85*smooth(.45,.9,wx.cloud))*(1-smooth(.05,.3,wx.rain))*(1-.5*wx.mist);   // sun high enough to shine in, and not hidden by cloud or rain
+    amt=amt<0?want:amt+(want-amt)*Math.min(1,dt*.5);u.uAmt.value=amt*.85;pts.visible=amt>.01;}};})();
 function updateEnv(now){
   const ms=tpeMs(),{hour:h}=tpeParts(ms),dtE=Math.min(1,(now-(lastEnvNow||now))/1000);lastEnvNow=now;
   // weather targets: Taipei's plan, or the owner's override
@@ -3371,6 +3396,7 @@ function frame(now){
   if(tvDoc&&!tvVideo.paused&&tvVideo.readyState>=2)drawTV();
   if(IOS&&now-(frame.shT||0)>200){frame.shT=now;shadowSync();}
   sunLampTick(dt);
+  DUST.tick(dt,now);
   if(natureTick)natureTick(dt,now);
   if(tabIsVideo()&&!musicEl.paused)drawTabletVideo();
   else if(now-(frame.tabT||0)>1000){frame.tabT=now;if(musicTracks().length)drawTablet();}
