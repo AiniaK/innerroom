@@ -3613,11 +3613,11 @@ function spineTex(e,t,hh){
   g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle=T.ink;
   const y0=H*.5-(chars.length-1)*fs*1.08/2;chars.forEach((ch,i)=>g.fillText(ch,W/2,y0+i*fs*1.08));
   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();return tex;}
-// stand the dream books on the shelves, oldest on the left of the top-most row... filling row by row
+// stand the dream books on the shelves: the lowest shelf first, oldest on the left, then the shelf above
 function buildDreamBooks(items){
   for(const b of JR.books){scene.remove(b.g);const i=targets.indexOf(b.hit);if(i>=0)targets.splice(i,1);}
   JR.books=[];if(!HUTCH)return;
-  const order=[2,1,0];   // fill from the top shelf down
+  const order=[0,1,2];   // fill from the lowest shelf up
   let row=0,x=HUTCH.rows[order[0]][1];
   items.forEach((e,idx)=>{
     const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,11));
