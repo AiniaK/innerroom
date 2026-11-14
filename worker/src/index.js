@@ -3,6 +3,7 @@ import { HttpError, fail, json, corsHeaders, allowedOrigins, readJSON } from './
 import { requireOwner } from './google.js';
 import { getContent, putContent, listMedia, createBlobFromStream, commitFiles, refsInContent, UPLOAD_PATH, isMediaRef } from './github.js';
 import { validateContent, commitMessage } from './content.js';
+import { listJournal, journalImage } from './journals.js';
 import { listPublic, postComment, listMine, editMine, deleteMine, adminList, adminSetPublic, adminDelete, adminBlocks, adminBlock, adminUnblock } from './comments.js';
 
 async function route(request, env, ctx) {
@@ -14,7 +15,7 @@ async function route(request, env, ctx) {
   if (path === '/api/health' && m === 'GET') {
     return json({ ok: true, configured: {
       GITHUB_REPO: !!env.GITHUB_REPO, GITHUB_TOKEN: !!env.GITHUB_TOKEN, GOOGLE_CLIENT_ID: !!env.GOOGLE_CLIENT_ID,
-      OWNER_EMAILS: !!env.OWNER_EMAILS, NOTION_TOKEN: !!env.NOTION_TOKEN, NOTION_DATABASE_ID: !!env.NOTION_DATABASE_ID,
+      OWNER_EMAILS: !!env.OWNER_EMAILS, NOTION_TOKEN: !!env.NOTION_TOKEN, NOTION_DATABASE_ID: !!env.NOTION_DATABASE_ID, NOTION_DREAM_DB: !!env.NOTION_DREAM_DB, NOTION_MOOD_DB: !!env.NOTION_MOOD_DB,
       HASH_SECRET: !!(env.HASH_SECRET && env.HASH_SECRET.length >= 16), KV: !!env.KV, ALLOWED_ORIGINS: allowedOrigins(env),
     },
     // 只檢查格式（開頭與字元種類），不透露金鑰內容，方便發現貼錯的金鑰
@@ -25,9 +26,17 @@ async function route(request, env, ctx) {
     } });
   }
 
+  // 夢境紀錄與心情筆記裡的圖片：由 <img> 直接載入（不帶 Origin），只轉送這兩個資料庫裡的圖片
+  { const im = /^\/api\/journal\/img\/([^/]+)$/.exec(path);
+    if (im && m === 'GET') return journalImage(env, ctx, decodeURIComponent(im[1])); }
+
   // 只接受來自網站網域的請求（瀏覽器一定會帶 Origin）
   const origin = request.headers.get('Origin');
   if (!origin || !allowedOrigins(env).includes(origin)) fail(403, 'forbidden_origin');
+
+  /* ---------- 公開：夢境紀錄、心情筆記 ---------- */
+  { const jm = /^\/api\/journal\/(dream|mood)$/.exec(path);
+    if (jm && m === 'GET') return listJournal(env, ctx, jm[1], request); }
 
   /* ---------- 公開：留言 ---------- */
   if (path === '/api/comments' && m === 'GET') return listPublic(env, ctx);

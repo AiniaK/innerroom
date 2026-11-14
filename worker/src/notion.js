@@ -17,7 +17,7 @@ const METHOD = { google: 'Google 登入', anonymous: '匿名' };
 const API = 'https://api.notion.com/v1';
 let memDS = null;
 
-async function notion(env, path, opt = {}) {
+export async function notion(env, path, opt = {}) {
   if (!env.NOTION_TOKEN) fail(500, 'not_configured', 'NOTION_TOKEN');
   const res = await fetch(API + path, {
     method: opt.method || 'GET',
@@ -42,16 +42,22 @@ async function notion(env, path, opt = {}) {
 // 由資料庫 ID 找到資料來源 ID（記在 KV，只查一次）
 async function dataSourceId(env) {
   if (memDS) return memDS;
-  const dbId = String(env.NOTION_DATABASE_ID || '').trim();
-  if (!dbId) fail(500, 'not_configured', 'NOTION_DATABASE_ID');
+  return (memDS = await dataSourceOf(env, env.NOTION_DATABASE_ID, 'NOTION_DATABASE_ID'));
+}
+// 任何資料庫 → 它的資料來源 ID（記在 KV）
+const memDSof = {};
+export async function dataSourceOf(env, rawId, name) {
+  const dbId = String(rawId || '').trim().replace(/-/g, '');
+  if (!dbId) fail(500, 'not_configured', name);
+  if (memDSof[dbId]) return memDSof[dbId];
   const key = 'notion:ds:' + dbId;
   const cached = env.KV ? await env.KV.get(key) : null;
-  if (cached) return (memDS = cached);
+  if (cached) return (memDSof[dbId] = cached);
   const db = await notion(env, '/databases/' + encodeURIComponent(dbId));
   const id = db && db.data_sources && db.data_sources[0] && db.data_sources[0].id;
   if (!id) fail(502, 'notion_error', '找不到資料來源，請確認資料庫已分享給 integration');
   if (env.KV) { try { await env.KV.put(key, id); } catch {} }
-  return (memDS = id);
+  return (memDSof[dbId] = id);
 }
 
 const plain = rt => (rt || []).map(x => x.plain_text || '').join('');

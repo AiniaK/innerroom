@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 
 /* ---------- Workers 才有的東西 ---------- */
 globalThis.FixedLengthStream = class extends TransformStream { constructor() { super(); } };
+const cacheStore = new Map();
+globalThis.caches = { default: { async match(k) { const r = cacheStore.get(k.url); return r ? r.clone() : undefined; }, async put(k, r) { cacheStore.set(k.url, r); } } };
 
 /* ---------- 假的 Google：自己產生金鑰簽 ID token ---------- */
 const CLIENT_ID = 'test-client.apps.googleusercontent.com';
@@ -68,6 +70,14 @@ async function notionFetch(url, init) {
   assert.equal(init.headers['Notion-Version'], '2025-09-03');
   const J = (s, o) => new Response(JSON.stringify(o), { status: s });
   if (p === '/databases/db123') return J(200, { data_sources: [{ id: 'ds-1', name: '留言' }] });
+  // 夢境紀錄、心情筆記
+  if (p === '/databases/dreamdb') return J(200, { data_sources: [{ id: 'ds-dream' }] });
+  if (p === '/databases/mooddb') return J(200, { data_sources: [{ id: 'ds-mood' }] });
+  { const q = /^\/data_sources\/(ds-dream|ds-mood)\/query$/.exec(p);
+    if (q) { journalQueries++; return J(200, { results: journal[q[1]], has_more: false }); } }
+  { const c = /^\/blocks\/([^/]+)\/children$/.exec(p); if (c) { journalBlockReads++; return J(200, { results: journalBlocks[c[1]] || [], has_more: false }); } }
+  { const jp = /^\/pages\/(d1|g1)$/.exec(p); if (jp) return J(200, jp[1] === 'd1' ? journal['ds-dream'][0] : { id: 'g1', parent: { type: 'data_source_id', data_source_id: 'ds-1' }, properties: {} }); }
+  { const b = /^\/blocks\/([^/]+)$/.exec(p); if (b) { const blk = journalImageBlocks[b[1]]; return blk ? J(200, blk) : J(404, { code: 'object_not_found' }); } }
   if (p === '/data_sources/ds-1/query' && m === 'POST') {
     const b = JSON.parse(init.body);
     let list = [...notion.pages.values()].filter(x => !x.in_trash);
@@ -102,7 +112,27 @@ globalThis.fetch = async (url, init = {}) => {
   if (s.startsWith('https://www.googleapis.com/oauth2/v3/certs')) return new Response(JSON.stringify({ keys: [pubJwk] }), { headers: { 'cache-control': 'public, max-age=20000' } });
   if (s.startsWith('https://api.github.com/')) return githubFetch(s, init);
   if (s.startsWith('https://api.notion.com/')) return notionFetch(s, init);
+  if (s.startsWith('https://files.notion.test/')) return new Response('PNGDATA', { headers: { 'Content-Type': 'image/png' } });
   throw new Error('unexpected fetch ' + s);
+};
+
+/* ---------- 假的夢境紀錄與心情筆記 ---------- */
+let journalQueries = 0, journalBlockReads = 0;
+const rt = t => [{ plain_text: t }];
+const jpage = (id, title, date, extra = {}, parent = 'ds-dream') => ({ id, created_time: '2026-11-01T00:00:00.000Z', last_edited_time: '2026-11-02T00:00:00.000Z', parent: { type: 'data_source_id', data_source_id: parent },
+  properties: { '標題': { title: rt(title) }, '日期': { date: date ? { start: date } : null }, ...extra } });
+const journal = {
+  'ds-dream': [jpage('d1', '會飛的鯨魚', '2026-11-01', { '夢的色調': { select: { name: '奇幻' } } }), jpage('d2', '', null, {})],
+  'ds-mood': [jpage('m1', '今天', '2026-11-03', {}, 'ds-mood')],
+};
+const journalBlocks = {
+  d1: [{ id: 'b0', type: 'paragraph', paragraph: { rich_text: [] } }, { id: 'b1', type: 'paragraph', paragraph: { rich_text: rt('我在海上飛。') } },
+       { id: '11111111111111111111111111111111', type: 'image', image: { type: 'file', file: { url: 'https://files.notion.test/a.png' }, caption: rt('鯨魚') } }, { id: 'b3', type: 'heading_2', heading_2: { rich_text: rt('醒來') } }],
+  m1: [{ id: 'm1b', type: 'quote', quote: { rich_text: rt('慢慢來。') } }],
+};
+const journalImageBlocks = {
+  '11111111111111111111111111111111': { id: '1111', type: 'image', parent: { type: 'page_id', page_id: 'd1' }, image: { type: 'file', file: { url: 'https://files.notion.test/a.png' } } },
+  '22222222222222222222222222222222': { id: '2222', type: 'image', parent: { type: 'page_id', page_id: 'g1' }, image: { type: 'file', file: { url: 'https://files.notion.test/b.png' } } },
 };
 
 /* ---------- 假的 KV ---------- */
@@ -116,6 +146,7 @@ const KV = {
 const env = {
   GITHUB_REPO: 'me/innerroom', GITHUB_BRANCH: 'main', GITHUB_TOKEN: 'gh-token', GOOGLE_CLIENT_ID: CLIENT_ID,
   OWNER_EMAILS: 'Owner@gmail.com', NOTION_TOKEN: 'nt', NOTION_DATABASE_ID: 'db123', NOTION_VERSION: '2025-09-03',
+  NOTION_DREAM_DB: 'dreamdb', NOTION_MOOD_DB: 'mooddb',
   HASH_SECRET: 'x'.repeat(40), ALLOWED_ORIGINS: 'https://me.github.io,http://localhost:8000', KV,
 };
 const { default: worker } = await import('../src/index.js');
@@ -206,6 +237,29 @@ await test('展品：後台新增的照片／影片展品可以儲存，檔案�
   const del = await call('DELETE', '/api/media?path=' + encodeURIComponent(good.img), { token: owner });
   assert.equal(del.status, 409); assert.equal(del.data.error, 'in_use');
   await call('PUT', '/api/content', { token: owner, body: { content: { ...back.data.content, exhibits: { items: {} } }, sha: back.data.sha } });
+});
+await test('夢境與心情：讀出標題、日期、色調與內文，空白頁略過，清單與內容都有快取', async () => {
+  const r = await call('GET', '/api/journal/dream');
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  assert.equal(r.data.items.length, 1);
+  const d = r.data.items[0];
+  assert.equal(d.title, '會飛的鯨魚'); assert.equal(d.date, '2026-11-01'); assert.equal(d.tone, '奇幻');
+  assert.deepEqual(d.blocks.map(b => b.t), ['p', 'img', 'h']);   // 開頭的空段落去掉
+  assert.equal(d.blocks[1].cap, '鯨魚');
+  const q0 = journalQueries; await call('GET', '/api/journal/dream'); assert.equal(journalQueries, q0);   // 第二次走快取
+  cacheStore.clear(); const b0 = journalBlockReads; await call('GET', '/api/journal/dream'); assert.equal(journalBlockReads, b0);   // 內容沒改過：不再讀頁面
+  const mood = await call('GET', '/api/journal/mood');
+  assert.equal(mood.data.items[0].title, '今天'); assert.equal(mood.data.items[0].tone, undefined); assert.equal(mood.data.items[0].blocks[0].t, 'q');
+  assert.equal((await call('GET', '/api/journal/dream', { origin: 'https://evil.example' })).status, 403);
+  assert.notEqual((await call('GET', '/api/journal/secret')).status, 200);   // 其他名稱不會被當成公開內容
+});
+await test('夢境圖片：只轉送這兩個資料庫裡的圖片', async () => {
+  const res = await worker.fetch(new Request('https://api.example/api/journal/img/11111111111111111111111111111111'), env, { waitUntil() {} });
+  assert.equal(res.status, 200); assert.equal(res.headers.get('Content-Type'), 'image/png'); assert.equal(await res.text(), 'PNGDATA');
+  const other = await worker.fetch(new Request('https://api.example/api/journal/img/22222222222222222222222222222222'), env, { waitUntil() {} });
+  assert.equal(other.status, 404);
+  const bad = await worker.fetch(new Request('https://api.example/api/journal/img/..%2Fpages'), env, { waitUntil() {} });
+  assert.equal(bad.status, 404);
 });
 await test('上傳：串流轉交給 GitHub、內容不變、檔名和大小有限制', async () => {
   const bytes = Buffer.from(Array.from({ length: 3000 }, (_, i) => i % 256));

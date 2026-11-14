@@ -240,6 +240,19 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 .bk-hint{position:absolute;left:0;right:0;bottom:-34px;text-align:center;font-size:12px;color:rgba(251,246,236,.85);letter-spacing:.1em;opacity:0;transition:opacity .3s 1s}
 .bk.open .bk-hint{opacity:1}
 .bk-measure{position:fixed!important;left:-9999px;top:0;visibility:hidden}
+/* read-only journals: a dream book, the mood notebook */
+.bk-inner.bk-j{display:block;overflow:hidden}
+.bk-j .j-h{font-family:var(--f-display);font-size:21px;letter-spacing:.08em;line-height:1.5;margin:0 0 4px}
+.bk-j .j-meta{font-size:12px;color:var(--muted);letter-spacing:.06em;margin:0 0 14px;font-variant-numeric:tabular-nums}
+.bk-j .j-p{font-family:var(--f-display);font-size:15.5px;line-height:28px;margin:0 0 14px;white-space:pre-wrap;word-break:break-word}
+.bk-j .j-sub{font-family:var(--f-display);font-size:17px;line-height:28px;letter-spacing:.06em;margin:4px 0 10px}
+.bk-j .j-q{font-family:var(--f-display);font-size:15.5px;line-height:28px;margin:0 0 14px;padding-left:12px;border-left:2px solid rgba(150,118,86,.35);color:#5b4b3c;white-space:pre-wrap}
+.bk-j .j-li{font-family:var(--f-display);font-size:15.5px;line-height:28px;margin:0 0 6px;padding-left:16px;position:relative;white-space:pre-wrap}.bk-j .j-li::before{content:"・";position:absolute;left:0}
+.bk-j .j-hr{border:0;border-top:1px dashed rgba(150,118,86,.35);margin:10px 0 18px}
+.bk-j figure{margin:0 0 14px;text-align:center}
+.bk-j figure img{display:block;width:100%;height:calc(var(--ph) * .36);object-fit:contain;background:rgba(150,118,86,.06);border-radius:3px}
+.bk-j figcaption{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6}
+.bk-plate-tone{display:inline-block;margin-top:10px;font-size:12px;letter-spacing:.3em;color:var(--muted)}
 @media (max-width:760px){.bk-nav{top:auto;bottom:-56px;left:calc(50% - 56px)}.bk-nav.next{left:calc(50% + 12px);right:auto}.bk-hint{display:none}}
 @media (prefers-reduced-motion:reduce){.bk-book,.bk-leaf,.bk-cover{transition-duration:.01s!important}}
 </style>
@@ -521,6 +534,7 @@ const JOURNAL_CATS=[
   {key:'mood',name:'心情日記',colors:[0xE8D7BF,0xD9B99B,0xC9A27E,0xF0E4D0,0xBFA48A]},
   {key:'mood',name:'心情日記',colors:[0xE8D7BF,0xD9B99B,0xC9A27E,0xF0E4D0,0xBFA48A]},
 ];
+let HUTCH=null;   // the hutch's shelves, for the dream books: {zB, rows:[[y, xFrom, xTo]], height:[clear height per row]}
 function buildHutch(){   // (built after the clay materials exist) a clay hutch desk: turned legs and two drawers below, a wavy-sided hutch of shelves above, a little flower on the crest
   const act={type:'shelf',label:'書桌櫃'};
   const W=1.6,cx=.125,X1=cx-W/2,X2=cx+W/2,zB=-3.41;
@@ -568,14 +582,10 @@ function buildHutch(){   // (built after the clay materials exist) a clay hutch 
     put(new THREE.SphereGeometry(.014,12,8),knobM,cx,fy,fzz+.008).scale.z=.6;
     for(const s of[-1,1]){const st=put(new THREE.CylinderGeometry(.005,.005,.15,6),leafM,cx+s*.12,fy-.01,fzz-.004,{rz:Math.PI/2+s*.12});
       for(const k of[0,1,2]){const l=put(new THREE.SphereGeometry(.016,10,8),leafM,cx+s*(.08+k*.04),fy-.01+(k%2?.016:-.014)+s*.004*k,fzz);l.scale.set(1.2,.6,.4);l.rotation.z=s*(k%2?.6:-.6);}}}
-  // the owner's journals on the three upper shelves
+  // the three upper shelves are kept for the dream books (one book for each dream, filled in from Notion); the ceramic vase stays
   const R=rng(42);
-  const rows=[[T1+.0275,0],[shelfY[0]+.019,1],[shelfY[1]+.019,2]];
-  rows.forEach(([y,ci])=>{const cat=JOURNAL_CATS[ci];let x=inX1+.03;const stop=inX2-(ci===1?.24:.03);
-    while(x<stop){if(R()<.07){x+=.04+R()*.05;continue;}
-      const t=.022+R()*.026,hh=.2+R()*.08,d=.15+R()*.06;if(x+t>stop)break;
-      put(rbox(t,hh,d,Math.min(t,d)*.3,3),mat(cat.colors[Math.floor(R()*cat.colors.length)],.85),x+t/2,y+hh/2,zB+.03+d/2,{act:{type:'journal',cat:cat.key,label:'書櫃・'+cat.name}});x+=t+.002;}
-    if(ci===1)put(new THREE.CylinderGeometry(.05,.065,.2,24),M.ceramic,inX2-.12,y+.1,zB+.17,{act:{type:'shelf',label:'陶瓶'}});});
+  HUTCH={zB,rows:[[T1+.0275,inX1+.03,inX2-.03],[shelfY[0]+.019,inX1+.03,inX2-.24],[shelfY[1]+.019,inX1+.03,inX2-.03]],height:[shelfY[0]-.019-(T1+.0275),shelfY[1]-.019-(shelfY[0]+.019),HT-.0225-(shelfY[1]+.019)]};
+  put(new THREE.CylinderGeometry(.05,.065,.2,24),M.ceramic,inX2-.12,shelfY[0]+.019+.1,zB+.17,{act:{type:'shelf',label:'陶瓶'}});
   // the cubby: blank notebooks lying flat, and the little clay box on the desk
   for(let k=0;k<3;k++)put(rbox(.26,.033,.19,.004),mat([0xF0E6D4,0xE2D3BC,0xD8C7AD][k],.8),inX1+dw+.04+(inW-dw)/2,HB+.0165+k*.034,zB+.14,{ry:(R()-.5)*.15,act:{type:'blank',label:'空白冊'}});
   put(rbox(.2,.06,.15,.01),M.clay,cx-.45,DT+.03,zB+DD-.17,{act:{type:'shelf',label:'小陶盒'}});
@@ -1437,30 +1447,34 @@ function openSunKnob(){
 
 /* ---------- the guestbook's hard cover: green book-cloth, mottled dye, a fine weave, stray fibres, edges worn pale, gold-blocked title.
    Painted once; the notebook on the cabinet and the opened notebook share it. ---------- */
-let nbCoverCache=null;
-let nbBackCache=null;
-function notebookCover(plain){if(plain&&nbBackCache)return nbBackCache;if(!plain&&nbCoverCache)return nbCoverCache;
+// cloth-bound hardback covers: the guestbook (green), the mood notebook (dark red), and the dream books (by the dream's tone)
+const NB_CACHE={};
+const NB_GREEN={key:'gb',base:'#4D5C49',lt:'150,170,130',dk:'20,30,20',fib:'200,210,180',fibDk:'10,15,10',title:'留 言 筆 記 本',sub:'內 在 房 間'};
+function notebookCover(plain,o){o=o||NB_GREEN;const ck=o.key+(plain?':back':':front');if(NB_CACHE[ck])return NB_CACHE[ck];
   const w=600,h=834,c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),R=rng(4242);
-  g.fillStyle='#4D5C49';g.fillRect(0,0,w,h);
+  g.fillStyle=o.base;g.fillRect(0,0,w,h);
   for(let i=0;i<90;i++){const x=R()*w,y=R()*h,r=40+R()*160,gr=g.createRadialGradient(x,y,0,x,y,r),lt=R()<.5;
-    gr.addColorStop(0,lt?`rgba(150,170,130,${.05+R()*.06})`:`rgba(20,30,20,${.06+R()*.08})`);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);}   // uneven dye
+    gr.addColorStop(0,lt?`rgba(${o.lt},${.05+R()*.06})`:`rgba(${o.dk},${.06+R()*.08})`);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);}   // uneven dye
   for(let y=0;y<h;y+=2){g.fillStyle=`rgba(${R()<.5?'255,255,240':'0,0,0'},${.025+R()*.035})`;g.fillRect(0,y,w,1);}   // weave: weft
   for(let x=0;x<w;x+=2){g.fillStyle=`rgba(${R()<.5?'255,255,240':'0,0,0'},${.02+R()*.03})`;g.fillRect(x,0,1,h);}   // and warp
-  for(let i=0;i<2200;i++){const x=R()*w,y=R()*h,a=R()*Math.PI,l=2+R()*9;g.strokeStyle=R()<.6?`rgba(200,210,180,${.05+R()*.1})`:`rgba(10,15,10,${.06+R()*.1})`;
+  for(let i=0;i<2200;i++){const x=R()*w,y=R()*h,a=R()*Math.PI,l=2+R()*9;g.strokeStyle=R()<.6?`rgba(${o.fib},${.05+R()*.1})`:`rgba(${o.fibDk},${.06+R()*.1})`;
     g.lineWidth=.6+R()*.6;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l);g.stroke();}   // stray fibres
   const id=g.getImageData(0,0,w,h),d=id.data;for(let i=0;i<d.length;i+=4){const n=(R()-.5)*16;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}g.putImageData(id,0,0);   // grain
   const wear=(x0,y0,x1,y1)=>{const gr=g.createLinearGradient(x0,y0,x1,y1);gr.addColorStop(0,'rgba(215,205,170,.22)');gr.addColorStop(1,'rgba(215,205,170,0)');g.fillStyle=gr;g.fillRect(0,0,w,h);};
   wear(0,0,0,26);wear(0,h,0,h-26);wear(w,0,w-22,0);wear(0,0,14,0);   // edges rubbed pale
   for(const [x,y] of [[0,0],[w,0],[0,h],[w,h]]){const gr=g.createRadialGradient(x,y,0,x,y,60);gr.addColorStop(0,'rgba(220,210,175,.28)');gr.addColorStop(1,'rgba(220,210,175,0)');g.fillStyle=gr;g.fillRect(x-60,y-60,120,120);}
-  if(plain){nbBackCache={canvas:c,url:null};return nbBackCache;}   // the inside of the board: plain cloth, no title
-  const gold=g.createLinearGradient(0,h*.35,0,h*.55);gold.addColorStop(0,'#E6CB91');gold.addColorStop(.5,'#C8A766');gold.addColorStop(1,'#E2C489');
+  if(plain)return (NB_CACHE[ck]={canvas:c,url:null});   // the inside of the board: plain cloth, no title
+  let gold=g.createLinearGradient(0,h*.35,0,h*.55);gold.addColorStop(0,'#E6CB91');gold.addColorStop(.5,'#C8A766');gold.addColorStop(1,'#E2C489');
+  if(o.ink&&new THREE.Color(o.base).getHSL({}).l>.5)gold=o.ink;   // pale cloth: the title is printed in dark ink rather than gold
   g.strokeStyle=gold;g.globalAlpha=.75;g.lineWidth=2;g.strokeRect(38,34,w-70,h-68);g.globalAlpha=.45;g.lineWidth=1;g.strokeRect(46,42,w-86,h-84);g.globalAlpha=1;   // blind and gold rules
-  g.textAlign='center';g.textBaseline='middle';g.font='600 62px "LXGW WenKai TC","Kaiti TC",serif';
-  const title='留 言 筆 記 本';g.fillStyle='rgba(0,0,0,.35)';g.fillText(title,w/2+1,h*.44+2);g.fillStyle=gold;g.fillText(title,w/2,h*.44);
-  g.font='26px "LXGW WenKai TC","Kaiti TC",serif';g.fillStyle='rgba(0,0,0,.3)';g.fillText('內 在 房 間',w/2+1,h*.44+72);g.fillStyle=gold;g.globalAlpha=.85;g.fillText('內 在 房 間',w/2,h*.44+70);g.globalAlpha=1;
+  g.textAlign='center';g.textBaseline='middle';
+  let fs=62;g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;while(g.measureText(o.title).width>w-130&&fs>26){fs-=2;g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;}
+  const title=o.title;g.fillStyle='rgba(0,0,0,.35)';g.fillText(title,w/2+1,h*.44+2);g.fillStyle=gold;g.fillText(title,w/2,h*.44);
+  g.font='26px "LXGW WenKai TC","Kaiti TC",serif';g.fillStyle='rgba(0,0,0,.3)';g.fillText(o.sub,w/2+1,h*.44+72);g.fillStyle=gold;g.globalAlpha=.85;g.fillText(o.sub,w/2,h*.44+70);g.globalAlpha=1;
   // the gold is blocked into cloth: let the weave break it up a little
-  g.globalCompositeOperation='source-atop';for(let i=0;i<5000;i++){g.fillStyle=`rgba(40,50,35,${R()*.25})`;g.fillRect(R()*w,R()*h,1+R()*2,1);}g.globalCompositeOperation='source-over';
-  nbCoverCache={canvas:c,url:null};return nbCoverCache;}
+  g.globalCompositeOperation='source-atop';for(let i=0;i<5000;i++){g.fillStyle=`rgba(${o.dk},${R()*.25})`;g.fillRect(R()*w,R()*h,1+R()*2,1);}g.globalCompositeOperation='source-over';
+  return (NB_CACHE[ck]={canvas:c,url:null});}
+const NB_MOOD={key:'mood',base:'#6B2A2C',lt:'190,120,110',dk:'35,10,12',fib:'210,160,150',fibDk:'30,8,10',title:'心 情 筆 記',sub:'內 在 房 間'};   // dark red cloth
 /* ---------- south-west cabinet: recommended books, flyer, guestbook ---------- */
 (function swCabinet(){
   const x1=-4.85,x2=-2.05,zF=2.92,zB=3.42,H=.8,act={type:'swcab',label:'推薦書櫃'};
@@ -2802,7 +2816,7 @@ const DRINKS=['柚子氣泡：微苦的柚皮，和一點蜂蜜。喝一口，�
 const modal=$('#modal'),card=$('#modalCard');
 function openModal(html,opt={}){card.classList.toggle('wide',!!opt.wide);card.classList.toggle('admin',!!opt.admin);card.classList.toggle('book',!!opt.book);card.innerHTML='<button class="x" type="button" aria-label="關閉" data-close>×</button>'+html;modal.hidden=false;modalOpen=true;
   if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;const f=card.querySelector('[data-focus]')||card.querySelector('.x');setTimeout(()=>f&&f.focus(),30);}
-function closeModal(){if(gbBookCloser){gbBookCloser=null;bkTeardown();}modal.hidden=true;modalOpen=false;card.innerHTML='';card.classList.remove('book');updateCursorUI();canvas.focus();}
+function closeModal(){if(gbBookCloser){gbBookCloser=null;bkTeardown();if(bk.src&&bk.src.onClose){const f=bk.src.onClose;bk.src=null;f();}}modal.hidden=true;modalOpen=false;card.innerHTML='';card.classList.remove('book');updateCursorUI();canvas.focus();}
 modal.addEventListener('click',e=>{if(e.target===modal||e.target===card&&card.classList.contains('book')||e.target.closest('[data-close]')){if(gbBookCloser)gbBookCloser();else closeModal();}});   // the notebook closes itself and is put down first
 let toastT=0;function toast(s){const t=$('#toast');t.querySelector('span').textContent=s;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200);}
 const simple=(eyebrow,title,body,note)=>`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>${body}</p>${note?`<div class="note">${note}</div>`:''}`;
@@ -2815,6 +2829,8 @@ function interact(a){
     case 'moonlamp':S.moonlamp=!moonLampOn;save();toast(S.moonlamp?'月球燈亮了':'月球燈關了');return;
     case 'blamp':S.blamp=!blampOn;save();toast(S.blamp?'床頭燈亮了':'床頭燈關了');return;
     case 'journal':return openJournal(a.cat);
+    case 'dreambook':return openDream(a.idx);
+    case 'moodbook':if(popOff('moodbook'))return;return openMood();
     case 'rec':{const r=RECS[a.idx];return openModal(simple('推薦書',`《${esc(r.t)}》`,`<b>${esc(r.a)}</b><br>${esc(r.b)}`,'範例書單與簡介。之後在房主設定裡上傳你真正想推薦的書。'));}
     case 'tablet':return openTablet();
     case 'chair':return sitDown(a);
@@ -2905,7 +2921,7 @@ function gbEntries(){
 /* ---------- the guestbook as a hardbound notebook: it is picked up, the cover swings open on the newest pages,
    and its leaves turn one by one. Each comment takes at least half a page; a long one takes a whole page.
    After the last comment comes a blank page to write on. ---------- */
-const bk={el:null,pages:[],slots:[],view:0,single:false,pw:0,ph:0,busy:false,closing:false,keyH:null,resizeH:null,loading:true,error:false};
+const bk={src:null,el:null,pages:[],slots:[],view:0,single:false,pw:0,ph:0,busy:false,closing:false,keyH:null,resizeH:null,loading:true,error:false};
 let gbBookCloser=null;
 const BK_STATUS={reviewing:'審核中（只有你看得到）',hidden:'未公開（只有你看得到）',whisper:'悄悄話（只有你和房主看得到）'};
 function bkEntryHTML(c,size){
@@ -2920,6 +2936,7 @@ function bkEntryHTML(c,size){
   return `<div class="bk-entry ${size}${c.own&&c.status!=='public'?' private':''}" data-id="${esc(c.id)}">${meta}<div class="bk-text">${esc(c.content)}</div>${acts}</div>`;}
 // lay the comments out on pages: measure each one at the real page size; half a page at least, a whole page if it needs it
 function bkPaginate(){
+  if(bk.src){bk.src.paginate();return;}
   const ms=document.createElement('div');ms.className='bk-page bk-measure';ms.style.width=bk.pw+'px';ms.style.height=bk.ph+'px';document.body.appendChild(ms);
   const inner=document.createElement('div');inner.className='bk-inner';ms.appendChild(inner);
   const full=inner.clientHeight,half=(full-14)/2;
@@ -2936,6 +2953,9 @@ function bkPaginate(){
 function bkPageNum(p){const i=bk.pages.indexOf(p);return i>=0?i+1:0;}
 function bkPageHTML(p){
   if(!p)return '<div class="bk-inner"></div>';
+  if(p.type==='inside'&&bk.src)return bk.src.plate();
+  if(p.type==='jpage')return `<div class="bk-inner bk-j">${p.html}</div>${bkPageNum(p)?`<div class="bk-num">${bkPageNum(p)}</div>`:''}`;
+  if(p.type==='loading'&&bk.src)return `<div class="bk-inner"><p class="bk-quiet">${bk.error?'現在讀不到內容，請稍後再來看看。<br><button class="bk-btn" type="button" data-act="retry">再試一次</button>':'翻開中…'}</p></div>`;
   if(p.type==='inside')return `<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">內在房間</div><div class="bk-plate-s">留言筆記本</div><div class="bk-plate-n">給每一位來過這裡的人。<br>往後翻，可以讀到大家留下的話；<br>最後的空白頁，留給你。</div></div></div>`;
   const num=bkPageNum(p),foot=num?`<div class="bk-num">${num}</div>`:'';
   if(p.type==='loading')return `<div class="bk-inner"><p class="bk-quiet">${bk.error?'現在讀不到留言，請稍後再來看看。<br><button class="bk-btn" type="button" data-act="retry">再試一次</button>':'翻開筆記本中…'}</p></div>`;
@@ -2975,6 +2995,7 @@ function bkRender(){
   bkWire();}
 // open on the newest comments (the blank page is one turn further on, or right beside them)
 function bkTargetView(){
+  if(bk.src){const i=bk.src.target();return bk.single?i:Math.floor(i/2);}
   let last=-1;bk.slots.forEach((p,i)=>{if(p&&p.type==='entries')last=i;});
   const i=last>=0?last:bk.slots.findIndex(p=>p&&p.type==='write');
   return bk.single?i:Math.floor(i/2);}
@@ -3030,7 +3051,8 @@ function bkOpenAnim(){requestAnimationFrame(()=>{bk.el.classList.add('lifted');s
 function bkClose(){
   if(bk.closing)return;bk.closing=true;gb.editing=null;
   bk.el.classList.remove('opened');setTimeout(()=>bk.el.classList.remove('open'),180);
-  setTimeout(()=>{bk.el.classList.remove('lifted');setTimeout(()=>{gbBookCloser=null;bkTeardown();closeModal();},420);},640);}
+  const src=bk.src;
+  setTimeout(()=>{bk.el.classList.remove('lifted');setTimeout(()=>{gbBookCloser=null;bkTeardown();closeModal();if(src&&src.onClose)src.onClose();},420);},640);}
 function bkTeardown(){if(bk.keyH)removeEventListener('keydown',bk.keyH,true);if(bk.resizeH)removeEventListener('resize',bk.resizeH);bk.keyH=bk.resizeH=null;}
 // wire up whatever is on the open pages: the form, sign-in button, edit and delete
 function bkWire(){
@@ -3074,20 +3096,23 @@ async function bkAction(b){
   catch(err){toast(gbErr(err&&err.code));b.disabled=false;if(!gbSignedIn())bkRebuild(bk.view);}}
 function bkLoad(){
   bk.loading=true;bk.pages=[{type:'loading'}];bk.slots=bk.single?bk.pages.slice():[{type:'inside'},bk.pages[0]];bk.view=0;bkRender();
+  if(bk.src){bk.src.load().then(()=>{bk.loading=false;bkRebuild();},()=>{bk.error=true;bkRender();});return;}
   if(!GB_API){gb.list=[];bk.loading=false;bkRebuild();return;}
   gbLoad(false).then(()=>gbSignedIn()?gbLoadMine().catch(()=>null):null).then(()=>{bk.loading=false;bkRebuild();},()=>{bk.error=true;bkRender();});}
 function gbRefresh(){if(bk.el&&bk.el.isConnected){gb.mine=null;const go=()=>{bk.loading=false;bkRebuild(bkGoWrite());};gbSignedIn()?gbLoadMine().then(go,go):go();}}
-function openGuestbook(){
-  gb.openedAt=Date.now();gb.editing=null;bk.closing=false;bk.busy=false;bk.error=false;
-  openModal(`<div class="bk" id="bk" role="dialog" aria-label="留言筆記本">
+function openGuestbook(){openBookUI(null);}
+// open a book: the guestbook (src null), or a read-only one — a dream book or the mood notebook (src: {label, cover, plate, load, paginate, target, onClose})
+function openBookUI(src){
+  bk.src=src;gb.openedAt=Date.now();gb.editing=null;bk.closing=false;bk.busy=false;bk.error=false;
+  openModal(`<div class="bk${src?' journal':''}" id="bk" role="dialog" aria-label="${esc(src?src.label:'留言筆記本')}">
      <div class="bk-book">
        <div class="bk-page bk-left" id="bkL"></div><div class="bk-page bk-right" id="bkR"></div>
-       <div class="bk-cover"><div class="bk-face bk-cover-front" aria-label="留言筆記本・內在房間"></div><div class="bk-face bk-cover-back"></div></div>
+       <div class="bk-cover"><div class="bk-face bk-cover-front" aria-label="${esc(src?src.label:'留言筆記本・內在房間')}"></div><div class="bk-face bk-cover-back"></div></div>
      </div>
      <button class="bk-nav" id="bkPrev" type="button" aria-label="往前翻">‹</button><button class="bk-nav next" id="bkNext" type="button" aria-label="往後翻">›</button>
      <div class="bk-hint">← → 或點兩側翻頁</div></div>`,{book:true});
   bk.el=card.querySelector('#bk');bk.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;bkMeasure();
-  for(const [sel,plain] of [['.bk-cover-front',false],['.bk-cover-back',true]]){const nc=notebookCover(plain);if(!nc.url)nc.url=nc.canvas.toDataURL('image/jpeg',.9);bk.el.querySelector(sel).style.backgroundImage=`url(${nc.url})`;}
+  for(const [sel,plain] of [['.bk-cover-front',false],['.bk-cover-back',true]]){const nc=notebookCover(plain,src&&src.cover);if(!nc.url)nc.url=nc.canvas.toDataURL('image/jpeg',.9);bk.el.querySelector(sel).style.backgroundImage=`url(${nc.url})`;}
   gbBookCloser=bkClose;
   bk.el.querySelector('#bkPrev').onclick=()=>bkFlip(-1);bk.el.querySelector('#bkNext').onclick=()=>bkFlip(1);
   bk.el.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b){e.stopPropagation();bkAction(b);return;}
@@ -3492,6 +3517,149 @@ function footstep(fast){if(!AC)return;const T=AC.currentTime;stepSide^=1;
   s.connect(f).connect(g).connect(au.master);s.start(T,Math.random()*1.5,.2);
   const o=AC.createOscillator(),og=AC.createGain();o.frequency.setValueAtTime(out?140:95,T);o.frequency.exponentialRampToValueAtTime(50,T+.09);
   og.gain.setValueAtTime(v*.5,T);og.gain.exponentialRampToValueAtTime(.0001,T+.1);o.connect(og).connect(au.master);o.start(T);o.stop(T+.12);}
+/* ---------- the owner's journals, written in Notion: a book on the hutch shelves for every dream, and a dark-red mood notebook on the desk.
+   Click a dream book and it is tipped out by its top, slid off the shelf and brought up to you, then opens like the guestbook;
+   closing it puts it back. The mood notebook opens like the guestbook, on its newest entry. ---------- */
+const JR={data:{},loading:{},books:[],anim:null,mood:null};
+// the dream's tone → the colour of its cloth (and a light or dark title on the spine)
+const DREAM_TONE={溫柔:{base:'#C9A3A6',lt:'235,210,210',dk:'90,55,60',fib:'240,220,220',fibDk:'80,50,55',ink:'#4A2E30'},
+  奇幻:{base:'#9C8FB5',lt:'215,205,235',dk:'50,40,75',fib:'225,215,240',fibDk:'45,35,65',ink:'#2E2640'},
+  不安:{base:'#3B4462',lt:'120,130,170',dk:'15,18,35',fib:'150,160,195',fibDk:'10,12,25',ink:'#E3D6B4'},
+  清醒:{base:'#A5B6C4',lt:'225,235,242',dk:'60,75,90',fib:'230,238,245',fibDk:'55,70,85',ink:'#2C3A46'},
+  '':{base:'#B3ACA2',lt:'225,220,212',dk:'70,64,58',fib:'230,226,218',fibDk:'60,55,50',ink:'#3A332C'}};
+const toneOf=t=>DREAM_TONE[t]||DREAM_TONE[''];
+function jrLoad(kind){
+  if(JR.data[kind])return Promise.resolve(JR.data[kind]);
+  if(!GB_API)return Promise.resolve([]);
+  if(!JR.loading[kind])JR.loading[kind]=fetch(GB_API+'/api/journal/'+kind,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('http '+r.status);return r.json();})
+    .then(d=>(JR.data[kind]=d.items||[]),e=>{JR.loading[kind]=null;throw e;});
+  return JR.loading[kind];}
+const jrImg=id=>GB_API+'/api/journal/img/'+encodeURIComponent(id);
+const jrDate=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||'');return m?`${+m[1]} 年 ${+m[2]} 月 ${+m[3]} 日`:'';};
+function jrBlockHTML(b,text){
+  const x=esc(text===undefined?b.x||'':text);
+  if(b.t==='h')return `<div class="j-sub">${x}</div>`;
+  if(b.t==='q')return `<div class="j-q">${x}</div>`;
+  if(b.t==='li')return `<div class="j-li">${x}</div>`;
+  if(b.t==='hr')return '<hr class="j-hr">';
+  if(b.t==='img')return `<figure><img src="${esc(jrImg(b.id))}" alt="${esc(b.cap||'')}" loading="lazy">${b.cap?`<figcaption>${esc(b.cap)}</figcaption>`:''}</figure>`;
+  return `<p class="j-p">${x}</p>`;}
+/* lay documents out on pages at the real page size: each document starts on a fresh page with its heading,
+   blocks flow on; a paragraph too long for what is left of a page is split, carrying on over the page */
+function jrFlow(docs){
+  const ms=document.createElement('div');ms.className='bk-page bk-measure';ms.style.width=bk.pw+'px';ms.style.height=bk.ph+'px';
+  ms.style.setProperty('--ph',bk.ph+'px');document.body.appendChild(ms);
+  const inner=document.createElement('div');inner.className='bk-inner bk-j';ms.appendChild(inner);
+  const fits=html=>{inner.innerHTML=html;return inner.scrollHeight<=inner.clientHeight+1;};
+  const pages=[];
+  for(const doc of docs){
+    let cur=doc.head||'';doc.firstPage=pages.length;
+    for(const b of doc.blocks){
+      const h=jrBlockHTML(b);
+      if(fits(cur+h)){cur+=h;continue;}
+      const splittable=b.t==='p'||b.t==='q'||b.t==='li';
+      if(splittable){let text=[...(b.x||'')];
+        while(text.length){let lo=0,hi=text.length;   // the longest start of it that still fits on this page
+          while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(fits(cur+jrBlockHTML(b,text.slice(0,mid).join(''))))lo=mid;else hi=mid-1;}
+          if(lo===0){if(cur){pages.push(cur);cur='';continue;}lo=Math.min(text.length,200);}   // a fresh page always takes something
+          cur+=jrBlockHTML(b,text.slice(0,lo).join(''));text=text.slice(lo);
+          if(text.length){pages.push(cur);cur='';}}
+        continue;}
+      if(cur)pages.push(cur);cur=h;}
+    pages.push(cur);}
+  ms.remove();
+  return pages.map(html=>({type:'jpage',html}));}
+function jrSlots(pages){bk.pages=pages;bk.slots=bk.single?pages.slice():[{type:'inside'}].concat(pages);}
+
+/* ---- the mood notebook ---- */
+const MOOD_SRC={label:'心情筆記',cover:NB_MOOD,
+  plate:()=>`<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">內在房間</div><div class="bk-plate-s">心情筆記</div><div class="bk-plate-n">每一天的心情，<br>寫下來，就輕了一點。</div></div></div>`,
+  load:()=>jrLoad('mood'),
+  paginate(){const items=JR.data.mood||[];
+    if(!items.length){jrSlots([{type:'jpage',html:'<p class="bk-quiet">還沒有寫下任何心情。</p>'}]);return;}
+    const docs=items.map(e=>({head:`<div class="j-h">${esc(e.title)}</div><div class="j-meta">${esc(jrDate(e.date))}</div>`,blocks:e.blocks||[]}));
+    const pages=jrFlow(docs);this.last=docs[docs.length-1].firstPage;jrSlots(pages);},
+  target(){const p=bk.pages[this.last||0];return bk.slots.indexOf(p);},   // opens on the newest entry
+};
+function openMood(){openBookUI(MOOD_SRC);}
+
+/* ---- dream books ---- */
+function dreamSrc(e,book){return {label:'夢境紀錄・'+e.title,
+  cover:Object.assign({key:'dream:'+(e.tone||'-')+':'+e.id,title:[...e.title].slice(0,8).join(' '),sub:'夢 境 紀 錄'},toneOf(e.tone)),
+  plate:()=>`<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">夢境紀錄</div><div class="bk-plate-s">${esc(e.title)}</div><div class="bk-plate-n">${esc(jrDate(e.date))}</div>${e.tone?`<div class="bk-plate-tone">${esc(e.tone)}</div>`:''}</div></div>`,
+  load:()=>Promise.resolve(),
+  paginate(){jrSlots(jrFlow([{head:`<div class="j-h">${esc(e.title)}</div><div class="j-meta">${esc(jrDate(e.date))}${e.tone?'・'+esc(e.tone):''}</div>`,blocks:e.blocks||[]}]));},
+  target:()=>bk.single?0:1,   // opens on its first page
+  onClose:()=>jrReturn(book)};}
+
+// the spine: the title running down it (vertical writing), between two thin rules near head and foot
+function spineTex(e,t,hh){
+  const T=toneOf(e.tone),W=96,H=Math.round(W*hh/t),c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  g.fillStyle=T.base;g.fillRect(0,0,W,H);
+  const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,7));
+  for(let i=0;i<500;i++){g.fillStyle=R()<.5?`rgba(${T.lt},.08)`:`rgba(${T.dk},.10)`;g.fillRect(R()*W,R()*H,1+R()*2,1);}   // cloth
+  g.fillStyle=T.ink;g.globalAlpha=.7;for(const y of [H*.06,H*.075,H*.925,H*.94])g.fillRect(W*.15,y,W*.7,Math.max(1.5,W*.02));g.globalAlpha=1;
+  const chars=[...e.title].slice(0,14),fs=Math.min(W*.62,(H*.72)/Math.max(chars.length,4));
+  g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle=T.ink;
+  const y0=H*.5-(chars.length-1)*fs*1.08/2;chars.forEach((ch,i)=>g.fillText(ch,W/2,y0+i*fs*1.08));
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();return tex;}
+// stand the dream books on the shelves, oldest on the left of the top-most row... filling row by row
+function buildDreamBooks(items){
+  for(const b of JR.books){scene.remove(b.g);const i=targets.indexOf(b.hit);if(i>=0)targets.splice(i,1);}
+  JR.books=[];if(!HUTCH)return;
+  const order=[2,1,0];   // fill from the top shelf down
+  let row=0,x=HUTCH.rows[order[0]][1];
+  items.forEach((e,idx)=>{
+    const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,11));
+    const len=(e.blocks||[]).reduce((a,b)=>a+(b.x?b.x.length:0)+(b.t==='img'?300:0),0);
+    const t=Math.min(.05,.022+len/9000*.02+R()*.006);
+    let [y,x0,x1]=HUTCH.rows[order[row]];
+    if(x+t>x1){row++;if(row>=order.length)return;[y,x0,x1]=HUTCH.rows[order[row]];x=x0;}
+    const hh=HUTCH.height[order[row]]*(.74+R()*.14),d=.15+R()*.04;
+    const T=toneOf(e.tone),act={type:'dreambook',idx,label:'夢境紀錄・'+e.title};
+    const g=new THREE.Group();g.position.set(x+t/2,y,HUTCH.zB+.03+d);scene.add(g);   // pivot: the bottom of the spine, at the shelf's front
+    const cloth=mat(new THREE.Color(T.base).getHex(),.85);
+    const body=add(rbox(t,hh,d,Math.min(t,d)*.25,3),cloth,0,hh/2,-d/2,g,{act});
+    add(rbox(t-.006,hh-.01,d-.006,.002),mat(0xF3EBDA,.95),0,hh/2,-d/2-.004,g,{act,ray:false});   // page edges just inside the boards
+    const sp=add(new THREE.PlaneGeometry(t*.92,hh*.96),new THREE.MeshToonMaterial({map:spineTex(e,t,hh),gradientMap:gradMap}),0,hh/2,.0006,g,{act,cast:false});
+    sp.userData.noInk=true;
+    JR.books.push({g,e,hit:body,home:g.position.clone(),homeQ:g.quaternion.clone(),hh,d,t});
+    x+=t+.003+(R()<.12?.02:0);});}
+// take a book down: tip it out by its top, slide it off the shelf, bring it up in front of you; then the book opens on screen
+const _jq=new THREE.Quaternion(),_jq2=new THREE.Quaternion(),_jv=new THREE.Vector3(),_jy=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-Math.PI/2);
+function openDream(idx){const b=JR.books[idx];if(!b||JR.anim)return;
+  JR.anim={b,t0:performance.now(),mode:'out',p0:b.g.position.clone(),q0:b.g.quaternion.clone()};}
+function jrReturn(b){if(!b)return;b.g.visible=true;b.g.scale.setScalar(1);b.g.quaternion.copy(b.homeQ);
+  JR.anim={b,t0:performance.now(),mode:'back',p0:b.home.clone().add(new THREE.Vector3(0,0,b.d*.9)),q0:b.homeQ.clone()};}
+const easeIO=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+function jrTick(now){const A=JR.anim;if(!A)return;const b=A.b,g=b.g,t=(now-A.t0)/1000;
+  if(A.mode==='out'){
+    if(t<.28){const k=easeIO(t/.28);g.position.copy(A.p0);g.quaternion.copy(A.q0);g.rotateX(.32*k);}   // fingertip on the top of the spine: it tips out
+    else if(t<.62){const k=easeIO((t-.28)/.34);g.quaternion.copy(A.q0);g.rotateX(.32*(1-k*.7));g.position.copy(A.p0).add(_jv.set(0,.02*k,(b.d+.06)*k));}   // and slides off the shelf
+    else if(t<1.05){const k=easeIO((t-.62)/.43);
+      if(!A.p1){A.p1=g.position.clone();A.q1=g.quaternion.clone();}
+      camera.getWorldDirection(_jv);const target=camera.position.clone().addScaledVector(_jv,.55).add(new THREE.Vector3(0,-.08,0));
+      g.position.copy(A.p1).lerp(target,k);g.position.y-=b.hh*.5*k;   // centre the book on the view
+      _jq.copy(camera.quaternion).multiply(_jy);g.quaternion.copy(A.q1).slerp(_jq,k);}   // turn its cover toward you
+    else{g.visible=false;JR.anim=null;openBookUI(dreamSrc(b.e,b));}}
+  else{   // put back: slide in from the edge of the shelf
+    const k=easeIO(Math.min(1,t/.4));g.position.copy(A.p0).lerp(b.home,k);if(t>=.4){g.position.copy(b.home);g.quaternion.copy(b.homeQ);JR.anim=null;}}}
+// load both journals in the background once the room is up, so the shelf fills in by itself
+function jrStart(){jrLoad('dream').then(buildDreamBooks).catch(()=>{});jrLoad('mood').catch(()=>{});}
+
+// the mood notebook on the desk, beside the cherry dome: a closed dark-red hardback, like the guestbook
+(function moodNotebook(){
+  const nb=group(.2,.8,-2.955,Math.PI-.12,{type:'moodbook',label:'心情筆記'}),A=nb.userData.act;
+  const cloth=mat(0x6B2A2C,.85),paperE=mat(0xF3EBDA,.95),BW=.21,BD=.29;
+  const tex=new THREE.CanvasTexture(notebookCover(false,NB_MOOD).canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  add(rbox(BW,.006,BD,.002),cloth,0,.003,0,nb,{act:A});
+  add(rbox(BW-.012,.02,BD-.01,.002),paperE,.004,.016,0,nb,{act:A});
+  add(rbox(BW,.006,BD,.002),cloth,0,.029,0,nb,{act:A});
+  add(rbox(.012,.032,BD,.004),cloth,BW/2-.004,.016,0,nb,{act:A});
+  const top=add(new THREE.PlaneGeometry(BW-.004,BD-.004),mat(0xffffff,.9,{map:tex}),.001,.0325,0,nb,{act:A,cast:false});top.rotation.set(-Math.PI/2,0,Math.PI);
+  add(new THREE.BoxGeometry(.01,.002,.06),mat(0xC9A35E,.6),.04,.0005,BD/2+.025,nb,{ray:false,cast:false});})();   // a gold ribbon marker
+jrStart();
+
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
   // movement
@@ -3545,6 +3713,7 @@ function frame(now){
   sunLampTick(dt);
   DUST.tick(dt,now);
   if(natureTick)natureTick(dt,now);
+  jrTick(now);
   if(tabIsVideo()&&!musicEl.paused)drawTabletVideo();
   else if(now-(frame.tabT||0)>1000){frame.tabT=now;if(musicTracks().length)drawTablet();}
   if(now-hoverT>90){updateHover();hoverT=now;}

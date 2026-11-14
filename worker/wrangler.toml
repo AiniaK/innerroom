@@ -16,6 +16,9 @@ ALLOWED_ORIGINS = "https://ainiak.github.io,http://localhost:8000"
 # Google OAuth 用戶端 ID（不是秘密，和 config.js 裡的相同）
 GOOGLE_CLIENT_ID = "343926158795-3cglv3m79q6n7lojtne9od790fn57bvr.apps.googleusercontent.com"
 NOTION_VERSION = "2025-09-03"
+# 夢境紀錄、心情筆記兩個 Notion 資料庫的 ID（不是秘密；要分享給「內在房間留言」這個連接）
+NOTION_DREAM_DB = "4184acf6565180eeafead792fe198fd6"
+NOTION_MOOD_DB = "4184acf656518046b80cfd332f24adb2"
 
 # 留言快取、頻率限制、封鎖名單。id 由 `npx wrangler kv namespace create KV` 產生
 [[kv_namespaces]]
