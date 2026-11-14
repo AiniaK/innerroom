@@ -1545,7 +1545,7 @@ let moonLampOn=false;
 // the lamp's face: a real moon's colouring — pale grey highlands, darker grey maria roughly where they lie on the near side, a few bright craters with rays
 const mlTex=ctex(512,512,(g,w,h)=>{const R=rng(77);g.fillStyle='#D8D5CE';g.fillRect(0,0,w,h);
   for(let i=0;i<3500;i++){const v=R();g.fillStyle=v<.5?'rgba(150,146,138,.08)':'rgba(240,238,232,.10)';g.beginPath();g.arc(R()*w,R()*h,1+R()*5,0,7);g.fill();}   // highland mottling
-  const mare=(x,y,rx,ry,a)=>{g.filter='blur(9px)';for(let k=0;k<22;k++){g.fillStyle='rgba(132,128,120,.07)';g.beginPath();g.ellipse((x+(R()-.5)*rx*.5)*w,(y+(R()-.5)*ry*.5)*h,rx*w*(.55+R()*.5),ry*h*(.55+R()*.5),a+(R()-.5)*.6,0,7);g.fill();}g.filter='none';};
+  const mare=(x,y,rx,ry,a)=>{g.filter='blur(9px)';for(let k=0;k<18;k++){g.fillStyle='rgba(146,146,143,.035)';g.beginPath();g.ellipse((x+(R()-.5)*rx*.5)*w,(y+(R()-.5)*ry*.5)*h,rx*w*(.55+R()*.5),ry*h*(.55+R()*.5),a+(R()-.5)*.6,0,7);g.fill();}g.filter='none';};
   mare(.36,.30,.15,.12,.3);    // Imbrium
   mare(.57,.31,.07,.06,0);     // Serenitatis
   mare(.62,.45,.11,.09,.2);    // Tranquillitatis
@@ -1554,7 +1554,7 @@ const mlTex=ctex(512,512,(g,w,h)=>{const R=rng(77);g.fillStyle='#D8D5CE';g.fillR
   mare(.42,.62,.08,.06,0);     // Nubium
   mare(.66,.58,.06,.06,0);     // Fecunditatis / Nectaris
   mare(.48,.20,.12,.025,0);    // Frigoris
-  const crater=(x,y,r,rays)=>{g.fillStyle='rgba(245,243,238,.55)';g.beginPath();g.arc(x*w,y*h,r*w,0,7);g.fill();g.fillStyle='rgba(150,146,138,.35)';g.beginPath();g.arc(x*w+r*w*.25,y*h+r*w*.2,r*w*.6,0,7);g.fill();
+  const crater=(x,y,r,rays)=>{g.fillStyle='rgba(245,243,238,.55)';g.beginPath();g.arc(x*w,y*h,r*w,0,7);g.fill();g.fillStyle='rgba(170,167,160,.22)';g.beginPath();g.arc(x*w+r*w*.25,y*h+r*w*.2,r*w*.6,0,7);g.fill();
     if(rays)for(let k=0;k<rays;k++){const a=R()*6.28,l=(.08+R()*.18)*w;g.strokeStyle='rgba(240,238,232,.14)';g.lineWidth=1+R()*2;g.beginPath();g.moveTo(x*w,y*h);g.lineTo(x*w+Math.cos(a)*l,y*h+Math.sin(a)*l);g.stroke();}};
   crater(.45,.80,.016,22);crater(.30,.42,.012,10);crater(.38,.36,.009,6);   // Tycho, Copernicus, Kepler-ish
   for(let i=0;i<120;i++)crater(.12+R()*.76,.12+R()*.76,.002+R()*.006,0);});
