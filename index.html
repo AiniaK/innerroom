@@ -801,13 +801,20 @@ function sillPot(x,z,kind,seed){const g=group(x,SILL_Y,z,seed,{type:kind,label:k
   else{for(let i=0;i<7;i++){const an=i/7*6.28;const m=add(new THREE.SphereGeometry(.022,10,8),lf,Math.cos(an)*.018,.08,Math.sin(an)*.018,g,{act:a});m.scale.set(.6,1.3,.6);m.rotation.set(Math.sin(an)*.6,0,-Math.cos(an)*.6);}}
   return g;}
 sillPot(3.12,-3.54,'pothos',4);   // (the small succulent was removed: it sat in the same spot as the water glass)
-// bedside lamp on the sill by the headboard: a ceramic dome base, a short brass stem, a linen drum shade
+// bedside lamp on the sill by the headboard: a round chrome foot, a slim chrome stem, and a frosted-glass shade of two soft stacked rings, like a macaron
 const BL={x:4.45,z:-3.56},blAct={type:'blamp',label:'床頭燈'};
-add(new THREE.SphereGeometry(.065,28,16,0,Math.PI*2,0,Math.PI/2),M.ceramic,BL.x,SILL_Y,BL.z,scene,{act:blAct});
-add(new THREE.CylinderGeometry(.006,.006,.12,10),M.metal,BL.x,SILL_Y+.1,BL.z,scene,{act:blAct});
-const blShadeMat=new THREE.MeshToonMaterial({color:0xF6EBD6,map:fabricTex,gradientMap:gradMap,side:THREE.DoubleSide,emissive:0xffd29a,emissiveIntensity:0,fog:false});
-add(new THREE.CylinderGeometry(.065,.085,.11,32,1,true),blShadeMat,BL.x,SILL_Y+.2,BL.z,scene,{act:blAct,cast:false});
-const blLight=new THREE.PointLight(0xffc98a,0,3.2,1.8);blLight.position.set(BL.x,SILL_Y+.19,BL.z+.05);scene.add(blLight);
+{const chrome=mat(0xE2E4E6,.18);
+ add(new THREE.CylinderGeometry(.072,.076,.01,48),chrome,BL.x,SILL_Y+.005,BL.z,scene,{act:blAct});          // the round foot
+ add(new THREE.CylinderGeometry(.006,.007,.15,16),chrome,BL.x,SILL_Y+.08,BL.z,scene,{act:blAct});          // the stem
+ add(new THREE.CylinderGeometry(.022,.01,.012,24),chrome,BL.x,SILL_Y+.156,BL.z,scene,{act:blAct});}       // the little cup that holds the glass
+const blShadeMat=new THREE.MeshToonMaterial({color:0xF7F1E4,gradientMap:gradMap,emissive:0xffd9a6,emissiveIntensity:0,fog:false});
+{const prof=[],lobe=(yc,h,r0,r1,a0,a1)=>{for(let i=0;i<=16;i++){const t=a0+(a1-a0)*i/16;prof.push(new THREE.Vector2(r0+r1*Math.cos(t),yc+h*Math.sin(t)));}};
+ prof.push(new THREE.Vector2(0,0));
+ lobe(.034,.034,.028,.058,-Math.PI/2,1.05);    // the lower, wider ring
+ lobe(.096,.032,.026,.054,-1.05,Math.PI/2);    // the upper ring, a touch smaller, pinched in between
+ prof.push(new THREE.Vector2(0,.128));
+ const m=add(new THREE.LatheGeometry(prof,48),blShadeMat,BL.x,SILL_Y+.158,BL.z,scene,{act:blAct,cast:false});m.userData.noInk=true;}
+const blLight=new THREE.PointLight(0xffc98a,0,3.2,1.8);blLight.position.set(BL.x,SILL_Y+.22,BL.z+.1);scene.add(blLight);
 let blampOn=false;
 // sheer curtains on the mountain window: a dark iron rod, two gauzy panels swept aside, and strings of tiny warm lights running down them
 const CUR={x1:MW.x1-.1,x2:MW.x2+.1,top:MW.y2+.13,bot:SILL_Y-.05,z:-3.335},curAct={type:'curtain',label:'薄紗窗簾'};
