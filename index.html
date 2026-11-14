@@ -588,7 +588,6 @@ function buildHutch(){   // (built after the clay materials exist) a clay hutch 
   put(new THREE.CylinderGeometry(.05,.065,.2,24),M.ceramic,inX2-.12,shelfY[0]+.019+.1,zB+.17,{act:{type:'shelf',label:'陶瓶'}});
   // the cubby: blank notebooks lying flat, and the little clay box on the desk
   for(let k=0;k<3;k++)put(rbox(.26,.033,.19,.004),mat([0xF0E6D4,0xE2D3BC,0xD8C7AD][k],.8),inX1+dw+.04+(inW-dw)/2,HB+.0165+k*.034,zB+.14,{ry:(R()-.5)*.15,act:{type:'blank',label:'空白冊'}});
-  put(rbox(.2,.06,.15,.01),M.clay,cx-.45,DT+.03,zB+DD-.17,{act:{type:'shelf',label:'小陶盒'}});
   // matching clay chair beside the desk, between the hutch and the bed, angled toward the desk
   {const CH={x:1.3,z:-3.0},dx=-.8,dz=.6,cg=new THREE.Group();cg.position.set(CH.x,0,CH.z);cg.rotation.y=Math.atan2(dx,dz);scene.add(cg);
    const ca={type:'hchair',label:'書桌椅'},cp=(g,m,x,y,z,o={})=>{const r=add(g,m,x,y,z,cg,Object.assign({act:ca},o));r.userData.noInk=true;return r;};
@@ -695,7 +694,7 @@ SKU.flowerGeo=()=>{const parts=[];for(let k=0;k<5;k++){const sh=new THREE.Shape(
    for(let i=0;i<nb;i++){const p=[0,1,2].map(a=>D.mn[a]+bl[i*3+a]/65535*(D.mx[a]-D.mn[a]));SKU.bl.push(p);
      const s=.05*bs[i]/100*(.75+R()*.5);e.set(R()*6.28,R()*6.28,R()*6.28);q.setFromEuler(e);
      m4.compose(new THREE.Vector3(p[0]+(R()-.5)*.04,p[1]+(R()-.5)*.04,p[2]+(R()-.5)*.04),q,new THREE.Vector3(s,s,s));im.setMatrixAt(i,m4);im.setColorAt(i,c.setHex(pinks[Math.floor(R()*pinks.length)]));}
-   im.userData.act=act;targets.push(im);T.add(im);}
+   im.userData.act=act;targets.push(im);T.add(im);SKU.blMat=im.material;}
   // sword stuck in the grass, leaning a little; a gourd tied below the guard, its red ribbon streaming out
   {const sw=new THREE.Group();sw.position.set(.055,GY,.03);sw.rotation.set(.05,-.4,-.12);sw.scale.setScalar(.6/1.27);G.add(sw);
    const steel=mat(0xDDE1E4,.3),brass=mat(0xC4A15E,.4),black=mat(0x2A2420,.6);
@@ -2608,6 +2607,9 @@ function updateEnv(now){
   lampLight.intensity=lerp(lampLight.intensity,lampOn?.7:0,.08);shadeMat.emissiveIntensity=lampLight.intensity/.7*1.9;lampGlowMat.uniforms.uA.value=lampLight.intensity/.7*.26;
   blampOn=S.blamp===null?lampOn:S.blamp;   // follows the floor lamp until you switch it yourself
   moonLampOn=S.moonlamp==null?lampOn:S.moonlamp;
+  dlampOn=S.dlamp==null?lampOn:S.dlamp;
+  dlLight.intensity=lerp(dlLight.intensity,dlampOn?.85:0,.08);dlGlow.value=dlLight.intensity/.85*.75;
+  if(SKU.blMat){const k=.745+.17*(1-day);SKU.blMat.color.setRGB(k,k,k);}   // the dome's blossoms: muted by day, a little brighter at night
   mlLight.intensity=lerp(mlLight.intensity,moonLampOn?.28:0,.08);{const k=mlLight.intensity/.28;mlMat.emissiveIntensity=.62*k;mlHaloMat.uniforms.uA.value=.12*k;}   // a soft glow, not a lamp to read by
   blLight.intensity=lerp(blLight.intensity,blampOn?.75:0,.08);blShadeMat.emissiveIntensity=blLight.intensity*1.1;
   {const vb=Math.min(.86,.3+.52*day+(lampOn?.1:0)+(blampOn?.04:0))*(1-.25*over*day);for(const m of exGlowMats)m.color.setRGB(vb,vb*.95,vb*.86);}   // the wall video sits in the room's light, warm and dim after dark
@@ -2740,7 +2742,7 @@ let hovered=null;
 function pick(v){ray.setFromCamera(v,camera);const hits=ray.intersectObjects(targets,false);
   for(const h of hits){let o=h.object;while(o&&!o.userData.act)o=o.parent;if(o){pickPoint.copy(h.point);return o.userData.act;}return null;}return null;}
 const pickPoint=new THREE.Vector3();   // where the last pick landed, so the sofa knows where you chose to sit
-const HINT={moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
+const HINT={dlamp:()=>dlampOn?'點擊關燈':'點擊開燈',moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
 function updateHover(){
   let a=started&&!modalOpen?(locked?pick(center):(!isTouch?pick(mouse):null)):null;hovered=a;
   const el=$('#hover');if(a&&(a.type==='exhibit'?(exState[a.id]&&exState[a.id].hover===false):(a.type==='drink'?ovr('drink:'+a.idx).hov===false:(TOVR[a.type]&&TOVR[a.type].hov===false))))a=null;   /* owner turned this object's hover label off */
@@ -2833,6 +2835,7 @@ function interact(a){
   switch(a.type){
     case 'glassdoor':doorTarget=doorTarget?0:1;toast(doorTarget?'落地窗推開了，海的聲音靠近一些':'落地窗關上了');return;
     case 'lamp':S.lamp=!lampOn;save();toast(S.lamp?'落地燈亮了':'落地燈關了');return;
+    case 'dlamp':S.dlamp=!dlampOn;save();toast(S.dlamp?'檯燈亮了':'檯燈關了');return;
     case 'moonlamp':S.moonlamp=!moonLampOn;save();toast(S.moonlamp?'月球燈亮了':'月球燈關了');return;
     case 'blamp':S.blamp=!blampOn;save();toast(S.blamp?'床頭燈亮了':'床頭燈關了');return;
     case 'journal':return openJournal(a.cat);
@@ -3665,6 +3668,30 @@ function jrStart(){jrLoad('dream').then(buildDreamBooks).catch(()=>{});jrLoad('m
   add(rbox(.012,.032,BD,.004),cloth,BW/2-.004,.016,0,nb,{act:A});
   const top=add(new THREE.PlaneGeometry(BW-.004,BD-.004),mat(0xffffff,.9,{map:tex}),.001,.0325,0,nb,{act:A,cast:false});top.rotation.set(-Math.PI/2,0,Math.PI);
   add(new THREE.BoxGeometry(.01,.002,.06),mat(0xC9A35E,.6),.04,.0005,BD/2+.025,nb,{ray:false,cast:false});})();   // a gold ribbon marker
+
+// a mushroom desk lamp beside the mood notebook: an amber-to-orange glass dome with a brass finial, brass rod into a turned walnut stem and foot, a pull chain
+const DL={x:-.36,y:.8,z:-2.975},dlAct={type:'dlamp',label:'檯燈'};
+let dlampOn=false;
+const dlGlow={value:0};
+const dlDomeMat=new THREE.MeshToonMaterial({vertexColors:true,gradientMap:gradMap,side:THREE.DoubleSide,fog:false});
+dlDomeMat.onBeforeCompile=sh=>{sh.uniforms.uGlow=dlGlow;sh.fragmentShader='uniform float uGlow;\n'+sh.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n totalEmissiveRadiance+=vColor.rgb*uGlow;');};   // lit, the glass glows in its own colours
+{const walnut=mat(0x5E3524,.55),brass=mat(0xC9A35E,.3);
+ const lathe=(pts,seg=40)=>new THREE.LatheGeometry(pts.map(p=>new THREE.Vector2(p[0],p[1])),seg);
+ add(lathe([[0,0],[.072,0],[.078,.006],[.079,.02],[.074,.031],[.06,.036],[0,.036]]),walnut,DL.x,DL.y,DL.z,scene,{act:dlAct});      // the round wooden foot
+ add(lathe([[0,0],[.022,0],[.034,.016],[.032,.034],[.016,.05],[.012,.056],[0,.056]],28),walnut,DL.x,DL.y+.034,DL.z,scene,{act:dlAct});   // the turned knob
+ add(new THREE.CylinderGeometry(.012,.013,.11,20),walnut,DL.x,DL.y+.09+.055,DL.z,scene,{act:dlAct});                                 // wooden stem
+ add(new THREE.CylinderGeometry(.015,.015,.008,20),brass,DL.x,DL.y+.204,DL.z,scene,{act:dlAct});                                       // brass collar
+ add(new THREE.CylinderGeometry(.005,.005,.055,12),brass,DL.x,DL.y+.235,DL.z,scene,{act:dlAct});                                      // brass rod
+ // the glass dome: a soft half-dome flaring a little at the rim; golden at the crown, deepening to orange-red at the rim
+ const g=lathe([[.112,0],[.114,.006],[.112,.022],[.104,.05],[.088,.077],[.064,.098],[.034,.11],[0,.114]],48),P=g.attributes.position,col=[],cTop=new THREE.Color(0xF0AE48),cBot=new THREE.Color(0xC9461E),c=new THREE.Color();
+ for(let i=0;i<P.count;i++){const t=P.getY(i)/.114;c.copy(cBot).lerp(cTop,Math.pow(t,.8));col.push(c.r,c.g,c.b);}
+ g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+ const dome=add(g,dlDomeMat,DL.x,DL.y+.258,DL.z,scene,{act:dlAct,cast:false});dome.userData.noInk=true;
+ add(new THREE.SphereGeometry(.009,14,10),brass,DL.x,DL.y+.258+.118,DL.z,scene,{act:dlAct});                                          // finial
+ add(new THREE.CylinderGeometry(.006,.012,.008,14),brass,DL.x,DL.y+.258+.112,DL.z,scene,{act:dlAct});
+ add(new THREE.CylinderGeometry(.0012,.0012,.07,4),brass,DL.x+.07,DL.y+.226,DL.z+.02,scene,{act:dlAct,cast:false});                     // pull chain
+ add(new THREE.SphereGeometry(.0045,10,8),brass,DL.x+.07,DL.y+.19,DL.z+.02,scene,{act:dlAct,cast:false});}
+const dlLight=new THREE.PointLight(0xffa860,0,3.4,1.4);dlLight.position.set(DL.x,DL.y+.24,DL.z+.03);scene.add(dlLight);
 jrStart();
 
 function frame(now){
