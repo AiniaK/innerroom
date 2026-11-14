@@ -2245,11 +2245,11 @@ function plantTaiwanForest(){
        const v=.9+NR()*.2;fl[k].setColorAt(i,c4.setRGB(v,v,v));if(k!=='lily')flowerSpots.push([x,mountainH(x,z)+.34*s,z]);}
      scene.add(fl[k]);}
    // blue tiger butterflies (青斑蝶): dark wings with pale blue panels, flitting over the flowers by day
-   const wingTex=ctex(64,64,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#22262B';g.beginPath();g.moveTo(2,30);g.bezierCurveTo(8,2,50,0,62,10);g.bezierCurveTo(58,26,40,32,30,34);g.bezierCurveTo(44,40,52,56,40,62);g.bezierCurveTo(22,64,6,50,2,34);g.closePath();g.fill();
+   const wingTex=ctex(64,64,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#22262B';g.beginPath();g.moveTo(2,30);g.bezierCurveTo(8,0,52,-2,63,7);g.bezierCurveTo(60,25,42,32,30,34);g.bezierCurveTo(44,40,52,56,40,62);g.bezierCurveTo(22,64,6,50,2,34);g.closePath();g.fill();
      g.fillStyle='#BFDCEB';for(const [x,y,rx,ry,a] of [[18,18,7,4,.5],[30,13,6,3.5,.3],[42,11,5,3,.2],[52,13,3.5,2.5,0],[20,44,6,4,-.4],[32,50,5,3.5,-.6],[13,30,5,3,0],[26,26,4,2.5,.4]]){g.beginPath();g.ellipse(x,y,rx,ry,a,0,7);g.fill();}
      g.fillStyle='#E9F2F6';for(let i=0;i<10;i++){g.beginPath();g.arc(56-i*1.8,8+i*.4,1,0,7);g.fill();}});
    const wingMat=new THREE.MeshBasicMaterial(Object.assign({map:wingTex,alphaTest:.5,side:THREE.DoubleSide,color:0xffffff},ONLY_MOUNTAIN));
-   const wingGeo=new THREE.PlaneGeometry(.075,.075).translate(.0375,0,0).rotateX(-Math.PI/2);
+   const wingGeo=new THREE.PlaneGeometry(.075,.075).translate(.0375,0,0).rotateX(Math.PI/2);   // the forewing (top of the drawing) points forward, the way it flies
    const bodyMat=new THREE.MeshBasicMaterial(Object.assign({color:0x1E2124},ONLY_MOUNTAIN));
    const flies=[];
    for(let i=0;i<4;i++){const g=new THREE.Group(),L=new THREE.Mesh(wingGeo,wingMat),Rw=new THREE.Mesh(wingGeo,wingMat),b=new THREE.Mesh(new THREE.CylinderGeometry(.004,.003,.05,5).rotateX(Math.PI/2),bodyMat);
