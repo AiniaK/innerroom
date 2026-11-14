@@ -1566,7 +1566,7 @@ const mlLight=new THREE.PointLight(0xF6E6CC,0,4.2,2);mlLight.position.set(MOONLA
 const mlHaloMat=new THREE.ShaderMaterial({uniforms:{uA:{value:0},uC:{value:new THREE.Vector3(MOONLAMP.x,MOONLAMP.y,MOONLAMP.z)}},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
   polygonOffset:true,polygonOffsetFactor:-2,
   vertexShader:`varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
-  fragmentShader:`uniform float uA;uniform vec3 uC;varying vec3 vW;void main(){float d=length(vW-uC);float a=uA*exp(-pow(max(d-.2,0.),2.)/.32);gl_FragColor=vec4(vec3(1.,.93,.82)*a,1.);}`});
+  fragmentShader:`uniform float uA;uniform vec3 uC;varying vec3 vW;void main(){float d=length(vW-uC);float a=uA*smoothstep(.2,.34,d)*exp(-pow(max(d-.2,0.),2.)/.32);   // nothing right at the moon's edge, where it meets the wall (that showed as a bright rim)gl_FragColor=vec4(vec3(1.,.93,.82)*a,1.);}`});
 // three halo panels, 5 mm off their surfaces, each ending exactly where it meets its neighbour's panel: no overlap (a bright line) and no gap (a dark one)
 add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915,2.895-.75,3.415-.75,scene,{ry:-Math.PI/2,cast:false,receive:false,ray:false});   // east wall
 add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915-.75,2.895-.75,3.415,scene,{ry:Math.PI,cast:false,receive:false,ray:false});       // south wall
