@@ -1542,15 +1542,31 @@ const moonTex=new THREE.TextureLoader().load('assets/moon.jpg');moonTex.colorSpa
    glowing warm from within at night (it follows the floor lamp until switched by hand), with a soft halo on the walls around it ---------- */
 const MOONLAMP={x:4.92-.11,y:2.9-.11,z:3.42-.11,r:.2},mlAct={type:'moonlamp',label:'月球燈'};
 let moonLampOn=false;
-const mlMat=new THREE.MeshToonMaterial({map:moonTex,gradientMap:gradMap,emissive:0xFFE6C4,emissiveMap:moonTex,emissiveIntensity:0});
+// the lamp's face: a real moon's colouring — pale grey highlands, darker grey maria roughly where they lie on the near side, a few bright craters with rays
+const mlTex=ctex(512,512,(g,w,h)=>{const R=rng(77);g.fillStyle='#D8D5CE';g.fillRect(0,0,w,h);
+  for(let i=0;i<3500;i++){const v=R();g.fillStyle=v<.5?'rgba(150,146,138,.08)':'rgba(240,238,232,.10)';g.beginPath();g.arc(R()*w,R()*h,1+R()*5,0,7);g.fill();}   // highland mottling
+  const mare=(x,y,rx,ry,a)=>{g.filter='blur(9px)';for(let k=0;k<22;k++){g.fillStyle='rgba(132,128,120,.07)';g.beginPath();g.ellipse((x+(R()-.5)*rx*.5)*w,(y+(R()-.5)*ry*.5)*h,rx*w*(.55+R()*.5),ry*h*(.55+R()*.5),a+(R()-.5)*.6,0,7);g.fill();}g.filter='none';};
+  mare(.36,.30,.15,.12,.3);    // Imbrium
+  mare(.57,.31,.07,.06,0);     // Serenitatis
+  mare(.62,.45,.11,.09,.2);    // Tranquillitatis
+  mare(.73,.38,.05,.045,0);    // Crisium
+  mare(.24,.50,.14,.22,.1);    // Procellarum
+  mare(.42,.62,.08,.06,0);     // Nubium
+  mare(.66,.58,.06,.06,0);     // Fecunditatis / Nectaris
+  mare(.48,.20,.12,.025,0);    // Frigoris
+  const crater=(x,y,r,rays)=>{g.fillStyle='rgba(245,243,238,.55)';g.beginPath();g.arc(x*w,y*h,r*w,0,7);g.fill();g.fillStyle='rgba(150,146,138,.35)';g.beginPath();g.arc(x*w+r*w*.25,y*h+r*w*.2,r*w*.6,0,7);g.fill();
+    if(rays)for(let k=0;k<rays;k++){const a=R()*6.28,l=(.08+R()*.18)*w;g.strokeStyle='rgba(240,238,232,.14)';g.lineWidth=1+R()*2;g.beginPath();g.moveTo(x*w,y*h);g.lineTo(x*w+Math.cos(a)*l,y*h+Math.sin(a)*l);g.stroke();}};
+  crater(.45,.80,.016,22);crater(.30,.42,.012,10);crater(.38,.36,.009,6);   // Tycho, Copernicus, Kepler-ish
+  for(let i=0;i<120;i++)crater(.12+R()*.76,.12+R()*.76,.002+R()*.006,0);});
+const mlMat=new THREE.MeshToonMaterial({map:mlTex,gradientMap:gradMap,emissive:0xF2EEE6,emissiveMap:mlTex,emissiveIntensity:0});
 {const g=new THREE.SphereGeometry(MOONLAMP.r,48,32),P=g.attributes.position,U=g.attributes.uv;
  for(let i=0;i<P.count;i++)U.setXY(i,.5+.47*P.getX(i)/MOONLAMP.r,.5+.47*P.getY(i)/MOONLAMP.r);   // the painted moon is a disc on black: project it straight onto the face
  const m=add(g,mlMat,MOONLAMP.x,MOONLAMP.y,MOONLAMP.z,scene,{act:mlAct,cast:false});m.lookAt(0,1.3,0);m.userData.noInk=true;}   // its face turned toward the room
-const mlLight=new THREE.PointLight(0xFFDDB0,0,4.2,2);mlLight.position.set(MOONLAMP.x-.3,MOONLAMP.y-.25,MOONLAMP.z-.3);scene.add(mlLight);
+const mlLight=new THREE.PointLight(0xF6E6CC,0,4.2,2);mlLight.position.set(MOONLAMP.x-.3,MOONLAMP.y-.25,MOONLAMP.z-.3);scene.add(mlLight);
 const mlHaloMat=new THREE.ShaderMaterial({uniforms:{uA:{value:0},uC:{value:new THREE.Vector3(MOONLAMP.x,MOONLAMP.y,MOONLAMP.z)}},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
   polygonOffset:true,polygonOffsetFactor:-2,
   vertexShader:`varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
-  fragmentShader:`uniform float uA;uniform vec3 uC;varying vec3 vW;void main(){float d=length(vW-uC);float a=uA*exp(-pow(max(d-.2,0.),2.)/.18);gl_FragColor=vec4(vec3(1.,.86,.66)*a,1.);}`});
+  fragmentShader:`uniform float uA;uniform vec3 uC;varying vec3 vW;void main(){float d=length(vW-uC);float a=uA*exp(-pow(max(d-.2,0.),2.)/.32);gl_FragColor=vec4(vec3(1.,.93,.82)*a,1.);}`});
 // three halo panels, 5 mm off their surfaces, each ending exactly where it meets its neighbour's panel: no overlap (a bright line) and no gap (a dark one)
 add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915,2.895-.75,3.415-.75,scene,{ry:-Math.PI/2,cast:false,receive:false,ray:false});   // east wall
 add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915-.75,2.895-.75,3.415,scene,{ry:Math.PI,cast:false,receive:false,ray:false});       // south wall
@@ -2571,7 +2587,7 @@ function updateEnv(now){
   lampLight.intensity=lerp(lampLight.intensity,lampOn?.7:0,.08);shadeMat.emissiveIntensity=lampLight.intensity/.7*1.9;lampGlowMat.uniforms.uA.value=lampLight.intensity/.7*.26;
   blampOn=S.blamp===null?lampOn:S.blamp;   // follows the floor lamp until you switch it yourself
   moonLampOn=S.moonlamp==null?lampOn:S.moonlamp;
-  mlLight.intensity=lerp(mlLight.intensity,moonLampOn?.45:0,.08);{const k=mlLight.intensity/.45;mlMat.emissiveIntensity=.85*k;mlHaloMat.uniforms.uA.value=.22*k;}
+  mlLight.intensity=lerp(mlLight.intensity,moonLampOn?.28:0,.08);{const k=mlLight.intensity/.28;mlMat.emissiveIntensity=.62*k;mlHaloMat.uniforms.uA.value=.12*k;}   // a soft glow, not a lamp to read by
   blLight.intensity=lerp(blLight.intensity,blampOn?.75:0,.08);blShadeMat.emissiveIntensity=blLight.intensity*1.1;
   {const vb=Math.min(.86,.3+.52*day+(lampOn?.1:0)+(blampOn?.04:0))*(1-.25*over*day);for(const m of exGlowMats)m.color.setRGB(vb,vb*.95,vb*.86);}   // the wall video sits in the room's light, warm and dim after dark
   fairyTick(now,night>.4||lampOn);
