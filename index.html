@@ -634,6 +634,16 @@ const CL={wood:clay(0xE0BE92,grain),sheet:clay(0xEADCC6),duvet:clay(0xE2D1B4,spe
 buildHutch();
 // ---- on the right of the desk: a glass dome over a tiny cherry tree on a round grassy plinth, a sword stuck in the grass with a gourd and a red ribbon ----
 const SKU={};
+// cherry blossom shapes for the dome: a single petal (rounded, narrowing to its base, a small notch at the tip), and five of them as a flower
+SKU.petalOutline=(w,l,n=14)=>{const pts=[];for(let i=0;i<=n;i++){const t=i/n,a=Math.PI*t;   // around from one side of the base to the other
+    const x=Math.sin(a)*.5*w*(.55+.45*Math.sin(a)),y=l*(.5-.5*Math.cos(a));pts.push([x,y]);}
+  const L=pts.map(([x,y])=>[x,y]),Rt=pts.slice().reverse().map(([x,y])=>[-x,y]);
+  const out=[...L.slice(0,-1),[w*.12,l*.93],[0,l*.84],[-w*.12,l*.93],...Rt.slice(1)];return out;};   // the notch
+SKU.petalGeo=(w,l)=>{const sh=new THREE.Shape(SKU.petalOutline(w,l).map(([x,y])=>new THREE.Vector2(x,y-l/2)));return new THREE.ShapeGeometry(sh);};
+SKU.flowerGeo=()=>{const parts=[];for(let k=0;k<5;k++){const sh=new THREE.Shape(SKU.petalOutline(.62,1).map(([x,y])=>new THREE.Vector2(x,y+.08)));
+    const g=new THREE.ShapeGeometry(sh);g.rotateZ(k/5*Math.PI*2);parts.push(g);}
+  const P=[],I=[];let o=0;for(const g of parts){const a=g.attributes.position;for(let i=0;i<a.count;i++)P.push(a.getX(i),a.getY(i),(k=>0)(i));g.index.array.forEach(v=>I.push(v+o));o+=a.count;}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setIndex(I);g.computeVertexNormals();return g;};
 (function sakuraDome(){
   const act={type:'sakura',label:'玻璃罩・微縮櫻花'},G=new THREE.Group();G.position.set(.655,.8,-2.94);G.scale.setScalar(1.27);scene.add(G);SKU.G=G;   // dome and plinth 1.27x; tree and sword keep their size
   const put=(g,m,x,y,z,o={})=>{const r=add(g,m,x,y,z,o.parent||G,Object.assign({act},o));r.userData.noInk=true;return r;};
@@ -669,9 +679,9 @@ const SKU={};
    g.setIndex(new THREE.BufferAttribute(new Uint32Array(u8(D.idx32).buffer),1));g.computeVertexNormals();
    put(g,mat(0xffffff,.9,{vertexColors:true,side:THREE.DoubleSide}),0,0,0,{parent:T});
    const bl=new Uint16Array(u8(D.bl).buffer),bs=u8(D.bs),nb=bl.length/3,R=rng(17);
-   const fg=new THREE.CircleGeometry(1,5);{const p=fg.attributes.position;for(let k=1;k<p.count;k++){p.setX(k,p.getX(k)*1.0);}}   // five-petal blossom
-   const im=new THREE.InstancedMesh(fg,new THREE.MeshToonMaterial({color:0xffffff,gradientMap:clayGrad,side:THREE.DoubleSide}),nb),m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),c=new THREE.Color();
-   const pinks=[0xE8B4B6,0xF0C6C2,0xDDA2A4,0xF5D8D0,0xE6ACAC];SKU.bl=[]; /* dusty pinks that sit with the room's creams */
+   const fg=SKU.flowerGeo();   // a five-petalled cherry blossom, each petal with the little notch at its tip
+   const im=new THREE.InstancedMesh(fg,new THREE.MeshToonMaterial({color:0xBEBEBE,gradientMap:gradMap,side:THREE.DoubleSide}),nb),m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),c=new THREE.Color();
+   const pinks=[0xD89A9F,0xE0A9A8,0xCB8B90,0xE4B6B0,0xD59496];SKU.bl=[]; /* dusty pinks, a little muted so they sit with the room's creams in daylight */
    for(let i=0;i<nb;i++){const p=[0,1,2].map(a=>D.mn[a]+bl[i*3+a]/65535*(D.mx[a]-D.mn[a]));SKU.bl.push(p);
      const s=.05*bs[i]/100*(.75+R()*.5);e.set(R()*6.28,R()*6.28,R()*6.28);q.setFromEuler(e);
      m4.compose(new THREE.Vector3(p[0]+(R()-.5)*.04,p[1]+(R()-.5)*.04,p[2]+(R()-.5)*.04),q,new THREE.Vector3(s,s,s));im.setMatrixAt(i,m4);im.setColorAt(i,c.setHex(pinks[Math.floor(R()*pinks.length)]));}
@@ -692,13 +702,13 @@ const SKU={};
    const rg=new THREE.PlaneGeometry(.046,.0045,16,1);rg.translate(.023,0,0);
    const rb=put(rg,red,.011,.072,.002,{parent:sw,ry:.3,rz:-Math.PI/2+.12});SKU.rib=rb;SKU.ribBase=Float32Array.from(rg.attributes.position.array);} /* hangs down from the gourd */
   // falling petals inside the dome
-  {const N=34,pg=new THREE.PlaneGeometry(.0032,.0024);const pm=new THREE.InstancedMesh(pg,new THREE.MeshToonMaterial({color:0xEDBDBC,gradientMap:gradMap,side:THREE.DoubleSide}),N);
+  {const N=34,pg=SKU.petalGeo(.0032,.0026);const pm=new THREE.InstancedMesh(pg,new THREE.MeshToonMaterial({color:0xB98C8D,gradientMap:gradMap,side:THREE.DoubleSide}),N);
    pm.frustumCulled=false;G.add(pm);SKU.pm=pm;SKU.pet=[];const R=rng(23);
    for(let i=0;i<N;i++)SKU.pet.push({ph:R(),sp:.045+R()*.035,sw:R()*6.28,spin:new THREE.Vector3(R()*3,R()*3,R()*3),src:SKU.bl[Math.floor(R()*SKU.bl.length)]});}
   // the glass dome: clear in the middle, brighter toward its edges
   {const gm=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,
      vertexShader:`varying vec3 vN;varying vec3 vV;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
-     fragmentShader:`varying vec3 vN;varying vec3 vV;void main(){float f=1.-abs(dot(normalize(vN),vV));float a=.03+.4*pow(f,3.);gl_FragColor=vec4(vec3(1.),a*(gl_FrontFacing?1.:.5));}`});
+     fragmentShader:`varying vec3 vN;varying vec3 vV;void main(){float f=1.-abs(dot(normalize(vN),vV));float a=.02+.26*pow(f,3.);gl_FragColor=vec4(vec3(1.),a*(gl_FrontFacing?1.:.5));}`});
    const R0=.098,H0=.17;
    const cyl=put(new THREE.CylinderGeometry(R0,R0,H0,56,1,true),gm,0,.034+H0/2,0,{cast:false});cyl.renderOrder=5;
    const cap=put(new THREE.SphereGeometry(R0,56,18,0,Math.PI*2,0,Math.PI/2),gm,0,.034+H0,0,{cast:false});cap.renderOrder=5;
@@ -2231,7 +2241,7 @@ function plantTaiwanForest(){
      flies.push({g,L,R:Rw,pos:new THREE.Vector3(sp[0],sp[1]+.6,sp[2]),vel:new THREE.Vector3(),target:new THREE.Vector3(),rest:0,next:0,ph:NR(),show:0,beats:0,glide:0,gl:0,bask:0,bt:0,theta:1.4});}
    /* a butterfly's wingbeat, after the field studies: big, slow strokes (well over 100°) — from almost touching over the back
       down to below level — a little faster down than up; the wing twists one way on the downstroke and back on the upstroke,
-      and the body heaves up and pitches nose-up with each downstroke. Danaids flap softly and slowly, so ~7 beats a second,
+      and the body heaves up and pitches nose-up with each downstroke. Danaids flap softly and slowly; here ~3.5 beats a second (slowed to read calmly in the room),
       in bouts broken by short glides on slightly raised wings. */
    const TOP=1.45,BOT=-.55,ease=x=>(1-Math.cos(Math.PI*x))/2;
    const stroke=ph=>ph<.45?{th:TOP+(BOT-TOP)*ease(ph/.45),tw:.24*Math.sin(Math.PI*ph/.45)}:{th:BOT+(TOP-BOT)*ease((ph-.45)/.55),tw:-.18*Math.sin(Math.PI*(ph-.45)/.55)};
@@ -2285,8 +2295,8 @@ function plantTaiwanForest(){
        if(f.vel.lengthSq()>1e-4)f.g.rotation.y=Math.atan2(f.vel.x,f.vel.z);
        // flapping in bouts of a few beats, with a short glide between some of them
        if(f.glide>0){f.glide-=dt;if(f.glide<=0)f.beats=0;}
-       else{f.ph+=dt*(6.5+.8*Math.sin(f.ph*.3+f.L.id));if(f.ph>=1){f.ph-=1;f.beats++;
-         if(f.beats>=3+(f.L.id%4)&&Math.random()<.45&&!f.landing)f.glide=.25+Math.random()*.45;}}
+       else{f.ph+=dt*(3.5+.4*Math.sin(f.ph*.3+f.L.id));if(f.ph>=1){f.ph-=1;f.beats++;
+         if(f.beats>=2+(f.L.id%3)&&Math.random()<.55&&!f.landing)f.glide=.35+Math.random()*.55;}}
        f.gl+=((f.glide>0?1:0)-f.gl)*Math.min(1,dt*10);
        const S=stroke(f.ph);pose(f,S.th+(.32-S.th)*f.gl,S.tw*(1-f.gl));
        const beat=(1-f.gl),cyc=Math.PI*2*f.ph;
