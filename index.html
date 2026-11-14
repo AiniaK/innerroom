@@ -1538,6 +1538,23 @@ const PODS=[];
    OUTSIDE: sky, sea, terrain, mist, rain
    ============================================================ */
 const moonTex=new THREE.TextureLoader().load('assets/moon.jpg');moonTex.colorSpace=THREE.SRGBColorSpace;   // the owner's own painted moon (pastel maria)
+/* ---------- a moon lamp tucked into the south-east corner of the ceiling: a painted moon half sunk into the corner,
+   glowing warm from within at night (it follows the floor lamp until switched by hand), with a soft halo on the walls around it ---------- */
+const MOONLAMP={x:4.92-.11,y:2.9-.11,z:3.42-.11,r:.2},mlAct={type:'moonlamp',label:'月球燈'};
+let moonLampOn=false;
+const mlMat=new THREE.MeshToonMaterial({map:moonTex,gradientMap:gradMap,emissive:0xFFE6C4,emissiveMap:moonTex,emissiveIntensity:0});
+{const g=new THREE.SphereGeometry(MOONLAMP.r,48,32),P=g.attributes.position,U=g.attributes.uv;
+ for(let i=0;i<P.count;i++)U.setXY(i,.5+.47*P.getX(i)/MOONLAMP.r,.5+.47*P.getY(i)/MOONLAMP.r);   // the painted moon is a disc on black: project it straight onto the face
+ const m=add(g,mlMat,MOONLAMP.x,MOONLAMP.y,MOONLAMP.z,scene,{act:mlAct,cast:false});m.lookAt(0,1.3,0);m.userData.noInk=true;}   // its face turned toward the room
+const mlLight=new THREE.PointLight(0xFFDDB0,0,4.2,2);mlLight.position.set(MOONLAMP.x-.3,MOONLAMP.y-.25,MOONLAMP.z-.3);scene.add(mlLight);
+const mlHaloMat=new THREE.ShaderMaterial({uniforms:{uA:{value:0},uC:{value:new THREE.Vector3(MOONLAMP.x,MOONLAMP.y,MOONLAMP.z)}},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+  polygonOffset:true,polygonOffsetFactor:-2,
+  vertexShader:`varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
+  fragmentShader:`uniform float uA;uniform vec3 uC;varying vec3 vW;void main(){float d=length(vW-uC);float a=uA*exp(-pow(max(d-.2,0.),2.)/.18);gl_FragColor=vec4(vec3(1.,.86,.66)*a,1.);}`});
+// three halo panels, 5 mm off their surfaces, each ending exactly where it meets its neighbour's panel: no overlap (a bright line) and no gap (a dark one)
+add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915,2.895-.75,3.415-.75,scene,{ry:-Math.PI/2,cast:false,receive:false,ray:false});   // east wall
+add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915-.75,2.895-.75,3.415,scene,{ry:Math.PI,cast:false,receive:false,ray:false});       // south wall
+add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915-.75,2.895,3.415-.75,scene,{rx:Math.PI/2,cast:false,receive:false,ray:false});     // ceiling
 const skyU={uMetA:{value:new THREE.Vector3(0,1,0)},uMetB:{value:new THREE.Vector3(0,1,0)},uMet:{value:new THREE.Vector2(0,0)},uMoonTex:{value:moonTex},uMoonDir:{value:new THREE.Vector3(-.5,.36,-.79).normalize()},uMoonVis:{value:0},uMoonT:{value:new THREE.Vector3(1,0,0)},uMoonB:{value:new THREE.Vector3(0,1,0)},uMoonL:{value:new THREE.Vector3(0,0,1)},uMoonFrac:{value:1},
   uCloud:{value:.2},uCloudDark:{value:0},uCellDir:{value:new THREE.Vector3(0,.3,-1).normalize()},uCellAmt:{value:0},uCurtain:{value:0},uFlash:{value:0},uTop:{value:new THREE.Color()},uHor:{value:new THREE.Color()},uBot:{value:new THREE.Color()},uSunDir:{value:new THREE.Vector3(0,.2,-1)},uSunCol:{value:new THREE.Color()},uStars:{value:0},uSunVis:{value:1},uDeep:{value:new THREE.Color()},uTime:{value:0}};
 skyU.uTideS={value:0};skyU.uTideWet={value:0};skyU.uSurf={value:1};
@@ -2551,6 +2568,8 @@ function updateEnv(now){
   if(S.lamp===null){lampOn=night>.5||(over>.85&&day<.7);}else lampOn=S.lamp;
   lampLight.intensity=lerp(lampLight.intensity,lampOn?.7:0,.08);shadeMat.emissiveIntensity=lampLight.intensity/.7*1.9;lampGlowMat.uniforms.uA.value=lampLight.intensity/.7*.26;
   blampOn=S.blamp===null?lampOn:S.blamp;   // follows the floor lamp until you switch it yourself
+  moonLampOn=S.moonlamp==null?lampOn:S.moonlamp;
+  mlLight.intensity=lerp(mlLight.intensity,moonLampOn?.45:0,.08);{const k=mlLight.intensity/.45;mlMat.emissiveIntensity=.85*k;mlHaloMat.uniforms.uA.value=.22*k;}
   blLight.intensity=lerp(blLight.intensity,blampOn?.75:0,.08);blShadeMat.emissiveIntensity=blLight.intensity*1.1;
   {const vb=Math.min(.86,.3+.52*day+(lampOn?.1:0)+(blampOn?.04:0))*(1-.25*over*day);for(const m of exGlowMats)m.color.setRGB(vb,vb*.95,vb*.86);}   // the wall video sits in the room's light, warm and dim after dark
   fairyTick(now,night>.4||lampOn);
@@ -2682,7 +2701,7 @@ let hovered=null;
 function pick(v){ray.setFromCamera(v,camera);const hits=ray.intersectObjects(targets,false);
   for(const h of hits){let o=h.object;while(o&&!o.userData.act)o=o.parent;if(o){pickPoint.copy(h.point);return o.userData.act;}return null;}return null;}
 const pickPoint=new THREE.Vector3();   // where the last pick landed, so the sofa knows where you chose to sit
-const HINT={armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
+const HINT={moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
 function updateHover(){
   let a=started&&!modalOpen?(locked?pick(center):(!isTouch?pick(mouse):null)):null;hovered=a;
   const el=$('#hover');if(a&&(a.type==='exhibit'?(exState[a.id]&&exState[a.id].hover===false):(a.type==='drink'?ovr('drink:'+a.idx).hov===false:(TOVR[a.type]&&TOVR[a.type].hov===false))))a=null;   /* owner turned this object's hover label off */
@@ -2775,6 +2794,7 @@ function interact(a){
   switch(a.type){
     case 'glassdoor':doorTarget=doorTarget?0:1;toast(doorTarget?'落地窗推開了，海的聲音靠近一些':'落地窗關上了');return;
     case 'lamp':S.lamp=!lampOn;save();toast(S.lamp?'落地燈亮了':'落地燈關了');return;
+    case 'moonlamp':S.moonlamp=!moonLampOn;save();toast(S.moonlamp?'月球燈亮了':'月球燈關了');return;
     case 'blamp':S.blamp=!blampOn;save();toast(S.blamp?'床頭燈亮了':'床頭燈關了');return;
     case 'journal':return openJournal(a.cat);
     case 'rec':{const r=RECS[a.idx];return openModal(simple('推薦書',`《${esc(r.t)}》`,`<b>${esc(r.a)}</b><br>${esc(r.b)}`,'範例書單與簡介。之後在房主設定裡上傳你真正想推薦的書。'));}
