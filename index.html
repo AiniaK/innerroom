@@ -1474,7 +1474,7 @@ function notebookCover(plain,o){o=o||NB_GREEN;const ck=o.key+(plain?':back':':fr
   if(o.ink&&new THREE.Color(o.base).getHSL({}).l>.5)gold=o.ink;   // pale cloth: the title is printed in dark ink rather than gold
   g.strokeStyle=gold;g.globalAlpha=.75;g.lineWidth=2;g.strokeRect(38,34,w-70,h-68);g.globalAlpha=.45;g.lineWidth=1;g.strokeRect(46,42,w-86,h-84);g.globalAlpha=1;   // blind and gold rules
   g.textAlign='center';g.textBaseline='middle';
-  let fs=62;g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;while(g.measureText(o.title).width>w-130&&fs>26){fs-=2;g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;}
+  let fs=Math.round(62*(o.ts||1));g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;while(g.measureText(o.title).width>w-130&&fs>22){fs-=2;g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;}
   const title=o.title;g.fillStyle='rgba(0,0,0,.35)';g.fillText(title,w/2+1,h*.44+2);g.fillStyle=gold;g.fillText(title,w/2,h*.44);
   g.font='26px "LXGW WenKai TC","Kaiti TC",serif';g.fillStyle='rgba(0,0,0,.3)';g.fillText(o.sub,w/2+1,h*.44+72);g.fillStyle=gold;g.globalAlpha=.85;g.fillText(o.sub,w/2,h*.44+70);g.globalAlpha=1;
   // the gold is blocked into cloth: let the weave break it up a little
@@ -3057,7 +3057,17 @@ function bkFlip(dir){
     requestAnimationFrame(()=>{leaf.box.remove();bk.view=to;bkRender();bk.busy=false;});};   // let the last, fully settled pose be drawn before swapping in the new pages
   requestAnimationFrame(step);}
 // pick the book up and open it / close it and put it down
-function bkOpenAnim(){requestAnimationFrame(()=>{bk.el.classList.add('lifted');setTimeout(()=>{if(bk.closing)return;bk.el.classList.add('open');setTimeout(()=>{if(!bk.closing)bk.el.classList.add('opened');},850);},560);});}   // the words on the pages appear only once the cover has fully swung open
+function bkOpenAnim(){if(bk.src&&bk.src.from&&!bk.reduced){bkOpenFrom(bk.src.from);return;}requestAnimationFrame(()=>{bk.el.classList.add('lifted');setTimeout(()=>{if(bk.closing)return;bk.el.classList.add('open');setTimeout(()=>{if(!bk.closing)bk.el.classList.add('opened');},850);},560);});}   // the words on the pages appear only once the cover has fully swung open
+// a book carried down from the shelf: the on-screen cover takes over at the very spot and size the 3D board reached, then grows to reading size and opens
+function bkOpenFrom(S){const book=bk.el.querySelector('.bk-book'),cov=bk.el.querySelector('.bk-cover');
+  const pw=bk.pw,endT=bk.single?'translateX(0px)':`translateX(${-pw/2}px)`;
+  book.style.transition='none';book.style.transformOrigin=`${(bk.single?0:pw)+(pw+7)/2}px ${bk.ph/2}px`;book.style.opacity='1';book.style.transform=endT;
+  const F=cov.getBoundingClientRect();
+  book.style.transform=`translate(${S.x-(F.left+F.width/2)}px,${S.y-(F.top+F.height/2)}px) ${endT} scale(${S.w/F.width},${S.h/F.height})`;
+  void book.offsetWidth;bk.el.classList.add('lifted');
+  requestAnimationFrame(()=>{book.style.transition='transform .6s cubic-bezier(.25,.1,.25,1)';book.style.transform=endT;
+    setTimeout(()=>{book.style.transition=book.style.transform=book.style.transformOrigin=book.style.opacity='';if(bk.closing)return;
+      bk.el.classList.add('open');setTimeout(()=>{if(!bk.closing)bk.el.classList.add('opened');},850);},640);});}
 function bkClose(){
   if(bk.closing)return;bk.closing=true;gb.editing=null;
   bk.el.classList.remove('opened');setTimeout(()=>bk.el.classList.remove('open'),180);
@@ -3595,7 +3605,7 @@ function openMood(){openBookUI(MOOD_SRC);}
 
 /* ---- dream books ---- */
 function dreamSrc(e,book){return {label:'夢境紀錄・'+e.title,
-  cover:Object.assign({key:'dream:'+(e.tone||'-')+':'+e.id,title:[...e.title].slice(0,8).join(' '),sub:'夢 境 紀 錄'},toneOf(e.tone)),
+  cover:Object.assign({key:'dream:'+(e.tone||'-')+':'+e.id,title:[...e.title].slice(0,8).join(' '),sub:'夢 境 紀 錄',ts:.8},toneOf(e.tone)),
   plate:()=>`<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">夢境紀錄</div><div class="bk-plate-s">${esc(e.title)}</div><div class="bk-plate-n">${esc(jrDate(e.date))}</div>${e.tone?`<div class="bk-plate-tone">${esc(e.tone)}</div>`:''}</div></div>`,
   load:()=>Promise.resolve(),
   paginate(){jrSlots(jrFlow([{head:`<div class="j-h">${esc(e.title)}</div><div class="j-meta">${esc(jrDate(e.date))}${e.tone?'・'+esc(e.tone):''}</div>`,blocks:e.blocks||[]}]));},
@@ -3638,20 +3648,35 @@ function buildDreamBooks(items){
 // take a book down: tip it out by its top, slide it off the shelf, bring it up in front of you; then the book opens on screen
 const _jq=new THREE.Quaternion(),_jq2=new THREE.Quaternion(),_jv=new THREE.Vector3(),_jy=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-Math.PI/2);
 function openDream(idx){const b=JR.books[idx];if(!b||JR.anim)return;
+  if(!b.coverMesh){   // the front board carries the same cover as the book that opens on screen (made only when first taken down)
+    const tex=new THREE.CanvasTexture(notebookCover(false,dreamSrc(b.e,b).cover).canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+    b.coverMesh=add(new THREE.PlaneGeometry(b.d-.002,b.hh-.002),new THREE.MeshToonMaterial({map:tex,gradientMap:gradMap}),b.t/2+.0007,b.hh/2,-b.d/2,b.g,{ray:false,cast:false});
+    b.coverMesh.rotation.y=Math.PI/2;b.coverMesh.userData.noInk=true;}
   JR.anim={b,t0:performance.now(),mode:'out',p0:b.g.position.clone(),q0:b.g.quaternion.clone()};}
 function jrReturn(b){if(!b)return;b.g.visible=true;b.g.scale.setScalar(1);b.g.quaternion.copy(b.homeQ);
   JR.anim={b,t0:performance.now(),mode:'back',p0:b.home.clone().add(new THREE.Vector3(0,0,b.d*.9)),q0:b.homeQ.clone()};}
 const easeIO=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+const sstep=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*x*(x*(x*6-15)+10);};   // smootherstep: starts and ends at rest, no jolt
+// how tall the closed cover will be on screen once the book is lifted (the same sums as bkMeasure)
+function bkCoverPx(){const single=innerWidth<760,W=Math.min(innerWidth*.94,1040),H=Math.min(innerHeight*.84,700),pw=single?Math.min(W,H*.72):Math.min(W/2,H*.72);return Math.floor(pw/.72)+14;}
+// screen rectangle of the book's front board
+function jrCoverRect(b){b.g.updateMatrixWorld(true);const r=renderer.domElement.getBoundingClientRect();let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const [y,z] of [[0,0],[b.hh,0],[0,-b.d],[b.hh,-b.d]]){_jv.set(b.t/2,y,z).applyMatrix4(b.g.matrixWorld).project(camera);
+    const sx=r.left+(_jv.x+1)/2*r.width,sy=r.top+(1-_jv.y)/2*r.height;x0=Math.min(x0,sx);x1=Math.max(x1,sx);y0=Math.min(y0,sy);y1=Math.max(y1,sy);}
+  return {x:(x0+x1)/2,y:(y0+y1)/2,w:x1-x0,h:y1-y0};}
+const JR_T=1.15;   // seconds from the shelf to in front of you
 function jrTick(now){const A=JR.anim;if(!A)return;const b=A.b,g=b.g,t=(now-A.t0)/1000;
   if(A.mode==='out'){
-    if(t<.28){const k=easeIO(t/.28);g.position.copy(A.p0);g.quaternion.copy(A.q0);g.rotateX(.32*k);}   // fingertip on the top of the spine: it tips out
-    else if(t<.62){const k=easeIO((t-.28)/.34);g.quaternion.copy(A.q0);g.rotateX(.32*(1-k*.7));g.position.copy(A.p0).add(_jv.set(0,.02*k,(b.d+.06)*k));}   // and slides off the shelf
-    else if(t<1.05){const k=easeIO((t-.62)/.43);
-      if(!A.p1){A.p1=g.position.clone();A.q1=g.quaternion.clone();}
-      camera.getWorldDirection(_jv);const target=camera.position.clone().addScaledVector(_jv,.55).add(new THREE.Vector3(0,-.08,0));
-      g.position.copy(A.p1).lerp(target,k);g.position.y-=b.hh*.5*k;   // centre the book on the view
-      _jq.copy(camera.quaternion).multiply(_jy);g.quaternion.copy(A.q1).slerp(_jq,k);}   // turn its cover toward you
-    else{g.visible=false;JR.anim=null;openBookUI(dreamSrc(b.e,b));}}
+    // one continuous movement, its stages overlapping: a fingertip tips the book out by its top, it slides off the shelf, and is carried up in front of you, turning its cover toward you
+    const tip=.3*sstep(0,.3,t)*(1-sstep(.38,.9,t)),pull=sstep(.12,.6,t),fly=sstep(.36,JR_T,t);
+    _jq2.copy(A.q0);g.quaternion.copy(A.q0);g.rotateX(tip);_jq2.copy(g.quaternion);
+    const shelfPos=_jv.copy(A.p0).add(new THREE.Vector3(0,.025*pull,(b.d+.07)*pull));
+    if(!A.D){const fov=camera.fov*Math.PI/180;A.D=b.hh*innerHeight/(2*Math.tan(fov/2)*.82*bkCoverPx());}   // close enough that the board is about 4/5 of the size it will be on screen
+    _jq.copy(camera.quaternion).multiply(_jy);
+    const dir=new THREE.Vector3();camera.getWorldDirection(dir);
+    const target=camera.position.clone().addScaledVector(dir,A.D).sub(new THREE.Vector3(0,b.hh/2,-b.d/2).applyQuaternion(_jq));   // the board's centre on the middle of the view
+    g.position.copy(shelfPos).lerp(target,fly);g.quaternion.copy(_jq2).slerp(_jq,fly);
+    if(t>=JR_T){const rect=jrCoverRect(b);g.visible=false;JR.anim=null;const src=dreamSrc(b.e,b);src.from=rect;openBookUI(src);}}
   else{   // put back: slide in from the edge of the shelf
     const k=easeIO(Math.min(1,t/.4));g.position.copy(A.p0).lerp(b.home,k);if(t>=.4){g.position.copy(b.home);g.quaternion.copy(b.homeQ);JR.anim=null;}}}
 // load both journals in the background once the room is up, so the shelf fills in by itself
