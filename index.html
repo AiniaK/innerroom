@@ -2226,9 +2226,16 @@ function plantTaiwanForest(){
    const bodyMat=new THREE.MeshBasicMaterial(Object.assign({color:0x1E2124},ONLY_MOUNTAIN));
    const flies=[];
    for(let i=0;i<4;i++){const g=new THREE.Group(),L=new THREE.Mesh(wingGeo,wingMat),Rw=new THREE.Mesh(wingGeo,wingMat),b=new THREE.Mesh(new THREE.CylinderGeometry(.004,.003,.05,5).rotateX(Math.PI/2),bodyMat);
-     Rw.scale.x=-1;g.add(L,Rw,b);scene.add(g);
+     Rw.scale.x=-1;L.rotation.order=Rw.rotation.order='ZYX';g.rotation.order='YXZ';g.add(L,Rw,b);scene.add(g);   // wings: twist about their own span, then raise/lower
      const sp=flowerSpots[Math.floor(NR()*flowerSpots.length)];
-     flies.push({g,L,R:Rw,pos:new THREE.Vector3(sp[0],sp[1]+.6,sp[2]),vel:new THREE.Vector3(),target:new THREE.Vector3(),rest:0,next:0,ph:NR()*6,show:0});}
+     flies.push({g,L,R:Rw,pos:new THREE.Vector3(sp[0],sp[1]+.6,sp[2]),vel:new THREE.Vector3(),target:new THREE.Vector3(),rest:0,next:0,ph:NR(),show:0,beats:0,glide:0,gl:0,bask:0,bt:0,theta:1.4});}
+   /* a butterfly's wingbeat, after the field studies: big, slow strokes (well over 100°) — from almost touching over the back
+      down to below level — a little faster down than up; the wing twists one way on the downstroke and back on the upstroke,
+      and the body heaves up and pitches nose-up with each downstroke. Danaids flap softly and slowly, so ~7 beats a second,
+      in bouts broken by short glides on slightly raised wings. */
+   const TOP=1.45,BOT=-.55,ease=x=>(1-Math.cos(Math.PI*x))/2;
+   const stroke=ph=>ph<.45?{th:TOP+(BOT-TOP)*ease(ph/.45),tw:.24*Math.sin(Math.PI*ph/.45)}:{th:BOT+(TOP-BOT)*ease((ph-.45)/.55),tw:-.18*Math.sin(Math.PI*(ph-.45)/.55)};
+   const pose=(f,th,tw)=>{f.theta=th;f.L.rotation.z=th;f.R.rotation.z=-th;f.L.rotation.x=f.R.rotation.x=tw;};
    let seasonAt=-1e9,active=null,lilyAmt=0;
    const wrapD=x=>((x+182.5)%365+365)%365-182.5;   // days from a date, the short way round the year
    const HIB_WHITE=new THREE.Color(0xFFFFFF),HIB_PINK=new THREE.Color(0xF4B6C8),HIB_DEEP=new THREE.Color(0xE07A9A);
@@ -2263,7 +2270,11 @@ function plantTaiwanForest(){
      wingMat.color.setScalar(.55+.45*dayness);
      for(const f of flies){f.show=lerp(f.show,want,1-Math.pow(.3,dt));const vis=f.show>.02;f.g.visible=vis;if(!vis)continue;
        f.next-=dt;
-       if(f.rest>0){f.rest-=dt;f.ph+=dt*2.2;const a=.9+.35*Math.sin(f.ph);f.L.rotation.z=a;f.R.rotation.z=-a;f.g.scale.setScalar(f.show);if(f.rest<=0)f.next=0;continue;}
+       if(f.rest>0){f.rest-=dt;   // perched: wings folded up over the back; now and then opened slowly to bask, then closed again
+         if(f.bask<=0&&Math.random()<dt*.35){f.bask=1;f.bt=0;}
+         let open=0;if(f.bask>0){f.bt+=dt;const T=2.6;open=Math.sin(Math.PI*Math.min(1,f.bt/T));if(f.bt>=T)f.bask=0;}
+         const want=1.5-1.25*open;pose(f,f.theta+(want-f.theta)*Math.min(1,dt*8),0);
+         f.g.rotation.x=lerp(f.g.rotation.x,-.25,Math.min(1,dt*5));f.g.scale.setScalar(f.show);if(f.rest<=0){f.next=0;f.beats=0;f.glide=0;}continue;}
        if(f.next<=0){if(Math.random()<.35){const sp=flowerSpots[Math.floor(Math.random()*flowerSpots.length)];f.target.set(sp[0],sp[1]+.03,sp[2]);f.landing=true;}
          else{const x=3.7+(Math.random()-.5)*5,z=-4.6-Math.random()*6;f.target.set(x,mountainH(x,z)+.4+Math.random()*1.1,z);f.landing=false;}f.next=2.5+Math.random()*3;}
        tmpT.subVectors(f.target,f.pos);const dist=tmpT.length();
@@ -2271,8 +2282,17 @@ function plantTaiwanForest(){
        tmpT.normalize().multiplyScalar(1.1);tmpT.x+=Math.sin(now/230+f.ph)*.7;tmpT.y+=Math.sin(now/170+f.ph*2)*.6;tmpT.z+=Math.cos(now/260+f.ph)*.7;   // the wobbly, bobbing flight
        f.vel.lerp(tmpT,1-Math.pow(.05,dt));f.pos.addScaledVector(f.vel,dt*.7);
        const gy=mountainH(f.pos.x,f.pos.z)+.12;if(f.pos.y<gy)f.pos.y=gy;
-       f.g.position.copy(f.pos);if(f.vel.lengthSq()>1e-4)f.g.rotation.y=Math.atan2(f.vel.x,f.vel.z);
-       f.ph+=dt*16;const a=.15+1.05*Math.abs(Math.sin(f.ph));f.L.rotation.z=a;f.R.rotation.z=-a;f.g.scale.setScalar(f.show);}
+       if(f.vel.lengthSq()>1e-4)f.g.rotation.y=Math.atan2(f.vel.x,f.vel.z);
+       // flapping in bouts of a few beats, with a short glide between some of them
+       if(f.glide>0){f.glide-=dt;if(f.glide<=0)f.beats=0;}
+       else{f.ph+=dt*(6.5+.8*Math.sin(f.ph*.3+f.L.id));if(f.ph>=1){f.ph-=1;f.beats++;
+         if(f.beats>=3+(f.L.id%4)&&Math.random()<.45&&!f.landing)f.glide=.25+Math.random()*.45;}}
+       f.gl+=((f.glide>0?1:0)-f.gl)*Math.min(1,dt*10);
+       const S=stroke(f.ph);pose(f,S.th+(.32-S.th)*f.gl,S.tw*(1-f.gl));
+       const beat=(1-f.gl),cyc=Math.PI*2*f.ph;
+       f.g.position.copy(f.pos);f.g.position.y+=.007*beat*Math.sin(cyc-1.4);   // the body heaves up on each downstroke
+       f.g.rotation.x=-.08-.13*beat*Math.sin(cyc-.6);                          // and pitches nose-up with it
+       f.g.scale.setScalar(f.show);}
    };}
 }
 // mist: lives in the mountain world only
