@@ -3619,7 +3619,7 @@ function spineTex(e,t,hh){
   const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,7));
   for(let i=0;i<500;i++){g.fillStyle=R()<.5?`rgba(${T.lt},.08)`:`rgba(${T.dk},.10)`;g.fillRect(R()*W,R()*H,1+R()*2,1);}   // cloth
   g.fillStyle=T.ink;g.globalAlpha=.7;for(const y of [H*.06,H*.075,H*.925,H*.94])g.fillRect(W*.15,y,W*.7,Math.max(1.5,W*.02));g.globalAlpha=1;
-  const chars=[...e.title].slice(0,14),fs=Math.min(W*.62,(H*.72)/Math.max(chars.length,4));
+  const chars=[...e.title].slice(0,14),fs=.8*Math.min(W*.62,(H*.72)/Math.max(chars.length,4));
   g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle=T.ink;
   const y0=H*.5-(chars.length-1)*fs*1.08/2;chars.forEach((ch,i)=>g.fillText(ch,W/2,y0+i*fs*1.08));
   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();return tex;}
@@ -3639,7 +3639,7 @@ function buildDreamBooks(items){
     const T=toneOf(e.tone),act={type:'dreambook',idx,label:'夢境紀錄・'+e.title};
     const g=new THREE.Group();g.position.set(x+t/2,y,HUTCH.zB+.03+d);scene.add(g);   // pivot: the bottom of the spine, at the shelf's front
     const cloth=mat(new THREE.Color(T.base).getHex(),.85);
-    const body=add(rbox(t,hh,d,Math.min(t,d)*.25,3),cloth,0,hh/2,-d/2,g,{act});
+    const body=add(rbox(t,hh,d,Math.min(t,d)*.25,6),cloth,0,hh/2,-d/2,g,{act});
     add(rbox(t-.006,hh-.01,d-.006,.002),mat(0xF3EBDA,.95),0,hh/2,-d/2-.004,g,{act,ray:false});   // page edges just inside the boards
     const sp=add(new THREE.PlaneGeometry(t*.92,hh*.96),new THREE.MeshToonMaterial({map:spineTex(e,t,hh),gradientMap:gradMap}),0,hh/2,.0006,g,{act,cast:false});
     sp.userData.noInk=true;
