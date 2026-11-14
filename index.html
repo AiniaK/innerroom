@@ -1196,7 +1196,7 @@ add(rbox(.14,.36,.78,.06),M.sofa,-.34,.4,0,acG,{act:aA});add(rbox(.14,.36,.78,.0
  for(let i=1;i<=8;i++){const y=.405+i/8*.385;PATH.push([y,-.225+tilt(y)]);}                              // up the front face
  for(let i=1;i<8;i++){const a=i/8*Math.PI;PATH.push([.81+.022*Math.sin(a),-.32+tilt(.81)+.095*Math.cos(Math.PI-a)]);}   // over the rounded top
  for(let i=0;i<=10;i++){const y=.79-i/10*.5;PATH.push([y,-.415+tilt(Math.max(y,.3))]);}                  // down the back
- for(let i=1;i<=5;i++){const y=.29-i/5*.2;PATH.push([y,-.42+tilt(.3)-.01*i]);}                             // hanging free below the cushion
+ for(let i=1;i<=3;i++){const y=.29-i/3*.08;PATH.push([y,-.42+tilt(.3)-.01*i]);}                             // hanging free below the cushion
  const cum=[0];for(let i=1;i<PATH.length;i++)cum.push(cum[i-1]+Math.hypot(PATH[i][0]-PATH[i-1][0],PATH[i][1]-PATH[i-1][1]));const TL=cum[cum.length-1];
  const at=d=>{d=Math.max(0,Math.min(TL,d));let i=1;while(i<cum.length-1&&cum[i]<d)i++;const f=(d-cum[i-1])/(cum[i]-cum[i-1]);const a=PATH[i-1],b=PATH[i];
    const y=a[0]+(b[0]-a[0])*f,z=a[1]+(b[1]-a[1])*f,ty=b[0]-a[0],tz=b[1]-a[1],tl=Math.hypot(ty,tz);return {y,z,ny:-tz/tl,nz:ty/tl};};   // normal pointing away from the cushion
@@ -1209,6 +1209,35 @@ add(rbox(.14,.36,.78,.06),M.sofa,-.34,.4,0,acG,{act:aA});add(rbox(.14,.36,.78,.0
    pos.push(x+.01*hang*Math.sin(u*7),P.y,P.z);const k=pos.length-3;pos[k+1]+=P.ny*(.018+fold+sag);pos[k+2]+=P.nz*(.018+fold+sag);
    uv.push(u,1-j/NV);}
  for(let j=0;j<NV;j++)for(let i=0;i<NU;i++){const a=j*(NU+1)+i,b=a+1,c=a+NU+1,dd=c+1;idx.push(a,c,b,b,c,dd);}
+ /* let it settle like real cloth: a short cloth simulation at load time — gravity, the knit's own stretch, shear and bend,
+    the chair's cushions as solid rounded boxes, and friction where it rests on them — so it hangs and folds instead of keeping its starting shape */
+ {const RW=NU+1,N=pos.length/3,P=Float32Array.from(pos),Q=Float32Array.from(pos),pin=new Uint8Array(N);
+  const CA=[],CB=[],CL=[],CK=[];
+  const link=(a,b,k)=>{CA.push(a);CB.push(b);CL.push(Math.hypot(P[a*3]-P[b*3],P[a*3+1]-P[b*3+1],P[a*3+2]-P[b*3+2]));CK.push(k);};
+  for(let j=0;j<=NV;j++)for(let i=0;i<=NU;i++){const a=j*RW+i;
+    if(i<NU)link(a,a+1,1);if(j<NV)link(a,a+RW,1);
+    if(i<NU&&j<NV){link(a,a+RW+1,.5);link(a+1,a+RW,.5);}
+    if(i<NU-1)link(a,a+2,.12);if(j<NV-1)link(a,a+2*RW,.12);}                       // a soft knit: it bends easily
+  // the row along the very top of the back is held, so the throw can't slide off
+  {let jt=0,best=1e9;for(let j=0;j<=NV;j++){const y=pos[(j*RW+Math.round(NU/2))*3+1];if(-y<best){best=-y;jt=j;}}for(let i=0;i<=NU;i++)pin[jt*RW+i]=1;}
+  const BOX=[[0,.12,0,.4,.1,.39,.04,0],[0,.3,.04,.31,.08,.33,.06,0],[0,.55,-.32,.4,.25,.08,.06,-.12],[-.34,.4,0,.07,.18,.39,.06,0],[.34,.4,0,.07,.18,.39,.06,0]];   // base, seat, back, arms (as built above)
+  const sdf=(x,y,z,B)=>{let px=x-B[0],py=y-B[1],pz=z-B[2];if(B[7]){const c=Math.cos(B[7]),s_=Math.sin(B[7]),yy=py*c+pz*s_;pz=-py*s_+pz*c;py=yy;}
+    const r=B[6],qx=Math.abs(px)-(B[3]-r),qy=Math.abs(py)-(B[4]-r),qz=Math.abs(pz)-(B[5]-r);
+    return Math.hypot(Math.max(qx,0),Math.max(qy,0),Math.max(qz,0))+Math.min(Math.max(qx,qy,qz),0)-r;};
+  const TH=.011,G=.3*9.8/3600;   // gentle gravity: enough to drape it, not enough to stretch the knit
+  for(let step=0;step<100;step++){
+    for(let n=0;n<N;n++){if(pin[n])continue;const k=n*3;for(let c=0;c<3;c++){const v=(P[k+c]-Q[k+c])*.96;Q[k+c]=P[k+c];P[k+c]+=v;}P[k+1]-=G;}
+    for(let it=0;it<14;it++){
+      for(let c=0;c<CA.length;c++){const a=CA[c]*3,b=CB[c]*3,dx=P[b]-P[a],dy=P[b+1]-P[a+1],dz=P[b+2]-P[a+2],d=Math.hypot(dx,dy,dz)||1e-6;
+        const pa=pin[CA[c]],pb=pin[CB[c]];if(pa&&pb)continue;const f=(d-CL[c])/d*CK[c]*(pa||pb?1:.5);
+        if(!pa){P[a]+=dx*f;P[a+1]+=dy*f;P[a+2]+=dz*f;}if(!pb){P[b]-=dx*f;P[b+1]-=dy*f;P[b+2]-=dz*f;}}
+      for(let n=0;n<N;n++){if(pin[n])continue;const k=n*3;let hit=false;
+        for(const B of BOX){const d=sdf(P[k],P[k+1],P[k+2],B);if(d<TH){const e=.002;
+          let gx=sdf(P[k]+e,P[k+1],P[k+2],B)-sdf(P[k]-e,P[k+1],P[k+2],B),gy=sdf(P[k],P[k+1]+e,P[k+2],B)-sdf(P[k],P[k+1]-e,P[k+2],B),gz=sdf(P[k],P[k+1],P[k+2]+e,B)-sdf(P[k],P[k+1],P[k+2]-e,B);
+          const gl=Math.hypot(gx,gy,gz)||1;P[k]+=gx/gl*(TH-d);P[k+1]+=gy/gl*(TH-d);P[k+2]+=gz/gl*(TH-d);hit=true;}}
+        if(P[k+1]<.006){P[k+1]=.006;hit=true;}
+        if(hit)for(let c=0;c<3;c++)Q[k+c]=P[k+c]-(P[k+c]-Q[k+c])*.15;}}}   // friction: resting on the cushion it barely slides
+  for(let n=0;n<pos.length;n++)pos[n]=P[n];}
  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(idx);geo.computeVertexNormals();
  add(geo,mt,0,0,0,acG,{act:aA});
  // the fringe: little tassels along the hem
