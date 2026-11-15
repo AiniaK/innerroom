@@ -4,7 +4,7 @@ import { fail, json } from './util.js';
 import { notion, dataSourceOf } from './notion.js';
 
 export const JOURNALS = {
-  dream: { db: 'NOTION_DREAM_DB', tone: true },
+  dream: { db: 'NOTION_DREAM_DB', tone: true, blankDate: true },   // 沒填日期的夢，日期就留白
   mood: { db: 'NOTION_MOOD_DB', tone: false },
 };
 const F = { title: '標題', date: '日期', tone: '夢的色調' };   // 要和 Notion 裡的欄位名稱完全一樣
@@ -58,7 +58,7 @@ export async function listJournal(env, ctx, kind, request) {
   for (const p of pages) {
     const pr = p.properties || {};
     const title = plain(pr[F.title] && pr[F.title].title).trim();
-    const date = (pr[F.date] && pr[F.date].date && pr[F.date].date.start) || p.created_time.slice(0, 10);
+    const date = (pr[F.date] && pr[F.date].date && pr[F.date].date.start) || (J.blankDate ? '' : p.created_time.slice(0, 10));
     const toneName = J.tone && pr[F.tone] && pr[F.tone].select ? pr[F.tone].select.name : '';
     // 內容依「最後編輯時間」記在 KV：沒改過的頁面不再向 Notion 讀
     const ck = `journal:${p.id}:${p.last_edited_time}`;
@@ -69,8 +69,10 @@ export async function listJournal(env, ctx, kind, request) {
       if (env.KV) ctx.waitUntil(env.KV.put(ck, JSON.stringify(blocks), { expirationTtl: 60 * 60 * 24 * 60 }).catch(() => {}));
     }
     if (!title && !blocks.length) continue;   // 還沒開始寫的空白頁
-    items.push({ id: p.id, title: title || '（無題）', date: String(date).slice(0, 10), ...(J.tone ? { tone: TONES.includes(toneName) ? toneName : '' } : {}), blocks });
+    items.push({ _k: String(date || p.created_time).slice(0, 10) + p.created_time, id: p.id, title: title || '（無題）', date: String(date).slice(0, 10), ...(J.tone ? { tone: TONES.includes(toneName) ? toneName : '' } : {}), blocks });
   }
+  // 依日期排；沒填日期的照寫下的那天排進去
+  items.sort((a, z) => a._k < z._k ? -1 : a._k > z._k ? 1 : 0).forEach(x => delete x._k);
   const res = json({ items, partial });
   const out = new Response(res.body, res);
   out.headers.set('Cache-Control', `public, max-age=${partial ? 15 : LIST_TTL}`);

@@ -122,7 +122,7 @@ const rt = t => [{ plain_text: t }];
 const jpage = (id, title, date, extra = {}, parent = 'ds-dream') => ({ id, created_time: '2026-11-01T00:00:00.000Z', last_edited_time: '2026-11-02T00:00:00.000Z', parent: { type: 'data_source_id', data_source_id: parent },
   properties: { '標題': { title: rt(title) }, '日期': { date: date ? { start: date } : null }, ...extra } });
 const journal = {
-  'ds-dream': [jpage('d1', '會飛的鯨魚', '2026-11-01', { '夢的色調': { select: { name: '奇幻' } } }), jpage('d2', '', null, {})],
+  'ds-dream': [jpage('d1', '會飛的鯨魚', '2026-11-01', { '夢的色調': { select: { name: '奇幻' } } }), jpage('d2', '', null, {}), jpage('d3', '沒寫日期的夢', null, {})],
   'ds-mood': [jpage('m1', '今天', '2026-11-03', {}, 'ds-mood')],
 };
 const journalBlocks = {
@@ -241,8 +241,9 @@ await test('展品：後台新增的照片／影片展品可以儲存，檔案�
 await test('夢境與心情：讀出標題、日期、色調與內文，空白頁略過，清單與內容都有快取', async () => {
   const r = await call('GET', '/api/journal/dream');
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(r.data.items.length, 1);
+  assert.equal(r.data.items.length, 2);
   const d = r.data.items[0];
+  assert.equal(r.data.items[1].title, '沒寫日期的夢'); assert.equal(r.data.items[1].date, '');   // 沒填日期：留白
   assert.equal(d.title, '會飛的鯨魚'); assert.equal(d.date, '2026-11-01'); assert.equal(d.tone, '奇幻');
   assert.deepEqual(d.blocks.map(b => b.t), ['p', 'img', 'h']);   // 開頭的空段落去掉
   assert.equal(d.blocks[1].cap, '鯨魚');

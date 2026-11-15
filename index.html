@@ -3606,9 +3606,9 @@ function openMood(){openBookUI(MOOD_SRC);}
 /* ---- dream books ---- */
 function dreamSrc(e,book){return {label:'夢境紀錄・'+e.title,
   cover:Object.assign({key:'dream:'+(e.tone||'-')+':'+e.id,title:[...e.title].slice(0,8).join(' '),sub:'夢 境 紀 錄',ts:.8},toneOf(e.tone)),
-  plate:()=>`<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">夢境紀錄</div><div class="bk-plate-s">${esc(e.title)}</div><div class="bk-plate-n">${esc(jrDate(e.date))}</div>${e.tone?`<div class="bk-plate-tone">${esc(e.tone)}</div>`:''}</div></div>`,
+  plate:()=>`<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">夢境紀錄</div><div class="bk-plate-s">${esc(e.title)}</div>${e.date?`<div class="bk-plate-n">${esc(jrDate(e.date))}</div>`:''}${e.tone?`<div class="bk-plate-tone">${esc(e.tone)}</div>`:''}</div></div>`,
   load:()=>Promise.resolve(),
-  paginate(){jrSlots(jrFlow([{head:`<div class="j-h">${esc(e.title)}</div><div class="j-meta">${esc(jrDate(e.date))}${e.tone?'・'+esc(e.tone):''}</div>`,blocks:e.blocks||[]}]));},
+  paginate(){jrSlots(jrFlow([{head:`<div class="j-h">${esc(e.title)}</div><div class="j-meta">${[jrDate(e.date),e.tone].filter(Boolean).map(esc).join('・')}</div>`,blocks:e.blocks||[]}]));},
   target:()=>bk.single?0:1,   // opens on its first page
   onClose:()=>jrReturn(book)};}
 
