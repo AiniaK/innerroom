@@ -3653,7 +3653,7 @@ function spineTex(e,t,hh){
   const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,7));
   for(let i=0;i<500;i++){g.fillStyle=R()<.5?`rgba(${T.lt},.08)`:`rgba(${T.dk},.10)`;g.fillRect(R()*W,R()*H,1+R()*2,1);}   // cloth
   g.fillStyle=T.ink;g.globalAlpha=.7;for(const y of [H*.06,H*.075,H*.925,H*.94])g.fillRect(W*.15,y,W*.7,Math.max(1.5,W*.02));g.globalAlpha=1;
-  const chars=[...e.title].slice(0,14),fs=.8*Math.min(W*.62,(H*.72)/Math.max(chars.length,4));
+  const chars=[...e.title].slice(0,14),fs=Math.min(.8*W*.62,.8*(H*.72)/Math.max(chars.length,4),W*.012/t);   // letters about 1.2 cm tall on every book, however thick its spine
   g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle=T.ink;
   const y0=H*.5-(chars.length-1)*fs*1.08/2;chars.forEach((ch,i)=>g.fillText(ch,W/2,y0+i*fs*1.08));
   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();return tex;}
