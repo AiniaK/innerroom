@@ -63,7 +63,9 @@ main h4{font-family:var(--f-display);font-size:15.5px;margin:22px 0 6px}
 .adm-row .opts{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
 .adm-row .opts input[type=number]{width:84px}
 .adm-row.off .f>input,.adm-row.off .f>textarea{opacity:.5}
-.adm-row .two{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.adm-row .two{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.adm-row .wf{display:grid;gap:3px;min-width:0}
+.adm-row .wf>span{font-size:12px;color:var(--muted);letter-spacing:.06em}
 @media (max-width:640px){.adm-row .two{grid-template-columns:1fr}}
 .adm-row.ex{grid-template-columns:150px 1fr 300px}
 .adm-row.ex canvas{width:100%;height:auto;align-self:start;border:1px solid var(--line);border-radius:6px;background:var(--paper);position:sticky;top:80px}
@@ -237,6 +239,6 @@ table.files th{color:var(--muted);font-weight:400}
 <div id="toast" role="status" aria-live="polite"><span></span></div>
 
 <script src="config.js"></script>
-<script src="admin.js"></script>
+<script src="admin.js?v=2026-11-16b"></script>
 </body>
 </html>

@@ -315,7 +315,7 @@ function renderTexts() {
 
 /* ======================= 創作 =======================
  * 收藏櫃裡的立體作品。預設值來自 catalog.works（由房間產生），只存和預設不同的欄位。 */
-const WORK_TEXT = [['title', '名稱', 80], ['year', '年份（例如 2012）', 20], ['medium', '媒材（例如 玻璃、樹脂）', 60], ['size', '尺寸（例如 高 22 公分）', 60], ['period', '創作時期（例如 大學時期）', 40]];
+const WORK_TEXT = [['title', '作品名稱', '', 80], ['year', '年份', '例如 2012', 20], ['medium', '媒材', '例如 玻璃、樹脂', 60], ['size', '尺寸', '例如 高 22 公分', 60], ['period', '創作時期', '例如 大學時期', 40]];
 function workDef(id) { return (catalog.works && catalog.works[id] && catalog.works[id].def) || {}; }
 function renderWorks() {
   const ids = Object.keys(catalog.works || {});
@@ -323,12 +323,12 @@ function renderWorks() {
   const pods = catalog.pods || 1;
   $('#workList').innerHTML = ids.map(id => {
     const d = workDef(id), v = Object.assign({}, d, works[id] || {});
-    const field = ([k, ph, max]) => `<input type="text" data-f="${k}" maxlength="${max}" value="${esc(v[k] || '')}" placeholder="${esc(ph)}" aria-label="${esc(ph)}">`;
+    const field = ([k, name, ph, max]) => `<label class="wf"><span>${esc(name)}</span><input type="text" data-f="${k}" maxlength="${max}" value="${esc(v[k] || '')}" placeholder="${esc(ph)}"></label>`;
     const opts = Array.from({ length: pods }, (_, i) => `<option value="${i}" ${+v.pod === i ? 'selected' : ''}>第 ${i + 1} 格</option>`).join('');
     return `<div class="adm-row" data-work="${esc(id)}"><div class="k">${esc(d.title || id)}<br>${esc(id)}</div><div class="f">
       ${field(WORK_TEXT[0])}
       <div class="two">${WORK_TEXT.slice(1).map(field).join('')}</div>
-      <textarea data-f="desc" maxlength="1600" rows="4" placeholder="作品說明" aria-label="作品說明">${esc(v.desc || '')}</textarea>
+      <label class="wf"><span>作品介紹（訪客拿起作品時顯示在下方）</span><textarea data-f="desc" maxlength="1600" rows="6" placeholder="寫下這件作品的故事、想表達的東西">${esc(v.desc || '')}</textarea></label>
       <div class="opts"><label><input type="checkbox" data-f="motion" ${v.motion === true ? 'checked' : ''}> 預設讓作品動起來</label><label><input type="checkbox" data-f="hover" ${v.hover === false ? '' : 'checked'}> 游標移上去時顯示名稱</label>
         <label>放在記憶收藏櫃 <select data-f="pod" style="width:auto">${opts}</select></label></div></div></div>`;
   }).join('');
