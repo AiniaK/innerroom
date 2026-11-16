@@ -227,10 +227,13 @@
   "works": {
     "items": {
       "goldfish": {
-        "year": "2012",
+        "year": "2013",
         "medium": "複合媒材",
         "size": "高22",
         "period": "",
+        "desc": ""
+      },
+      "wings": {
         "desc": ""
       }
     }
@@ -266,5 +269,5 @@
       }
     ]
   },
-  "savedAt": 1794822493243
+  "savedAt": 1794840062012
 }
