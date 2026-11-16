@@ -63,6 +63,8 @@ main h4{font-family:var(--f-display);font-size:15.5px;margin:22px 0 6px}
 .adm-row .opts{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
 .adm-row .opts input[type=number]{width:84px}
 .adm-row.off .f>input,.adm-row.off .f>textarea{opacity:.5}
+.adm-row .two{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+@media (max-width:640px){.adm-row .two{grid-template-columns:1fr}}
 .adm-row.ex{grid-template-columns:150px 1fr 300px}
 .adm-row.ex canvas{width:100%;height:auto;align-self:start;border:1px solid var(--line);border-radius:6px;background:var(--paper);position:sticky;top:80px}
 .hov{display:flex;gap:8px;align-items:center}.hov span{color:var(--muted);display:grid;place-items:center}
@@ -115,6 +117,7 @@ table.files th{color:var(--muted);font-weight:400}
     <nav role="tablist" aria-label="後台分頁">
       <button class="btn small" type="button" role="tab" data-tab="obj">物件說明</button>
       <button class="btn small" type="button" role="tab" data-tab="ex">展品</button>
+      <button class="btn small" type="button" role="tab" data-tab="works">創作</button>
       <button class="btn small" type="button" role="tab" data-tab="set">房間設定</button>
       <button class="btn small" type="button" role="tab" data-tab="media">影片與音樂</button>
       <button class="btn small" type="button" role="tab" data-tab="gb">留言管理</button>
@@ -141,6 +144,12 @@ table.files th{color:var(--muted);font-weight:400}
       <div class="progress" hidden id="exProg"><i></i></div>
       <div class="ustat" id="exStat" role="status"></div>
       <div id="exList"></div>
+    </section>
+
+    <section id="tab-works" role="tabpanel">
+      <h3>創作</h3>
+      <p class="note">放在記憶收藏櫃裡的立體作品。訪客點作品會把它拿起來、在眼前轉著看，下方顯示這裡填的名稱、年份・媒材・尺寸・創作時期（有填的才會出現），以及作品說明。作品預設像實體一樣靜止，訪客拿起來時可以按「讓牠游動」自己打開動態；勾選「預設讓作品動起來」則一開始就是動的。改完記得按上方的「儲存並更新房間」。</p>
+      <div id="workList"></div>
     </section>
 
     <section id="tab-set" role="tabpanel">

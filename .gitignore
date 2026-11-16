@@ -23,3 +23,6 @@ dist/
 # 暫存
 *.log
 tmp/
+
+# Blender 預覽圖（執行 build_model.py 會重新產生）
+models/*/preview*.png

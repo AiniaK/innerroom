@@ -292,7 +292,6 @@
   "drink:0": "夏日特調・柚子氣泡",
   "drink:1": "夏日特調・百香果冰茶",
   "shelf": "書桌櫃",
-  "journal": "書櫃・夢境紀錄",
   "blank": "空白冊",
   "hchair": "書桌椅",
   "sakura": "玻璃罩・微縮櫻花",
@@ -339,9 +338,13 @@
   "flyer": "課程傳單",
   "guestbook": "留言筆記本",
   "memcab": "記憶收藏櫃",
-  "pod": "收藏格・1",
+  "work": "金魚酒杯",
+  "pod": "收藏格・2",
+  "moonlamp": "月球燈",
   "sidetable": "沙發邊桌",
-  "tablet": "平板・音樂"
+  "tablet": "平板・音樂",
+  "moodbook": "心情筆記",
+  "dlamp": "檯燈"
  },
  "exhibits": {
   "cougar": {
@@ -399,6 +402,22 @@
    }
   }
  },
+ "works": {
+  "goldfish": {
+   "def": {
+    "title": "金魚酒杯",
+    "year": "",
+    "medium": "",
+    "size": "",
+    "period": "大學時期",
+    "desc": "倒放的高腳杯裡裝著半杯淡金色的水。一條紅色的金魚貼著水面停著，一片鰭伸出了水面。",
+    "pod": 0,
+    "motion": false,
+    "hover": true
+   }
+  }
+ },
+ "pods": 14,
  "wall": {
   "z0": -3.42,
   "z1": 3.42,

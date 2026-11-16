@@ -206,6 +206,20 @@ await test('內容：讀取、儲存並產生 commit 訊息、sha 過期時回�
   const stale = await call('PUT', '/api/content', { token: owner, body: { content: c, sha: g.data.sha, sections: ['物件說明'] } });
   assert.equal(stale.status, 409); assert.equal(stale.data.error, 'conflict');
 });
+await test('內容：創作分頁的作品設定會保存，未知欄位被去掉、不合理的值被拒絕', async () => {
+  const g = await call('GET', '/api/content', { token: owner });
+  const c = { ...g.data.content, works: { items: { goldfish: { title: '金魚酒杯', year: '2012', medium: '玻璃、樹脂', desc: '大學時期的雕塑', pod: 3, motion: false, hover: true, evil: '<x>' } } } };
+  const p = await call('PUT', '/api/content', { token: owner, body: { content: c, sha: g.data.sha, sections: ['創作'] } });
+  assert.equal(p.status, 200, JSON.stringify(p.data));
+  assert.equal(gh.log.at(-1), '後台更新：創作');
+  const w = JSON.parse(gh.files.get('content.json').text).works.items.goldfish;
+  assert.deepEqual(w, { title: '金魚酒杯', year: '2012', medium: '玻璃、樹脂', desc: '大學時期的雕塑', pod: 3, motion: false, hover: true });
+  const g2 = await call('GET', '/api/content', { token: owner });
+  for (const bad of [{ pod: 1.5 }, { pod: -1 }, { motion: 'no' }, { title: 'x'.repeat(81) }]) {
+    const r = await call('PUT', '/api/content', { token: owner, body: { content: { ...g2.data.content, works: { items: { goldfish: bad } } }, sha: g2.data.sha, sections: ['創作'] } });
+    assert.equal(r.status, 400, JSON.stringify(bad));
+  }
+});
 await test('內容檢查：拒絕危險的網址和不合理的值', async () => {
   const { data } = await call('GET', '/api/content', { token: owner });
   const bad = [

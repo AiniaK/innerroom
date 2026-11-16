@@ -30,7 +30,7 @@ const PICK_MAX = 500 * MB;         // 可以選來壓縮的原始檔上限
 const SAFE_LINK = /^https:\/\/(www\.|music\.|m\.)?(youtube\.com|youtu\.be|open\.spotify\.com|spotify\.link)\//i;
 const TOKEN_KEY = 'innerroom.admin.idtoken';
 const TAB_KEY = 'innerroom.admin.tab';
-const SECTION_NAMES = { texts: '物件說明', exhibits: '展品', settings: '房間設定', media: '影片與音樂' };
+const SECTION_NAMES = { texts: '物件說明', exhibits: '展品', works: '創作', settings: '房間設定', media: '影片與音樂' };
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -165,7 +165,7 @@ function explain(e) {
 
 /* ======================= 狀態 ======================= */
 let started = false, catalog = null, contentSha = null, baseline = {};
-let items = {}, fire = 50, ex = {}, tv = null, tvView = {}, music = { tracks: [], links: [] };
+let items = {}, works = {}, fire = 50, ex = {}, tv = null, tvView = {}, music = { tracks: [], links: [] };
 let mediaFiles = [], savedRefs = new Set();
 // 剛上傳的檔案要等 GitHub Pages 更新後網站上才有，在那之前預覽用電腦裡的那份
 const localURL = {};
@@ -181,6 +181,7 @@ function loadState(c) {
   ex = {};
   Object.keys(catalog.exhibits).forEach(id => { ex[id] = Object.assign({}, catalog.exhibits[id].def, exItems[id] || {}); });
   Object.keys(exItems).forEach(id => { const s = exItems[id]; if (!catalog.exhibits[id] && s && s.custom && s.img) ex[id] = Object.assign({}, CUSTOM_DEF, s); });   // 後台新增的展品
+  works = clone((c.works && c.works.items) || {});
   tv = c.tv && c.tv.src ? clone(c.tv) : null;
   tvView = Object.assign({}, catalog.tv.def, tv && tv.view || {});
   const m = c.music || {};
@@ -235,6 +236,7 @@ function buildContent() {
   return {
     texts: { items: collectTexts(), fire },
     exhibits: { items: collectExhibits() },
+    works: { items: collectWorks() },
     tv: tv ? Object.assign({}, tv, { view: Object.assign({}, tvView) }) : null,
     music: { tracks: music.tracks.map(clone), links: music.links.map(clone) },
     savedAt: Date.now(),
@@ -244,6 +246,7 @@ function sectionsOf(c) {
   return {
     texts: JSON.stringify(c.texts.items),
     exhibits: JSON.stringify(c.exhibits),
+    works: JSON.stringify(c.works),
     settings: JSON.stringify(c.texts.fire),
     media: JSON.stringify([c.tv, c.music]),
   };
@@ -269,7 +272,7 @@ async function start() {
   contentSha = remote.sha || null;
   loadState(remote.content);
   savedRefs = refsOf(remote.content || {});
-  renderTexts(); renderExhibits(); setupExAdd(); renderSettings(); setupTV(); renderMusic(); setupTabs();
+  renderTexts(); renderExhibits(); renderWorks(); setupExAdd(); renderSettings(); setupTV(); renderMusic(); setupTabs();
   baseline = sectionsOf(buildContent());
   status('已載入網站目前的內容');
   refreshFiles();
@@ -308,6 +311,42 @@ function renderTexts() {
     const s = e.target.value.trim();
     document.querySelectorAll('#objList .adm-row').forEach(r => { r.hidden = !!s && !r.textContent.includes(s) && ![...r.querySelectorAll('input[type=text],textarea')].some(i => i.value.includes(s)); });
   };
+}
+
+/* ======================= 創作 =======================
+ * 收藏櫃裡的立體作品。預設值來自 catalog.works（由房間產生），只存和預設不同的欄位。 */
+const WORK_TEXT = [['title', '名稱', 80], ['year', '年份（例如 2012）', 20], ['medium', '媒材（例如 玻璃、樹脂）', 60], ['size', '尺寸（例如 高 22 公分）', 60], ['period', '創作時期（例如 大學時期）', 40]];
+function workDef(id) { return (catalog.works && catalog.works[id] && catalog.works[id].def) || {}; }
+function renderWorks() {
+  const ids = Object.keys(catalog.works || {});
+  if (!ids.length) { $('#workList').innerHTML = '<p class="note">目前房間裡還沒有作品。</p>'; return; }
+  const pods = catalog.pods || 1;
+  $('#workList').innerHTML = ids.map(id => {
+    const d = workDef(id), v = Object.assign({}, d, works[id] || {});
+    const field = ([k, ph, max]) => `<input type="text" data-f="${k}" maxlength="${max}" value="${esc(v[k] || '')}" placeholder="${esc(ph)}" aria-label="${esc(ph)}">`;
+    const opts = Array.from({ length: pods }, (_, i) => `<option value="${i}" ${+v.pod === i ? 'selected' : ''}>第 ${i + 1} 格</option>`).join('');
+    return `<div class="adm-row" data-work="${esc(id)}"><div class="k">${esc(d.title || id)}<br>${esc(id)}</div><div class="f">
+      ${field(WORK_TEXT[0])}
+      <div class="two">${WORK_TEXT.slice(1).map(field).join('')}</div>
+      <textarea data-f="desc" maxlength="1600" rows="4" placeholder="作品說明" aria-label="作品說明">${esc(v.desc || '')}</textarea>
+      <div class="opts"><label><input type="checkbox" data-f="motion" ${v.motion === true ? 'checked' : ''}> 預設讓作品動起來</label><label><input type="checkbox" data-f="hover" ${v.hover === false ? '' : 'checked'}> 游標移上去時顯示名稱</label>
+        <label>放在記憶收藏櫃 <select data-f="pod" style="width:auto">${opts}</select></label></div></div></div>`;
+  }).join('');
+  $('#workList').addEventListener('input', markDirty);
+  $('#workList').addEventListener('change', markDirty);
+}
+function collectWorks() {
+  const out = {};
+  Object.keys(works).forEach(id => { if (!(catalog.works || {})[id]) out[id] = works[id]; });   // 目錄裡沒有的作品原樣保留
+  document.querySelectorAll('#workList [data-work]').forEach(r => {
+    const id = r.dataset.work, d = workDef(id), f = n => r.querySelector(`[data-f=${n}]`), e = {};
+    WORK_TEXT.concat([['desc']]).forEach(([k]) => { const val = f(k).value.trim(); if (val !== (d[k] || '') && (val || k !== 'title')) e[k] = val; });
+    const pod = +f('pod').value; if (pod !== (d.pod || 0)) e.pod = pod;
+    if (f('motion').checked !== (d.motion === true)) e.motion = f('motion').checked;
+    if (!f('hover').checked) e.hover = false;
+    if (Object.keys(e).length) out[id] = e;
+  });
+  return out;
 }
 
 /* ======================= 展品 ======================= */

@@ -3,7 +3,7 @@ import { fail } from './util.js';
 import { isMediaRef } from './github.js';
 
 const SAFE_LINK = /^https:\/\/(www\.|music\.|m\.)?(youtube\.com|youtu\.be|open\.spotify\.com|spotify\.link)\/[^\s"'<>]*$/i;
-export const SECTION_NAMES = ['物件說明', '展品', '房間設定', '影片與音樂'];
+export const SECTION_NAMES = ['物件說明', '展品', '創作', '房間設定', '影片與音樂'];
 
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const KEY = /^[A-Za-z0-9_:-]{1,40}$/;
@@ -60,6 +60,23 @@ export function validateContent(c) {
   }
   if (Object.keys(exItems).length > 100) fail(400, 'invalid_content', 'exhibits.items');
   out.exhibits = { items: exItems };
+
+  // 創作：記憶收藏櫃裡的立體作品（名稱、年份、媒材、尺寸、創作時期、說明、放在第幾格、動態效果開關）
+  const wk = c.works === undefined ? { items: {} } : c.works;
+  if (!isObj(wk) || !isObj(wk.items)) fail(400, 'invalid_content', 'works');
+  const works = {};
+  for (const [id, w] of Object.entries(wk.items)) {
+    if (!KEY.test(id) || !isObj(w)) fail(400, 'invalid_content', 'works.items');
+    const pod = num(w.pod, 0, 99, id + '.pod');
+    if (pod !== undefined && !Number.isInteger(pod)) fail(400, 'invalid_content', id + '.pod');
+    works[id] = prune({
+      title: str(w.title, 80, id + '.title'), year: str(w.year, 20, id + '.year'), medium: str(w.medium, 60, id + '.medium'),
+      size: str(w.size, 60, id + '.size'), period: str(w.period, 40, id + '.period'), desc: str(w.desc, 1600, id + '.desc'),
+      pod, motion: bool(w.motion, id + '.motion'), hover: bool(w.hover, id + '.hover'),
+    });
+  }
+  if (Object.keys(works).length > 100) fail(400, 'invalid_content', 'works.items');
+  out.works = { items: works };
 
   // 電視
   if (c.tv === null || c.tv === undefined) out.tv = null;

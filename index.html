@@ -43,6 +43,19 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 #hover .h{font-size:11.5px;color:rgba(255,250,240,.85);text-shadow:0 1px 4px rgba(40,30,20,.6);margin-top:2px;letter-spacing:.06em}
 #toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:8;max-width:min(560px,calc(100vw - 32px));text-align:center;pointer-events:none;opacity:0;transition:opacity .4s}
 #toast.show{opacity:1}
+/* holding an object up to look at it (the goldfish glass): a clear layer over the room that takes the drag; the caption and buttons sit at the bottom */
+#insp{position:fixed;inset:0;z-index:7;touch-action:none;cursor:grab;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
+  padding:0 max(16px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));opacity:0;transition:opacity .45s}
+#insp.on{opacity:1}
+#insp.grab{cursor:grabbing}
+#insp .cap{max-width:min(520px,100%);text-align:center;color:#FFF9EE;text-shadow:0 1px 8px rgba(30,20,12,.7);pointer-events:none}
+#insp .cap h2{font-family:var(--f-display);font-weight:600;font-size:21px;margin:0 0 4px;letter-spacing:.06em;text-wrap:balance}
+#insp .cap .meta{font-size:12px;letter-spacing:.12em;opacity:.85;margin:0 0 6px;font-variant-numeric:tabular-nums}
+#insp .cap p{font-size:13.5px;line-height:1.8;margin:0;max-width:44ch;margin-inline:auto}
+#insp .cap .tip{font-size:11.5px;letter-spacing:.08em;opacity:.8;margin-top:8px}
+#insp .row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center}
+#insp .btn{background:rgba(251,246,236,.9)}
+@media (prefers-reduced-motion:reduce){#insp{transition:none}}
 #toast span{display:inline-block;background:rgba(251,246,236,.92);border:1px solid var(--line);border-radius:12px;padding:9px 14px;font-size:13.5px;line-height:1.6}
 /* overlays */
 .veil{position:fixed;inset:0;z-index:10;background:var(--veil);display:flex;align-items:center;justify-content:center;padding:calc(20px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
@@ -287,6 +300,10 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <div id="hover" hidden><div class="n"></div><div class="h"></div></div>
 <div id="pause" hidden><span class="chip">點一下畫面繼續探索</span></div>
 <div id="toast"><span></span></div>
+<div id="insp" hidden role="dialog" aria-modal="true" aria-labelledby="inspT">
+  <div class="cap"><h2 id="inspT"></h2><div class="meta" id="inspM"></div><p id="inspB"></p><div class="tip" id="inspTip"></div></div>
+  <div class="row"><button class="btn" type="button" id="inspSwim" aria-pressed="false">讓牠游動</button><button class="btn" type="button" id="inspFace">轉回正面</button><button class="btn" type="button" id="inspBack">放回去</button></div>
+</div>
 <div id="joy" hidden><i></i></div>
 <button class="chip" id="crouchBtn" type="button" aria-pressed="false" hidden>蹲下</button>
 
@@ -310,6 +327,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="config.js"></script>
 <script src="data/models.js"></script>
+<script src="models/goldfish-glass/room.js"></script>
 <script>
 (()=>{
 'use strict';
@@ -1563,14 +1581,113 @@ const PODS=[];
     const n=2+Math.floor(R()*3);let ws=[];for(let i=0;i<n;i++)ws.push(.6+R());const tot=ws.reduce((a,b)=>a+b,0);
     let x=-span;const usable=span*2-gap*(n-1);
     ws.forEach(w=>{const pw=w/tot*usable;const cx=x+pw/2;
-      const hole=blob(cx,cy,pw/2,rh/2,2.6,.03,64,R()*6);shape.holes.push(new THREE.Path(hole));
-      PODS.push({cx,cy,w:pw,h:rh});x+=pw+gap;});
+      const ph=R()*6,hole=blob(cx,cy,pw/2,rh/2,2.6,.03,64,ph);shape.holes.push(new THREE.Path(hole));
+      // the pod's floor right under its centre: the blob's lowest point, wobble included (t = 3π/2 in blob())
+      const floor=cy-rh/2*(1+.03*(.6*Math.cos(ph)-.4*Math.cos(2*ph)));
+      PODS.push({cx,cy,w:pw,h:rh,floor});x+=pw+gap;});
   }
   const geo=new THREE.ExtrudeGeometry(shape,{depth:.24,bevelEnabled:true,bevelSize:.012,bevelThickness:.012,bevelSegments:3,curveSegments:24});
   add(geo,M.ceramic,0,0,.03,G,{act});
   add(new THREE.ExtrudeGeometry(new THREE.Shape(outerPts),{depth:.02,bevelEnabled:false}),M.ceramicBack,0,0,.005,G,{act});
-  PODS.forEach((p,i)=>add(new THREE.PlaneGeometry(p.w*.92,p.h*.8),M.hit,p.cx,p.cy,.285,G,{cast:false,receive:false,act:{type:'pod',idx:i,label:'收藏格・'+(i+1)}}));
+  PODS.forEach((p,i)=>{p.hit=add(new THREE.PlaneGeometry(p.w*.92,p.h*.8),M.hit,p.cx,p.cy,.285,G,{cast:false,receive:false,act:{type:'pod',idx:i,label:'收藏格・'+(i+1)}});});
 })();
+
+/* ---------- the goldfish glass (models/goldfish-glass: built in Blender, loaded by room.js), kept in one of the memory cabinet's pods.
+   Clicking it takes it down: it slides out of its pod, floats up in front of you and grows; drag to turn it, scroll or pinch to bring it
+   closer, and Esc / 放回去 sends it back. While held it is drawn in its own small scene over a dimmed room, so the room never cuts into it. ---------- */
+/* the owner's own works (後台「創作」分頁): defaults here, the owner's edits arrive in content.json under works.items */
+const WORKS={goldfish:{title:'金魚酒杯',year:'',medium:'',size:'',period:'大學時期',desc:'倒放的高腳杯裡裝著半杯淡金色的水。一條紅色的金魚貼著水面停著，一片鰭伸出了水面。',pod:0,motion:false,hover:true}};
+const WOVR={};
+const work=id=>Object.assign({},WORKS[id],WOVR[id]||{});
+const GF={id:'goldfish',pod:-1,swim:false,swimSet:false,act:{type:'work',id:'goldfish',label:'金魚酒杯'},obj:null,H:.18,HB:.5,p:new THREE.Vector3(),q:new THREE.Quaternion(),out:new THREE.Vector3()};
+PODS.forEach(P=>{P.podAct=P.hit.userData.act;});
+function gfPlace(pod){   // stand the glass in pod `pod`; that pod's click plane then stands for the glass
+  pod=clamp(Math.round(+pod||0),0,PODS.length-1);if(pod===GF.pod)return;
+  if(GF.pod>=0)PODS[GF.pod].hit.userData.act=PODS[GF.pod].podAct;
+  GF.pod=pod;const P=PODS[pod],cab=P.hit.parent;P.hit.userData.act=GF.act;
+  cab.updateMatrixWorld(true);
+  GF.p.set(P.cx,P.floor+.003+GF.H/2,.19).applyMatrix4(cab.matrixWorld);   // standing on the pod's floor, near the front of its opening
+  GF.q.copy(cab.quaternion);                                              // its front (the fish's side) faces the room, like the pod
+  GF.out.set(0,0,1).applyQuaternion(cab.quaternion);                      // the way out of the pod
+  if(GF.obj&&!INSP.on){const R=GF.obj.root;R.position.copy(GF.p);R.quaternion.copy(GF.q);}}
+gfPlace(WORKS.goldfish.pod);
+if(window.GoldfishGlass)GoldfishGlass.load('models/goldfish-glass/goldfish_glass.glb').then(g=>{
+  GF.obj=g;GF.s=GF.H/g.height;GF.sBig=GF.HB/g.height;if(g.setMotion)g.setMotion(GF.swim);
+  g.root.position.copy(GF.p);g.root.quaternion.copy(GF.q);g.root.scale.setScalar(GF.s);scene.add(g.root);
+}).catch(e=>console.warn('金魚酒杯載入失敗',e));
+function applyWorks(w){Object.keys(WOVR).forEach(k=>delete WOVR[k]);Object.assign(WOVR,(w&&w.items)||{});
+  const v=work('goldfish');GF.act.label=v.title||WORKS.goldfish.title;gfPlace(v.pod);
+  if(!GF.swimSet)gfSwim(v.motion===true,false);   // the owner's default, until the visitor chooses
+  if(INSP.on)inspCaption();}
+const INSP={on:false,dir:0,k:0,dist:.62,user:new THREE.Quaternion(),face:false,vx:0,vy:0,drag:null,pts:new Map(),pinch:0,LAYER:5};
+// While held, the glass moves to its own layer (5; layer 1 is for put-away exhibits) and is drawn in a second pass over the dimmed room,
+// still lit by the room's own lights, so the fish keeps the colours it has on the shelf.
+{INSP.dim=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({uniforms:{uA:{value:0}},transparent:true,depthTest:false,depthWrite:false,fog:false,
+   vertexShader:`varying vec2 vU;void main(){vU=uv;gl_Position=vec4(position.xy,0.,1.);}`,
+   fragmentShader:`uniform float uA;varying vec2 vU;void main(){float r=length(vU-.5);gl_FragColor=vec4(mix(vec3(.17,.13,.1),vec3(.07,.05,.04),smoothstep(.15,.75,r)),uA*mix(.5,.78,smoothstep(.1,.7,r)));}`}));
+ INSP.dim.frustumCulled=false;INSP.dim.renderOrder=-10;INSP.dim.layers.set(INSP.LAYER);scene.add(INSP.dim);}
+function inspLayer(held){GF.obj.meshes.forEach(m=>m.layers.set(held?INSP.LAYER:0));}
+function inspOpen(){
+  if(INSP.on)return;
+  if(!GF.obj){toast('金魚酒杯還在準備中，等一下再試一次');return;}
+  scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held glass too
+  INSP.on=true;INSP.dir=1;INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
+  modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
+  inspCaption();
+  $('#inspTip').textContent=isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去';
+  const el=$('#insp');el.hidden=false;requestAnimationFrame(()=>el.classList.add('on'));setTimeout(()=>$('#inspBack').focus({preventScroll:true}),30);}
+function gfSwim(on,byVisitor){GF.swim=!!on;if(byVisitor)GF.swimSet=true;if(GF.obj&&GF.obj.setMotion)GF.obj.setMotion(GF.swim);
+  const b=$('#inspSwim');b.textContent=GF.swim?'停下來':'讓牠游動';b.setAttribute('aria-pressed',GF.swim);}
+function inspCaption(){   // name, then year · medium · size · period, then the owner's words about the work
+  const v=work(GF.id),meta=[v.year,v.medium,v.size,v.period].map(x=>String(x||'').trim()).filter(Boolean);
+  $('#inspT').textContent=v.title||WORKS[GF.id].title;$('#inspM').textContent=meta.join('・');$('#inspM').hidden=!meta.length;
+  $('#inspB').textContent=v.desc||'';$('#inspB').hidden=!v.desc;}
+function inspClose(){if(!INSP.on||INSP.dir<0)return;INSP.dir=-1;INSP.drag=null;INSP.pts.clear();$('#insp').classList.remove('on','grab');}
+{const el=$('#insp');
+ el.addEventListener('pointerdown',e=>{if(e.target.closest('button')||INSP.dir<0)return;el.setPointerCapture(e.pointerId);INSP.pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+   if(INSP.pts.size===1){INSP.drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:0,t:performance.now()};INSP.vx=INSP.vy=0;INSP.face=false;el.classList.add('grab');}
+   else{INSP.drag=null;const [a,b]=[...INSP.pts.values()];INSP.pinch=Math.hypot(a.x-b.x,a.y-b.y);}});
+ el.addEventListener('pointermove',e=>{const pt=INSP.pts.get(e.pointerId);if(!pt)return;pt.x=e.clientX;pt.y=e.clientY;
+   if(INSP.pts.size>=2){const [a,b]=[...INSP.pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(INSP.pinch>0)INSP.dist=clamp(INSP.dist*INSP.pinch/d,.34,.95);INSP.pinch=d;return;}
+   const d=INSP.drag;if(!d||d.id!==e.pointerId)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;d.x=e.clientX;d.y=e.clientY;d.moved+=Math.abs(dx)+Math.abs(dy);
+   inspTurn(dx*.009,dy*.009);INSP.vx=dx*.009;INSP.vy=dy*.009;d.t=performance.now();});
+ const up=e=>{if(!INSP.pts.delete(e.pointerId))return;el.classList.remove('grab');const d=INSP.drag;INSP.drag=null;INSP.pinch=0;
+   if(!d||d.id!==e.pointerId)return;
+   if(performance.now()-d.t>90)INSP.vx=INSP.vy=0;   // let go after holding still: no spin
+   if(d.moved<6&&e.type==='pointerup'){   // a tap well away from the glass puts it back
+     const s=GF.obj.root.position.clone().project(camera),px=(s.x+1)/2*innerWidth,py=(1-s.y)/2*innerHeight;
+     if(Math.hypot(e.clientX-px,e.clientY-py)>Math.min(innerWidth,innerHeight)*.36)inspClose();}};
+ el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+ el.addEventListener('wheel',e=>{e.preventDefault();INSP.dist=clamp(INSP.dist*Math.exp(e.deltaY*.0012),.34,.95);},{passive:false});
+ $('#inspBack').addEventListener('click',inspClose);
+ $('#inspSwim').addEventListener('click',()=>gfSwim(!GF.swim,true));
+ $('#inspFace').addEventListener('click',()=>{INSP.face=true;INSP.vx=INSP.vy=0;});}
+const _qa=new THREE.Quaternion(),_ax=new THREE.Vector3(),_end=new THREE.Vector3(),_ctl=new THREE.Vector3(),_eq=new THREE.Quaternion(),_v=new THREE.Vector3(),_q0=new THREE.Quaternion();
+function inspTurn(yaw,pitch){   // turn around the screen's own axes: sideways drags spin it, up-down drags tip it toward or away from you
+  INSP.user.premultiply(_qa.setFromAxisAngle(_ax.set(0,1,0),yaw)).premultiply(_qa.setFromAxisAngle(_ax.set(1,0,0),pitch)).normalize();}
+function inspTick(dt){
+  if(!GF.obj)return;
+  GF.obj.tick(reduceMotion?dt*.4:dt);   // still by default, like the sculpture itself; the visitor can let the fish swim
+  if(!INSP.on)return;
+  const R=GF.obj.root;
+  INSP.k=clamp(INSP.k+INSP.dir*dt*(reduceMotion?4:1.1),0,1);
+  if(!INSP.drag&&(INSP.vx||INSP.vy)){inspTurn(INSP.vx,INSP.vy);const f=Math.pow(.04,dt);INSP.vx*=f;INSP.vy*=f;if(Math.abs(INSP.vx)+Math.abs(INSP.vy)<1e-4)INSP.vx=INSP.vy=0;}
+  if(INSP.face)INSP.user.slerp(_q0.identity(),1-Math.pow(.004,dt));
+  const k=INSP.k,e=k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+  // where it is held: straight ahead, a little above centre so the caption stays clear of it
+  _end.set(0,.035,-INSP.dist).applyQuaternion(camera.quaternion).add(camera.position);
+  _eq.copy(camera.quaternion).multiply(INSP.user);
+  // out of the pod first (along its opening), then up into your hands
+  _ctl.copy(GF.p).addScaledVector(GF.out,.38);_ctl.y+=.1;
+  const a=(1-e)*(1-e),b=2*(1-e)*e,c=e*e;
+  R.position.set(GF.p.x*a+_ctl.x*b+_end.x*c,GF.p.y*a+_ctl.y*b+_end.y*c,GF.p.z*a+_ctl.z*b+_end.z*c);
+  R.quaternion.slerpQuaternions(GF.q,_eq,e);
+  R.scale.setScalar(lerp(GF.s,GF.sBig,e));
+  INSP.dim.material.uniforms.uA.value=e;
+  inspLayer(k>.14);   // drawn over the room only once it is clear of the cabinet
+  if(INSP.dir<0&&k===0){   // back on its shelf
+    INSP.on=false;INSP.dir=0;R.position.copy(GF.p);R.quaternion.copy(GF.q);R.scale.setScalar(GF.s);inspLayer(false);
+    $('#insp').hidden=true;modalOpen=false;updateCursorUI();canvas.focus();}}
 
 /* ============================================================
    OUTSIDE: sky, sea, terrain, mist, rain
@@ -1604,7 +1721,7 @@ const mlLight=new THREE.PointLight(0xF6E6CC,0,4.2,2);mlLight.position.set(MOONLA
 const mlHaloMat=new THREE.ShaderMaterial({uniforms:{uA:{value:0},uC:{value:new THREE.Vector3(MOONLAMP.x,MOONLAMP.y,MOONLAMP.z)}},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
   polygonOffset:true,polygonOffsetFactor:-2,
   vertexShader:`varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
-  fragmentShader:`uniform float uA;uniform vec3 uC;varying vec3 vW;void main(){float d=length(vW-uC);float a=uA*smoothstep(.2,.34,d)*exp(-pow(max(d-.2,0.),2.)/.32);   // nothing right at the moon's edge, where it meets the wall (that showed as a bright rim)gl_FragColor=vec4(vec3(1.,.93,.82)*a,1.);}`});
+  fragmentShader:`uniform float uA;uniform vec3 uC;varying vec3 vW;void main(){float d=length(vW-uC);float a=uA*mix(.6,1.,smoothstep(.2,.38,d))*exp(-pow(max(d-.2,0.),2.)/.32);gl_FragColor=vec4(vec3(1.,.93,.82)*a,1.);}`});   // the glow reaches right to the moon's edge (a gap there read as a dark ring) and swells a little further out, so the edge itself never flares into a bright rim
 // three halo panels, 5 mm off their surfaces, each ending exactly where it meets its neighbour's panel: no overlap (a bright line) and no gap (a dark one)
 add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915,2.895-.75,3.415-.75,scene,{ry:-Math.PI/2,cast:false,receive:false,ray:false});   // east wall
 add(new THREE.PlaneGeometry(1.5,1.5),mlHaloMat,4.915-.75,2.895-.75,3.415,scene,{ry:Math.PI,cast:false,receive:false,ray:false});       // south wall
@@ -2715,7 +2832,7 @@ const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='Mac
 let started=false,locked=false,noLock=isTouch,modalOpen=false;
 const joy={x:0,y:0,id:null};
 addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea,select'))return;keys[e.code]=true;
-  if(e.code==='KeyE'&&started&&!modalOpen)interact(hovered);if(e.code==='Escape'&&jrLB){jrUnzoom();return;}if(e.code==='Escape'&&modalOpen){if(gbBookCloser)gbBookCloser();else closeModal();}});
+  if(e.code==='KeyE'&&started&&!modalOpen)interact(hovered);if(e.code==='Escape'&&INSP.on){inspClose();return;}if(e.code==='Escape'&&jrLB){jrUnzoom();return;}if(e.code==='Escape'&&modalOpen){if(gbBookCloser)gbBookCloser();else closeModal();}});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;$('#cross').hidden=!locked&&!noLock?true:!(locked||(!isTouch&&false));
@@ -2760,12 +2877,13 @@ let hovered=null;
 function pick(v){ray.setFromCamera(v,camera);const hits=ray.intersectObjects(targets,false);
   for(const h of hits){let o=h.object;while(o&&!o.userData.act)o=o.parent;if(o){pickPoint.copy(h.point);return o.userData.act;}return null;}return null;}
 const pickPoint=new THREE.Vector3();   // where the last pick landed, so the sofa knows where you chose to sit
-const HINT={dlamp:()=>dlampOn?'點擊關燈':'點擊開燈',moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
+const HINT={work:()=>'點擊拿起來看',dlamp:()=>dlampOn?'點擊關燈':'點擊開燈',moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
 function updateHover(){
   let a=started&&!modalOpen?(locked?pick(center):(!isTouch?pick(mouse):null)):null;hovered=a;
-  const el=$('#hover');if(a&&(a.type==='exhibit'?(exState[a.id]&&exState[a.id].hover===false):(a.type==='drink'?ovr('drink:'+a.idx).hov===false:(TOVR[a.type]&&TOVR[a.type].hov===false))))a=null;   /* owner turned this object's hover label off */
+  const el=$('#hover');if(a&&a.type==='work'&&work(a.id).hover===false)a=null;
+  if(a&&(a.type==='exhibit'?(exState[a.id]&&exState[a.id].hover===false):(a.type==='drink'?ovr('drink:'+a.idx).hov===false:(TOVR[a.type]&&TOVR[a.type].hov===false))))a=null;   /* owner turned this object's hover label off */
   if(!a){el.hidden=true;$('#cross').classList.remove('on');return;}
-  el.hidden=false;$('#cross').classList.add('on');el.querySelector('.n').textContent=(a.type==='exhibit'?a.label:(a.type==='drink'?(ovr('drink:'+a.idx).h||a.label):(ovr(a.type).h||a.label)));
+  el.hidden=false;$('#cross').classList.add('on');el.querySelector('.n').textContent=(a.type==='exhibit'||a.type==='work'?a.label:(a.type==='drink'?(ovr('drink:'+a.idx).h||a.label):(ovr(a.type).h||a.label)));
   {const noPop=a.type==='exhibit'?(exState[a.id]&&exState[a.id].popup===false):(a.type==='drink'?popOff('drink:'+a.idx):popOff(a.type));   // no popup set in the backend: no "click to view" hint
    const hint=HINT[a.type]?HINT[a.type]():(noPop?'':(locked?'點擊或按 E 查看':'點擊查看'));const he=el.querySelector('.h');he.textContent=hint;he.hidden=!hint;}
   if(!locked&&!isTouch){el.style.left=((mouse.x+1)/2*innerWidth)+'px';el.style.top=((1-mouse.y)/2*innerHeight+22)+'px';}else{el.style.left='';el.style.top='';}
@@ -2876,6 +2994,7 @@ function interact(a){
     case 'guestbook':if(popOff('guestbook'))return;return openGuestbook();
     case 'fire':if(popOff('fire'))return;return openFire();
     case 'drink':{const k='drink:'+a.idx,v=ovr(k);if(popOff(k))return;return openModal(simple('陽台・白色小圓桌',esc(v.t||a.label),esc(v.b||DRINKS[a.idx])));}
+    case 'work':return inspOpen();
     case 'pod':return openModal(simple('記憶收藏櫃',`第 ${a.idx+1} 格`,`這一格還空著，等一件小東西住進來。<br>整座櫃子目前有 ${PODS.length} 格。`,'之後新增物件時，櫃子會依照物件的數量與大小重新長出形狀。'));
     default:{const t=TEXT[a.type];if(!t||popOff(a.type))return;const v=ovr(a.type);openModal(simple('內在房間',esc(v.t||t[0]),esc(v.b||t[1]).replace(/\n/g,'<br>')));}
   }
@@ -3480,7 +3599,7 @@ function shadowSync(){if(!IOS||!AC)return;
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)[tvVideo,musicEl].forEach(kick);});
 })();
 drawTablet();
-const applyContent=c=>{if(!c)return;try{if(c.tv!==undefined)applyTV(c.tv);}catch(e){}try{if(c.music)applyMusic(c.music);}catch(e){}try{if(c.exhibits)applyExhibits(c.exhibits);}catch(e){}
+const applyContent=c=>{if(!c)return;try{if(c.tv!==undefined)applyTV(c.tv);}catch(e){}try{if(c.music)applyMusic(c.music);}catch(e){}try{if(c.exhibits)applyExhibits(c.exhibits);}catch(e){}try{applyWorks(c.works);}catch(e){}
   if(c.texts){Object.keys(TOVR).forEach(k=>delete TOVR[k]);Object.assign(TOVR,c.texts.items||{});if(typeof c.texts.fire==='number')S.fire=c.texts.fire;}};
 fetch('content.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(applyContent).catch(()=>{});   // the owner's latest saved content, published with the page
 function openTablet(){const T=musicTracks(),L=musicLinks();
@@ -3811,7 +3930,10 @@ function frame(now){
   else if(now-(frame.tabT||0)>1000){frame.tabT=now;if(musicTracks().length)drawTablet();}
   if(now-hoverT>90){updateHover();hoverT=now;}
   updateAudio(dt,now);
+  inspTick(dt);
   renderer.render(scene,camera);
+  if(INSP.on&&INSP.k>0){const au=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;renderer.autoClear=false;renderer.clearDepth();
+    camera.layers.set(INSP.LAYER);renderer.render(scene,camera);camera.layers.set(0);renderer.autoClear=true;renderer.shadowMap.autoUpdate=au;}   // the glass in your hands, over the dimmed room
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -3822,7 +3944,8 @@ window.__roomCatalog=()=>{const hover={};targets.forEach(m=>{const a=m.userData&
     ['flyer','課程傳單','覺察書寫小組','八週，每週一次。一起練習把心裡的話寫下來，讓寫字變成照顧自己的方式。'],['fire','初心之火（彈窗文字）','初心之火','這是房主的初心之火，一直燒著。'],
     ...DRINKS.map((d,i)=>['drink:'+i,'陽台飲料 '+(i+1),d.split('：')[0],d])];
   const exhibits={};Object.keys(EXHIBITS).forEach(id=>{const E=EXHIBITS[id],o=exObj[id];exhibits[id]={kind:E.kind,W:E.W,H:E.H,OW:o.OW,OH:o.OH,img:E.img,video:E.video||null,def:E.def};});
-  return {texts,hover,exhibits,wall:{z0:-3.42,z1:3.42,h:3.06,zMin:EX_Z_MIN,zMax:EX_Z_MAX,hMin:.75,hMax:2.2},tv:{w:TV_W,h:TV_H,def:TV_DEF},fireDefault:50};};
+  const works={};Object.keys(WORKS).forEach(id=>{works[id]={def:Object.assign({},WORKS[id])};});
+  return {texts,hover,exhibits,works,pods:PODS.length,wall:{z0:-3.42,z1:3.42,h:3.06,zMin:EX_Z_MIN,zMax:EX_Z_MAX,hMin:.75,hMax:2.2},tv:{w:TV_W,h:TV_H,def:TV_DEF},fireDefault:50};};
 /* ---------- start ---------- */
 if(isTouch){$('#keys').innerHTML='<kbd>左下搖桿</kbd><span>走動</span><kbd>右下「蹲下」</kbd><span>切換蹲下／站起</span><kbd>拖曳畫面</kbd><span>環顧四周</span><kbd>輕點</kbd><span>與物件互動</span>';}
 $('#crouchBtn').addEventListener('click',e=>{touchCrouch=!touchCrouch;e.currentTarget.setAttribute('aria-pressed',touchCrouch);e.currentTarget.textContent=touchCrouch?'站起':'蹲下';});
