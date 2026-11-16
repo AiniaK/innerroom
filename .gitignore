@@ -26,3 +26,6 @@ tmp/
 
 # Blender 預覽圖（執行 build_model.py 會重新產生）
 models/*/preview*.png
+
+# Blender 自動備份檔
+*.blend1

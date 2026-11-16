@@ -13,6 +13,7 @@
 | `assets/moon.jpg` | 月亮貼圖 |
 | `models/goldfish-glass/` | 創作「金魚酒杯」：`build_model.py`（Blender 腳本，執行 `/Applications/Blender.app/Contents/MacOS/Blender -b -P build_model.py` 重建模型）、`goldfish_glass.glb`（房間載入的模型）、`room.js`（房間用的載入程式與材質、游動動畫）、`index.html`（單獨檢視這件作品的頁面）、`.blend` 原檔 |
 | `models/mirror-wings/` | 創作《以碎為翼》：`build_model.py`（Blender 腳本）、`mirror_wings.glb`、`room.js`（房間用的載入程式與材質）、`index.html`（單獨檢視頁）、`.blend` 原檔。放在記憶收藏櫃中間的大格子 |
+| `models/brainhorn/` | 腦角獸（腦神經外科的吉祥物）小布偶：`build_model.py`（Blender 腳本）、`brainhorn.glb`、`room.js`（載入程式）。坐在環形沙發東側抱枕旁，點它可以拿起來翻轉查看，名稱與說明在後台「物件說明」 |
 | `media/` | 電視影片、平板音樂（後台上傳的檔案也會放這裡） |
 | `admin.html`、`admin.js` | 房主後台（Google 登入後才能使用，透過 Worker 把修改提交到 GitHub） |
 | `config.js` | 公開設定：Worker 網址、Google 用戶端 ID、GitHub repo 名稱（都不是密碼） |

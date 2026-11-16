@@ -335,6 +335,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="data/models.js"></script>
 <script src="models/goldfish-glass/room.js?v=2026-11-17a"></script>
 <script src="models/mirror-wings/room.js?v=2026-11-16c"></script>
+<script src="models/brainhorn/room.js?v=2026-11-17a"></script>
 <script>
 (()=>{
 'use strict';
@@ -1387,6 +1388,44 @@ const acTable=acLocal(-.66,.12);
   add(new THREE.CircleGeometry(.037,28),mugM,.04,y0+.001,-.02,g,{rx:-Math.PI/2,act:mAct,cast:false});
   add(new THREE.CircleGeometry(.0385,28),mat(0x8A5E3E,.3),.04,y0+.078,-.02,g,{rx:-Math.PI/2,act:mAct,cast:false});   // tea, a little below the rim
   add(new THREE.TorusGeometry(.024,.0065,8,18,Math.PI),mugM,.04+.041,y0+.045,-.02,g,{rz:-Math.PI/2,act:mAct});      // handle
+  // beside the mug: a little cream saucer with two madeleines and two canelés
+  {const sAct={type:'sweets',label:'點心碟'},d=new THREE.Group();d.position.set(-.07,y0,.065);d.rotation.y=.5;g.add(d);
+   const plate=mat(0xF4EEE4,.6);
+   add(new THREE.CylinderGeometry(.094,.074,.01,48),plate,0,.005,0,d,{act:sAct});
+   add(new THREE.TorusGeometry(.09,.0045,8,56),plate,0,.0105,0,d,{rx:Math.PI/2,act:sAct});   // the raised rim
+   // a grid of rows×cols points (cols wrap round when `wrap`) → an indexed BufferGeometry with vertex colours
+   const gridGeo=(rows,cols,wrap,fn)=>{const P=[],C=[],I=[];
+     for(let i=0;i<=rows;i++)for(let j=0;j<=cols;j++){const [x,y,z,r,g2,b2]=fn(i/rows,j/cols);P.push(x,y,z);C.push(r,g2,b2);}
+     for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+1,c=a+cols+1,e=c+1;I.push(a,c,b,b,c,e);}
+     const g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g2.setAttribute('color',new THREE.Float32BufferAttribute(C,3));
+     g2.setIndex(I);g2.computeVertexNormals();return g2;};
+   const sweetM=mat(0xffffff,.8,{vertexColors:true,side:THREE.DoubleSide});
+   // madeleine (about 7 × 4.6 cm), shell side up: a long oval shell, widest two-thirds of the way along; eleven ridges run its length,
+   // fanning gently from a hinge just beyond the narrow end; a soft hump in the middle; golden, browner in the grooves and round the edge.
+   // The last two rows are a short wall down to the saucer, so the edge is closed.
+   const MAD_N=11,MAD_L=.07,MAD_W=.046,madGeo=gridGeo(30,80,false,(t,u)=>{
+     const wall=t>.94,s0=Math.min(1,t/.94),                         // s0: from the middle of the shell (0) out to its edge (1)
+       a=(u-.5)*2*Math.PI;                                           // round the outline
+     const cz=Math.cos(a),sz=Math.sin(a),sAlong=.5+.5*cz;            // 0 at the narrow end, 1 at the wide end
+     const half=MAD_W/2*(.66+.34*Math.pow(sAlong,.7));               // rounded at both ends, the narrow end about two-thirds as wide
+     const hz0=-MAD_L/2-.012,ang0=Math.atan2(sz*half,cz*MAD_L/2-hz0)/.62,rid0=.5+.5*Math.cos(ang0*MAD_N*Math.PI);
+     const scal=1+.045*rid0*Math.max(0,cz);                         // the wide end is scalloped where each ridge reaches the edge
+     const x=sz*half*s0*scal,z=(cz*MAD_L/2)*s0*scal;
+     const hz=-MAD_L/2-.012,ang=Math.atan2(x,z-hz)/.62,ridge=.5+.5*Math.cos(ang*MAD_N*Math.PI);   // ridges fan from the hinge
+     const dome=Math.sqrt(Math.max(0,1-s0*s0)),h=wall?0:Math.max(.003,.015*dome)-(1-ridge)*.0034*Math.min(1,s0*2.5)*(1-.5*s0*s0);
+     const edge=Math.max(0,(s0-.7)/.3),g0=.96-.14*edge-(1-ridge)*.15*Math.min(1,s0*2.5);
+     return [x,h,z,g0,.69*g0-.08*edge,.37*g0-.1*edge];});
+   // canelé (about 4.5 cm across, 4.5 cm tall): ten rounded flutes all the way up, a crusty raised rim round the top, the middle dipped;
+   // nearly black-brown on top where it caramelised against the mould, dark mahogany on the sides
+   const CAN_R=.0225,CAN_H=.042,FL=10,prof=[[.95,0],[1,.004],[1,.03],[.97,.038],[.93,CAN_H],[.86,CAN_H+.0025],[.76,CAN_H+.0015],[.6,CAN_H-.003],[.3,CAN_H-.0045],[0,CAN_H-.004]];
+   const canGeo=gridGeo(prof.length-1,96,true,(t,u)=>{
+     const k=t*(prof.length-1),i0=Math.min(prof.length-2,Math.floor(k)),f=k-i0,[r0,y0]=prof[i0],[r1,y1]=prof[i0+1],r=r0+(r1-r0)*f,y=y0+(y1-y0)*f;
+     const a=u*Math.PI*2,fl=Math.pow(Math.abs(Math.cos(a*FL/2)),.6),onSide=y<CAN_H-.004&&r>.9,flute=1-.13*(1-fl)*(r>.7?1:0);
+     const R=CAN_R*r*flute,top=y>CAN_H-.006,rim=top&&r>.7;
+     const c=rim?[.2,.08,.04]:top?[.28,.12,.05]:[.36+.12*fl,.15+.06*fl,.06+.02*fl];   // flute crests catch a little light
+     return [Math.cos(a)*R,y,Math.sin(a)*R,...c];});
+   [[-.04,.012,.25],[.012,.052,-.55]].forEach(([x,z,ry])=>add(madGeo,sweetM,x,.0105,z,d,{ry,act:sAct}));
+   [[.042,-.012],[.004,-.05]].forEach(([x,z])=>add(canGeo,sweetM,x,.0105,z,d,{act:sAct}));}
 })();
 
 /* ---------- wall exhibits: paintings, medals, posters. Everyone can look closely; the owner can retitle, move, or put them away ---------- */
@@ -1631,13 +1670,21 @@ const work=id=>Object.assign({},WORKS[id],WOVR[id]||{});
 // heldLight: how strongly the hand-held light (below) lights it while you hold it (the goldfish has none, so it keeps the room's colours)
 const WK={
   goldfish:{H:.18,HB:.5,z:.19,lift:.003,tilt:0,swim:true,url:'models/goldfish-glass/goldfish_glass.glb',lib:'GoldfishGlass'},
+  // 腦角獸: a plush on the ring sofa (not in the cabinet), leaning on the backrest beside the beige cushion, looking out into the room;
+  // its name and words come from 物件說明 (TEXT.brainhorn), not from 創作
+  brainhorn:{H:.24,HB:.36,fixed:{dz:-.82,lean:.14,yaw:Math.PI/2-.3},textKey:'brainhorn',label:'腦角獸',url:'models/brainhorn/brainhorn.glb',lib:'Brainhorn'},
   wings:{H:.40,HB:.36,z:.17,lift:0,tilt:.07,big:true,ownEnv:true,heldLight:1,url:'models/mirror-wings/mirror_wings.glb',lib:'MirrorWings'},
 };
 PODS.forEach(P=>{P.podAct=P.hit.userData.act;});
-Object.keys(WK).forEach(id=>Object.assign(WK[id],{id,pod:-1,obj:null,swimOn:false,swimSet:false,act:{type:'work',id,label:WORKS[id].title},
+Object.keys(WK).forEach(id=>Object.assign(WK[id],{id,pod:-1,obj:null,swimOn:false,swimSet:false,act:{type:'work',id,label:WK[id].label||WORKS[id].title},
   p:new THREE.Vector3(),q:new THREE.Quaternion(),out:new THREE.Vector3()}));
 function wPlace(id,pod){   // stand work `id` in pod `pod`; that pod's click plane then stands for the work
-  const w=WK[id];pod=Math.round(+pod);
+  const w=WK[id];
+  if(w.fixed){if(w.pod===-2)return;w.pod=-2;const F=w.fixed;   // not in the cabinet: sitting on the ring sofa
+    w.q.setFromEuler(new THREE.Euler(-F.lean,F.yaw,0,'YXZ'));
+    w.p.set(backHalf(F.dz)+.12,.435,F.dz+.2).add(new THREE.Vector3(0,w.H/2,0).applyQuaternion(w.q));   // its centre, half its height above where it sits
+    w.out.set(Math.sin(F.yaw),0,Math.cos(F.yaw));return;}
+  pod=Math.round(+pod);
   if(!(pod>=0&&pod<PODS.length))pod=WORKS[id].pod;
   if(w.big&&!PODS[pod].big)pod=BIGPOD;                                        // a framed work only fits the tall pod
   if(Object.values(WK).some(o=>o!==w&&o.pod===pod))return;                    // that pod is already taken
@@ -1649,20 +1696,27 @@ function wPlace(id,pod){   // stand work `id` in pod `pod`; that pod's click pla
   w.q.copy(cab.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-w.tilt));   // its front faces the room, like the pod
   w.out.set(0,0,1).applyQuaternion(cab.quaternion);                                                             // the way out of the pod
   if(w.obj&&!(INSP.on&&INSP.cur===w)){const R=w.obj.root;R.position.copy(w.p);R.quaternion.copy(w.q);}}
-Object.keys(WK).forEach(id=>wPlace(id,WORKS[id].pod));
+Object.keys(WK).forEach(id=>wPlace(id,WORKS[id]?WORKS[id].pod:0));
 function captureEnv(w){   // what the room looks like from just in front of the work, for its mirrors to reflect
   if(!w.obj||!w.obj.setEnvMap||w.ownEnv)return;   // ownEnv: keeps its own neutral studio (the warm room made the mirrors look copper, not silver)
   if(!w.cube){w.rt=new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType});w.cube=new THREE.CubeCamera(.05,40,w.rt);}
   w.cube.position.copy(w.p).addScaledVector(w.out,.35);w.cube.updateMatrixWorld();
   const vis=w.obj.root.visible;w.obj.root.visible=false;w.cube.update(renderer,scene);w.obj.root.visible=vis;w.obj.setEnvMap(w.rt.texture);}
 Object.keys(WK).forEach(id=>{const w=WK[id],lib=window[w.lib];if(!lib)return;
-  lib.load(w.url+'?v=2026-11-16c',{renderer}).then(g=>{
+  lib.load(w.url+'?v=2026-11-17e',{renderer}).then(g=>{
+    if(id==='brainhorn')g=plushOf(g);
+    if(w.fixed)g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});   // not in a pod: click the thing itself
     w.obj=g;w.s=w.H/g.height;w.sBig=w.HB/g.height;if(g.setMotion)g.setMotion(w.swimOn);
     g.root.position.copy(w.p);g.root.quaternion.copy(w.q);g.root.scale.setScalar(w.s);scene.add(g.root);
     setTimeout(()=>captureEnv(w),1500);
   }).catch(e=>console.warn('作品載入失敗：'+WORKS[id].title,e));});
+function plushOf(m){   // the plush in the room's own clay look; its origin moved to the middle of its body so it turns about its centre
+  const C={Body:clay(0xF6F1EA),Brain:clay(0xE29FAE),BrainLobes:clay(0xF2BCC8),Horns:clay(0xC4B5EA),Eyes:clay(0x2A3160),Mouth:clay(0xB7A6E2),Spots:clay(0xC4B5EA),Stars:clay(0xC4B5EA)};
+  const meshes=[];Object.entries(m.parts).forEach(([name,o])=>{o.material=C[name]||C.Body;o.castShadow=true;o.receiveShadow=true;o.userData.noInk=true;meshes.push(o);});
+  const root=new THREE.Group();m.root.position.y=-.5;root.add(m.root);
+  return {root,meshes,height:1,tick(){}};}
 function applyWorks(o){Object.keys(WOVR).forEach(k=>delete WOVR[k]);Object.assign(WOVR,(o&&o.items)||{});
-  Object.keys(WK).forEach(id=>{const w=WK[id],v=work(id);w.act.label=v.title||WORKS[id].title;wPlace(id,v.pod);
+  Object.keys(WK).forEach(id=>{const w=WK[id];if(!WORKS[id])return;const v=work(id);w.act.label=v.title||WORKS[id].title;wPlace(id,v.pod);
     if(w.swim&&!w.swimSet)setSwim(w,v.motion===true,false);});   // the owner's default, until the visitor chooses
   if(INSP.on)inspCaption();}
 const INSP={on:false,cur:null,dir:0,k:0,dist:.62,user:new THREE.Quaternion(),face:false,vx:0,vy:0,drag:null,pts:new Map(),pinch:0,LAYER:5,DIM:6};
@@ -1692,6 +1746,8 @@ function inspOpen(id){
 function setSwim(w,on,byVisitor){w.swimOn=!!on;if(byVisitor)w.swimSet=true;if(w.obj&&w.obj.setMotion)w.obj.setMotion(w.swimOn);
   if(INSP.cur===w){const b=$('#inspSwim');b.textContent=w.swimOn?'停下來':'讓牠游動';b.setAttribute('aria-pressed',w.swimOn);}}
 function inspCaption(){   // name, then year · medium · size · period, then the owner's words about the work
+  if(INSP.cur.textKey){const k=INSP.cur.textKey,v=ovr(k),t=TEXT[k];   // an object of the room (物件說明): its popup title and words
+    $('#inspT').textContent=v.t||t[0];$('#inspM').hidden=true;$('#inspB').textContent=v.b||t[1];$('#inspB').hidden=popOff(k);return;}
   const id=INSP.cur.id,v=work(id),meta=[v.year,v.medium,v.size,v.period].map(x=>String(x||'').trim()).filter(Boolean);
   $('#inspT').textContent=v.title||WORKS[id].title;$('#inspM').textContent=meta.join('・');$('#inspM').hidden=!meta.length;
   $('#inspB').textContent=v.desc||'';$('#inspB').hidden=!v.desc;}
@@ -2935,10 +2991,10 @@ const pickPoint=new THREE.Vector3();   // where the last pick landed, so the sof
 const HINT={work:()=>'點擊拿起來看',dlamp:()=>dlampOn?'點擊關燈':'點擊開燈',moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
 function updateHover(){
   let a=started&&!modalOpen?(locked?pick(center):(!isTouch?pick(mouse):null)):null;hovered=a;
-  const el=$('#hover');if(a&&a.type==='work'&&work(a.id).hover===false)a=null;
+  const el=$('#hover');if(a&&a.type==='work'&&(WK[a.id].textKey?(TOVR[WK[a.id].textKey]||{}).hov===false:work(a.id).hover===false))a=null;
   if(a&&(a.type==='exhibit'?(exState[a.id]&&exState[a.id].hover===false):(a.type==='drink'?ovr('drink:'+a.idx).hov===false:(TOVR[a.type]&&TOVR[a.type].hov===false))))a=null;   /* owner turned this object's hover label off */
   if(!a){el.hidden=true;$('#cross').classList.remove('on');return;}
-  el.hidden=false;$('#cross').classList.add('on');el.querySelector('.n').textContent=(a.type==='exhibit'||a.type==='work'?a.label:(a.type==='drink'?(ovr('drink:'+a.idx).h||a.label):(ovr(a.type).h||a.label)));
+  el.hidden=false;$('#cross').classList.add('on');el.querySelector('.n').textContent=(a.type==='work'&&WK[a.id].textKey?(ovr(WK[a.id].textKey).h||a.label):a.type==='exhibit'||a.type==='work'?a.label:(a.type==='drink'?(ovr('drink:'+a.idx).h||a.label):(ovr(a.type).h||a.label)));
   {const noPop=a.type==='exhibit'?(exState[a.id]&&exState[a.id].popup===false):(a.type==='drink'?popOff('drink:'+a.idx):popOff(a.type));   // no popup set in the backend: no "click to view" hint
    const hint=HINT[a.type]?HINT[a.type]():(noPop?'':(locked?'點擊或按 E 查看':'點擊查看'));const he=el.querySelector('.h');he.textContent=hint;he.hidden=!hint;}
   if(!locked&&!isTouch){el.style.left=((mouse.x+1)/2*innerWidth)+'px';el.style.top=((1-mouse.y)/2*innerHeight+22)+'px';}else{el.style.left='';el.style.top='';}
@@ -2998,10 +3054,12 @@ const TEXT={
   armchair:['單人沙發','一個人的位置，面向房間的中央。'],
   rug:['地毯','腳底下軟軟的，走過去會安靜一點。'],
   mugtable:['小圓桌','剛好放得下一杯茶的大小。'],
+  sweets:['點心碟','兩個瑪德蓮、兩個可麗露。配一杯茶剛剛好。'],
   mug:['馬克杯','還溫溫的。坐下來，慢慢喝。'],
   shelf:['書桌櫃','上面幾層收著房主的紀錄：夢境紀錄、覺察筆記、心情日記，點一本書打開來看。下面是一張小書桌。'],
   blank:['空白冊','還沒寫的頁數。新的紀錄同步進來時，會長成新的一本。'],
   swcab:['推薦書櫃','房主推薦的書。拿起一本，看看它在說什麼。上面有課程傳單和一本留言筆記本。'],
+  brainhorn:['腦角獸','腦神經外科的吉祥物。頭上長著像神經元一樣的角，額頭上有一顆粉紅色的小腦袋，背上一排十字紋。'],
   memcab:['記憶收藏櫃','一格一格的空位，等著放進小東西。放進去的東西越多，櫃子的形狀也會跟著改變。'],
   btable:['白色小圓桌','兩杯夏日特調，一杯柚子氣泡，一杯百香果冰茶，冰塊還沒化。'],
   chair:['白色椅子','坐下來，看海。'],
