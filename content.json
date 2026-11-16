@@ -138,8 +138,8 @@
         "hov": false
       },
       "sweets": {
-        "pop": false,
-        "hov": false
+        "h": "我喜歡的點心",
+        "pop": false
       },
       "mug": {
         "h": "還溫溫的。",
@@ -278,5 +278,5 @@
       }
     ]
   },
-  "savedAt": 1794845557173
+  "savedAt": 1794845596443
 }
