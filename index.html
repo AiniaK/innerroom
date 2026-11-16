@@ -1512,6 +1512,10 @@ function notebookCover(plain,o){o=o||NB_GREEN;const ck=o.key+(plain?':back':':fr
   g.strokeStyle=gold;g.globalAlpha=.75;g.lineWidth=2;g.strokeRect(38,34,w-70,h-68);g.globalAlpha=.45;g.lineWidth=1;g.strokeRect(46,42,w-86,h-84);g.globalAlpha=1;   // blind and gold rules
   g.textAlign='center';g.textBaseline='middle';
   let fs=Math.round(62*(o.ts||1));g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;while(g.measureText(o.title).width>w-130&&fs>22){fs-=2;g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;}
+  if(o.album){   // a photo album's cover: a sunken window for a picture, held by four gold photo corners
+    const x0=w*.26,y0=h*.12,ww=w*.48,hh=h*.2;g.fillStyle='rgba(0,0,0,.28)';g.fillRect(x0,y0,ww,hh);g.fillStyle=`rgba(${o.lt},.12)`;g.fillRect(x0+6,y0+6,ww-12,hh-12);
+    g.strokeStyle=gold;g.globalAlpha=.8;g.lineWidth=1.5;g.strokeRect(x0-6,y0-6,ww+12,hh+12);g.globalAlpha=1;g.fillStyle=gold;
+    for(const [cx,cy,sx,sy] of [[x0,y0,1,1],[x0+ww,y0,-1,1],[x0,y0+hh,1,-1],[x0+ww,y0+hh,-1,-1]]){g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+sx*30,cy);g.lineTo(cx,cy+sy*30);g.closePath();g.fill();}}
   const title=o.title;g.fillStyle='rgba(0,0,0,.35)';g.fillText(title,w/2+1,h*.44+2);g.fillStyle=gold;g.fillText(title,w/2,h*.44);
   g.font='26px "LXGW WenKai TC","Kaiti TC",serif';g.fillStyle='rgba(0,0,0,.3)';g.fillText(o.sub,w/2+1,h*.44+72);g.fillStyle=gold;g.globalAlpha=.85;g.fillText(o.sub,w/2,h*.44+70);g.globalAlpha=1;
   // the gold is blocked into cloth: let the weave break it up a little
@@ -3746,6 +3750,10 @@ const DREAM_TONE={溫柔:{base:'#C9A3A6',lt:'235,210,210',dk:'90,55,60',fib:'240
   清醒:{base:'#A5B6C4',lt:'225,235,242',dk:'60,75,90',fib:'230,238,245',fibDk:'55,70,85',ink:'#2C3A46'},
   '':{base:'#B3ACA2',lt:'225,220,212',dk:'70,64,58',fib:'230,226,218',fibDk:'60,55,50',ink:'#3A332C'}};
 const toneOf=t=>DREAM_TONE[t]||DREAM_TONE[''];
+// the dream album (a Notion page whose title has 相簿 in it: only the places dreamt of, no story) is bound like a photo album:
+// charcoal linen with gold, thicker, with raised bands across the spine, and it stands beside the ceramic vase
+const isAlbum=e=>/相簿/.test(e.title||'');
+const ALBUM_TONE={base:'#2E2B28',lt:'125,116,104',dk:'10,9,8',fib:'150,140,125',fibDk:'8,7,6',ink:'#D8BE84'};
 function jrLoad(kind){
   if(JR.data[kind])return Promise.resolve(JR.data[kind]);
   if(!GB_API)return Promise.resolve([]);
@@ -3802,9 +3810,10 @@ const MOOD_SRC={label:'心情筆記',cover:NB_MOOD,
 function openMood(){openBookUI(MOOD_SRC);}
 
 /* ---- dream books ---- */
-function dreamSrc(e,book){return {label:'夢境紀錄・'+e.title,
-  cover:Object.assign({key:'dream:'+(e.tone||'-')+':'+e.id,title:[...e.title].slice(0,8).join(' '),sub:'夢 境 紀 錄',ts:.8},toneOf(e.tone)),
-  plate:()=>`<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">夢境紀錄</div><div class="bk-plate-s">${esc(e.title)}</div>${e.date?`<div class="bk-plate-n">${esc(jrDate(e.date))}</div>`:''}${e.tone?`<div class="bk-plate-tone">${esc(e.tone)}</div>`:''}</div></div>`,
+function dreamSrc(e,book){return {label:isAlbum(e)?e.title:'夢境紀錄・'+e.title,
+  cover:isAlbum(e)?Object.assign({key:'album:'+e.id,title:[...e.title].slice(0,8).join(' '),sub:'夢 境 相 簿',ts:.8,album:true},ALBUM_TONE)
+    :Object.assign({key:'dream:'+(e.tone||'-')+':'+e.id,title:[...e.title].slice(0,8).join(' '),sub:'夢 境 紀 錄',ts:.8},toneOf(e.tone)),
+  plate:()=>`<div class="bk-inner bk-plate"><div class="bk-plate-box"><div class="bk-plate-t">${isAlbum(e)?'夢境相簿':'夢境紀錄'}</div><div class="bk-plate-s">${esc(e.title)}</div>${e.date?`<div class="bk-plate-n">${esc(jrDate(e.date))}</div>`:''}${e.tone?`<div class="bk-plate-tone">${esc(e.tone)}</div>`:''}</div></div>`,
   load:()=>Promise.resolve(),
   paginate(){jrSlots(jrFlow([{head:`<div class="j-h">${esc(e.title)}</div><div class="j-meta">${[jrDate(e.date),e.tone].filter(Boolean).map(esc).join('・')}</div>`,blocks:e.blocks||[]}]));},
   target:()=>bk.single?0:1,   // opens on its first page
@@ -3812,12 +3821,12 @@ function dreamSrc(e,book){return {label:'夢境紀錄・'+e.title,
 
 // the spine: the title running down it (vertical writing), between two thin rules near head and foot
 function spineTex(e,t,hh){
-  const T=toneOf(e.tone),W=96,H=Math.round(W*hh/t),c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  const T=isAlbum(e)?ALBUM_TONE:toneOf(e.tone),W=96,H=Math.round(W*hh/t),c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
   g.fillStyle=T.base;g.fillRect(0,0,W,H);
   const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,7));
   for(let i=0;i<500;i++){g.fillStyle=R()<.5?`rgba(${T.lt},.08)`:`rgba(${T.dk},.10)`;g.fillRect(R()*W,R()*H,1+R()*2,1);}   // cloth
-  g.fillStyle=T.ink;g.globalAlpha=.7;for(const y of [H*.06,H*.075,H*.925,H*.94])g.fillRect(W*.15,y,W*.7,Math.max(1.5,W*.02));g.globalAlpha=1;
-  const chars=[...e.title].slice(0,14),fs=.8*Math.min(W*.62,(H*.72)/Math.max(chars.length,4));
+  g.fillStyle=T.ink;g.globalAlpha=.7;for(const y of isAlbum(e)?[H*.05,H*.065,H*.19,H*.205,H*.795,H*.81,H*.935,H*.95]:[H*.06,H*.075,H*.925,H*.94])g.fillRect(W*.15,y,W*.7,Math.max(1.5,W*.02));g.globalAlpha=1;   // an album has a gold rule either side of each raised band
+  const chars=[...e.title].slice(0,14),fs=(isAlbum(e)?.62:.8)*Math.min(W*.62,(H*.72)/Math.max(chars.length,4));
   g.font=`600 ${fs}px "LXGW WenKai TC","Kaiti TC",serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle=T.ink;
   const y0=H*.5-(chars.length-1)*fs*1.08/2;chars.forEach((ch,i)=>g.fillText(ch,W/2,y0+i*fs*1.08));
   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();return tex;}
@@ -3826,22 +3835,32 @@ function buildDreamBooks(items){
   for(const b of JR.books){scene.remove(b.g);const i=targets.indexOf(b.hit);if(i>=0)targets.splice(i,1);}
   JR.books=[];if(!HUTCH)return;
   const order=[0,1,2];   // fill from the lowest shelf up
-  let row=0,x=HUTCH.rows[order[0]][1];
-  items.forEach((e,idx)=>{
-    const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,11));
-    const len=(e.blocks||[]).reduce((a,b)=>a+(b.x?b.x.length:0)+(b.t==='img'?300:0),0);
-    const t=Math.min(.05,.022+len/9000*.02+R()*.006);
-    let [y,x0,x1]=HUTCH.rows[order[row]];
-    if(x+t>x1){row++;if(row>=order.length)return;[y,x0,x1]=HUTCH.rows[order[row]];x=x0;}
-    const hh=HUTCH.height[order[row]]*(.74+R()*.14),d=.15+R()*.04;
-    const T=toneOf(e.tone),act={type:'dreambook',idx,label:'夢境紀錄・'+e.title};
+  const rows=HUTCH.rows.map(r=>r.slice());
+  // albums stand at the right end of the middle shelf, right beside the ceramic vase; the other dreams fill the rest
+  const albums=items.filter(isAlbum),dreams=items.filter(e=>!isAlbum(e));
+  let ax=rows[1][2]+.045;
+  const place=(e,y,x,hh,d,t,R)=>{
+    const idx=JR.books.length,album=isAlbum(e),T=album?ALBUM_TONE:toneOf(e.tone),act={type:'dreambook',idx,label:album?e.title:'夢境紀錄・'+e.title};
     const g=new THREE.Group();g.position.set(x+t/2,y,HUTCH.zB+.03+d);scene.add(g);   // pivot: the bottom of the spine, at the shelf's front
     const cloth=mat(new THREE.Color(T.base).getHex(),.85);
     const body=add(rbox(t,hh,d,Math.min(t,d)*.25,6),cloth,0,hh/2,-d/2,g,{act});
     add(rbox(t-.006,hh-.01,d-.006,.002),mat(0xF3EBDA,.95),0,hh/2,-d/2-.004,g,{act,ray:false});   // page edges just inside the boards
     const sp=add(new THREE.PlaneGeometry(t*.92,hh*.96),new THREE.MeshToonMaterial({map:spineTex(e,t,hh),gradientMap:gradMap}),0,hh/2,.0006,g,{act,cast:false});
     sp.userData.noInk=true;
-    JR.books.push({g,e,hit:body,home:g.position.clone(),homeQ:g.quaternion.clone(),hh,d,t});
+    if(album)for(const k of [.135,.865])add(rbox(t-.002,.011,.006,.003),cloth,0,hh*k,.001,g,{act,ray:false});   // the raised bands across the album's spine
+    JR.books.push({g,e,hit:body,home:g.position.clone(),homeQ:g.quaternion.clone(),hh,d,t});};
+  albums.forEach(e=>{const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,11)),t=.058,hh=HUTCH.height[1]*.8,d=.2;
+    ax-=t;place(e,rows[1][0],ax,hh,d,t,R);ax-=.004;});
+  if(albums.length)rows[1][2]=ax-.012;
+  let row=0,x=rows[order[0]][1];
+  dreams.forEach(e=>{
+    const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,11));
+    const len=(e.blocks||[]).reduce((a,b)=>a+(b.x?b.x.length:0)+(b.t==='img'?300:0),0);
+    const t=Math.min(.05,.022+len/9000*.02+R()*.006);
+    let [y,x0,x1]=rows[order[row]];
+    if(x+t>x1){row++;if(row>=order.length)return;[y,x0,x1]=rows[order[row]];x=x0;}
+    const hh=HUTCH.height[order[row]]*(.74+R()*.14),d=.15+R()*.04;
+    place(e,y,x,hh,d,t,R);
     x+=t+.003+(R()<.12?.02:0);});}
 // take a book down: tip it out by its top, slide it off the shelf, bring it up in front of you; then the book opens on screen
 const _jq=new THREE.Quaternion(),_jq2=new THREE.Quaternion(),_jv=new THREE.Vector3(),_jy=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-Math.PI/2);
