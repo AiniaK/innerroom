@@ -224,6 +224,17 @@
       }
     }
   },
+  "works": {
+    "items": {
+      "goldfish": {
+        "year": "2012",
+        "medium": "複合媒材",
+        "size": "高22",
+        "period": "",
+        "desc": ""
+      }
+    }
+  },
   "tv": {
     "src": "media/tv-adventure.mp4",
     "name": "adventure.mp4",
@@ -255,5 +266,5 @@
       }
     ]
   },
-  "savedAt": 1794101493588
+  "savedAt": 1794822493243
 }
