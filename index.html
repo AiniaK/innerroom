@@ -284,7 +284,13 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 .bk-j figure img{cursor:zoom-in;display:block;width:100%;height:calc(var(--ph) * .36);object-fit:contain;background:rgba(150,118,86,.06);border-radius:3px}
 .bk-j figcaption{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6}
 .bk-plate-tone{display:inline-block;margin-top:10px;font-size:12px;letter-spacing:.3em;color:var(--muted)}
-@media (max-width:760px){.bk-nav{top:auto;bottom:-56px;left:calc(50% - 56px)}.bk-nav.next{left:calc(50% + 12px);right:auto}.bk-hint{display:none}}
+.bk-pg{position:absolute;left:0;right:0;bottom:-40px;display:flex;justify-content:center;align-items:center;gap:6px;margin:0;font-size:13px;color:rgba(251,246,236,.92);letter-spacing:.08em;font-variant-numeric:tabular-nums;opacity:0;transition:opacity .3s .6s;pointer-events:none}
+.bk.open .bk-pg{opacity:1;pointer-events:auto}
+.bk-pg input{width:3.2em;padding:3px 4px;text-align:center;font:inherit;font-size:13px;color:var(--ink);background:rgba(251,246,236,.92);border:1px solid rgba(251,246,236,.7);border-radius:6px;-moz-appearance:textfield}
+.bk-pg input::-webkit-inner-spin-button,.bk-pg input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.bk-pg input:focus-visible{outline:2px solid var(--ember);outline-offset:1px}
+.bk.journal .bk-hint{display:none}
+@media (max-width:760px){.bk-nav{top:auto;bottom:-56px;left:calc(50% - 56px)}.bk-nav.next{left:calc(50% + 12px);right:auto}.bk-hint{display:none}.bk-pg{bottom:auto;top:-40px}}
 @media (prefers-reduced-motion:reduce){.bk-book,.bk-leaf,.bk-cover{transition-duration:.01s!important}}
 </style>
 </head>
@@ -3188,10 +3194,23 @@ function bkRender(){
   L.innerHTML=bkPageHTML(l);R.innerHTML=bkPageHTML(r);
   L.classList.toggle('blank',!l);R.classList.toggle('blank',!r);
   bk.el.querySelector('#bkPrev').disabled=bk.view<=0;bk.el.querySelector('#bkNext').disabled=bk.view>=bkViews()-1;
-  bkWire();}
+  bkPgSync();bkWire();}
+// the page box under a journal: 「第 n / 總頁數 頁」, n can be typed in. The page you are on is remembered for each book,
+// so a book closed by accident (a click outside it) opens again where you left off.
+const BK_LAST='innerroom.bk.last';
+function bkCurPage(){const [l,r]=bkPair(bk.view),ns=[l,r].map(p=>p?bk.pages.indexOf(p)+1:0).filter(n=>n>0);   // on a two-page spread: the page you typed, if it is one of the two, else the left one
+  return ns.includes(bk.want)?bk.want:(ns[0]||0);}
+function bkPgSync(){const pg=bk.el&&bk.el.querySelector('#bkPg');if(!pg)return;
+  const real=!bk.loading&&bk.pages.length&&bk.pages[0].type!=='loading',n=real?bkCurPage():0;
+  const inp=pg.querySelector('#bkPgI');if(document.activeElement!==inp)inp.value=n||'';inp.max=real?bk.pages.length:1;inp.disabled=!real;
+  pg.querySelector('#bkPgN').textContent=real?bk.pages.length:'–';
+  if(real&&n&&bk.src){try{const m=JSON.parse(localStorage.getItem(BK_LAST)||'{}');m[bk.src.label]=n;localStorage.setItem(BK_LAST,JSON.stringify(m));}catch(e){}}}
+function bkViewOfPage(n){const i=bk.slots.indexOf(bk.pages[n-1]);return i<0?0:(bk.single?i:Math.floor(i/2));}
+function bkGoPage(n){if(bk.busy||bk.loading)return;bk.want=n;bk.view=Math.max(0,Math.min(bkViewOfPage(n),bkViews()-1));bkRender();}
+function bkSavedPage(){if(!bk.src)return 0;try{const n=+(JSON.parse(localStorage.getItem(BK_LAST)||'{}')[bk.src.label]||0);return n>=1&&n<=bk.pages.length?n:0;}catch(e){return 0;}}
 // open on the newest comments (the blank page is one turn further on, or right beside them)
 function bkTargetView(){
-  if(bk.src){const i=bk.src.target();return bk.single?i:Math.floor(i/2);}
+  if(bk.src){const n=bkSavedPage();if(n){bk.want=n;return bkViewOfPage(n);}const i=bk.src.target();return bk.single?i:Math.floor(i/2);}   // a journal reopens on the page you were reading
   let last=-1;bk.slots.forEach((p,i)=>{if(p&&p.type==='entries')last=i;});
   const i=last>=0?last:bk.slots.findIndex(p=>p&&p.type==='write');
   return bk.single?i:Math.floor(i/2);}
@@ -3324,11 +3343,17 @@ function openBookUI(src){
        <div class="bk-cover"><div class="bk-face bk-cover-front" aria-label="${esc(src?src.label:'留言筆記本・內在房間')}"></div><div class="bk-face bk-cover-back"></div></div>
      </div>
      <button class="bk-nav" id="bkPrev" type="button" aria-label="往前翻">‹</button><button class="bk-nav next" id="bkNext" type="button" aria-label="往後翻">›</button>
-     <div class="bk-hint">← → 或點兩側翻頁</div></div>`,{book:true});
+     <div class="bk-hint">← → 或點兩側翻頁</div>
+     ${src?'<form class="bk-pg" id="bkPg" novalidate><label for="bkPgI">第</label><input type="number" id="bkPgI" inputmode="numeric" min="1" step="1" aria-label="跳到第幾頁"><span>/ <span id="bkPgN">–</span> 頁</span></form>':''}</div>`,{book:true});
   bk.el=card.querySelector('#bk');bk.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;bkMeasure();
   for(const [sel,plain] of [['.bk-cover-front',false],['.bk-cover-back',true]]){const nc=notebookCover(plain,src&&src.cover);if(!nc.url)nc.url=nc.canvas.toDataURL('image/jpeg',.9);bk.el.querySelector(sel).style.backgroundImage=`url(${nc.url})`;}
   gbBookCloser=bkClose;
   bk.el.querySelector('#bkPrev').onclick=()=>bkFlip(-1);bk.el.querySelector('#bkNext').onclick=()=>bkFlip(1);
+  const pg=bk.el.querySelector('#bkPg');
+  if(pg){const inp=pg.querySelector('#bkPgI');   // type a page number and press Enter (or leave the box) to go straight there
+    const go=()=>{const n=Math.round(+inp.value);if(n>=1&&n<=bk.pages.length)bkGoPage(n);else bkPgSync();};
+    pg.addEventListener('submit',e=>{e.preventDefault();go();inp.blur();});inp.addEventListener('change',go);
+    ['click','pointerdown','pointerup'].forEach(t=>pg.addEventListener(t,e=>e.stopPropagation()));}
   bk.el.addEventListener('click',e=>{if(e.target.matches('.bk-j figure img')&&bk.el.classList.contains('open')){e.stopPropagation();jrZoom(e.target);return;}
     const b=e.target.closest('[data-act]');if(b){e.stopPropagation();bkAction(b);return;}
     if(e.target.closest('input,textarea,button,a,label,.bk-gbtn,iframe'))return;
