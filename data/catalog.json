@@ -414,10 +414,28 @@
     "pod": 0,
     "motion": false,
     "hover": true
-   }
+   },
+   "big": false
+  },
+  "wings": {
+   "def": {
+    "title": "以碎為翼",
+    "year": "2013",
+    "medium": "複合媒材",
+    "size": "寬 40 公分",
+    "period": "大學時期",
+    "desc": "碎掉的鏡子，一片一片拼成一對翅膀，襯在深色的絨布上。",
+    "pod": 11,
+    "motion": false,
+    "hover": true
+   },
+   "big": true
   }
  },
- "pods": 14,
+ "pods": 12,
+ "bigPods": [
+  11
+ ],
  "wall": {
   "z0": -3.42,
   "z1": 3.42,

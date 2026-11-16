@@ -324,7 +324,9 @@ function renderWorks() {
   $('#workList').innerHTML = ids.map(id => {
     const d = workDef(id), v = Object.assign({}, d, works[id] || {});
     const field = ([k, name, ph, max]) => `<label class="wf"><span>${esc(name)}</span><input type="text" data-f="${k}" maxlength="${max}" value="${esc(v[k] || '')}" placeholder="${esc(ph)}"></label>`;
-    const opts = Array.from({ length: pods }, (_, i) => `<option value="${i}" ${+v.pod === i ? 'selected' : ''}>第 ${i + 1} 格</option>`).join('');
+    const big = new Set(catalog.bigPods || []), needBig = !!(catalog.works[id] && catalog.works[id].big);   // 有框的作品只放得進大格子
+    const opts = Array.from({ length: pods }, (_, i) => i).filter(i => big.has(i) === needBig)
+      .map(i => `<option value="${i}" ${+v.pod === i ? 'selected' : ''}>第 ${i + 1} 格${big.has(i) ? '（大格子）' : ''}</option>`).join('');
     return `<div class="adm-row" data-work="${esc(id)}"><div class="k">${esc(d.title || id)}<br>${esc(id)}</div><div class="f">
       ${field(WORK_TEXT[0])}
       <div class="two">${WORK_TEXT.slice(1).map(field).join('')}</div>

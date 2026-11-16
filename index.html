@@ -328,6 +328,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="config.js"></script>
 <script src="data/models.js"></script>
 <script src="models/goldfish-glass/room.js?v=2026-11-16b"></script>
+<script src="models/mirror-wings/room.js?v=2026-11-16c"></script>
 <script>
 (()=>{
 'use strict';
@@ -1575,72 +1576,107 @@ const PODS=[];
   const outerPts=blob(0,0,1.68,.8,3.6,.025,120,1.3);
   const shape=new THREE.Shape(outerPts);
   const rows=4,gap=.055,top=.64,rh=(top*2-gap*(rows-1))/rows;
-  for(let r=0;r<rows;r++){
-    const cy=top-rh/2-r*(rh+gap);
-    const span=1.46-Math.abs(cy)*.35;
-    const n=2+Math.floor(R()*3);let ws=[];for(let i=0;i<n;i++)ws.push(.6+R());const tot=ws.reduce((a,b)=>a+b,0);
-    let x=-span;const usable=span*2-gap*(n-1);
+  // one tall pod spans the middle two rows, for a framed work (《以碎為翼》, 52 × 40 cm); the cabinet "grew" it when that work moved in
+  const BIG={cx:-.35,w:.76,rows:[1,2]};
+  const fill=(x0,x1,n,cy,vary=1)=>{let ws=[];for(let i=0;i<n;i++)ws.push(.6+R()*vary);const tot=ws.reduce((a,b)=>a+b,0);
+    let x=x0;const usable=x1-x0-gap*(n-1);
     ws.forEach(w=>{const pw=w/tot*usable;const cx=x+pw/2;
       const ph=R()*6,hole=blob(cx,cy,pw/2,rh/2,2.6,.03,64,ph);shape.holes.push(new THREE.Path(hole));
       // the pod's floor right under its centre: the blob's lowest point, wobble included (t = 3π/2 in blob())
       const floor=cy-rh/2*(1+.03*(.6*Math.cos(ph)-.4*Math.cos(2*ph)));
-      PODS.push({cx,cy,w:pw,h:rh,floor});x+=pw+gap;});
+      PODS.push({cx,cy,w:pw,h:rh,floor});x+=pw+gap;});};
+  for(let r=0;r<rows;r++){
+    const cy=top-rh/2-r*(rh+gap);
+    const span=1.46-Math.abs(cy)*.35;
+    if(BIG.rows.includes(r)){   // pods on either side of the tall one
+      const a=BIG.cx-BIG.w/2-gap,b=BIG.cx+BIG.w/2+gap;
+      fill(-span,a,Math.max(1,Math.round((a+span)/.6)),cy,.35);fill(b,span,Math.max(1,Math.round((span-b)/.55)),cy,.35);}   // evener widths, so no pod ends up a sliver at the rounded edge
+    else fill(-span,span,2+Math.floor(R()*3),cy);
   }
+  {const cy=top-rh/2-1.5*(rh+gap),h=rh*2+gap,ph=R()*6;
+   shape.holes.push(new THREE.Path(blob(BIG.cx,cy,BIG.w/2,h/2,2.6,.02,64,ph)));
+   PODS.push({cx:BIG.cx,cy,w:BIG.w,h,floor:cy-h/2*(1+.02*(.6*Math.cos(ph)-.4*Math.cos(2*ph))),big:true});}
   const geo=new THREE.ExtrudeGeometry(shape,{depth:.24,bevelEnabled:true,bevelSize:.012,bevelThickness:.012,bevelSegments:3,curveSegments:24});
   add(geo,M.ceramic,0,0,.03,G,{act});
   add(new THREE.ExtrudeGeometry(new THREE.Shape(outerPts),{depth:.02,bevelEnabled:false}),M.ceramicBack,0,0,.005,G,{act});
   PODS.forEach((p,i)=>{p.hit=add(new THREE.PlaneGeometry(p.w*.92,p.h*.8),M.hit,p.cx,p.cy,.285,G,{cast:false,receive:false,act:{type:'pod',idx:i,label:'收藏格・'+(i+1)}});});
+  // the tall pod's little black stand (like the acrylic holders the framed work stood on when it was shown), so the frame clears the pod's rounded corners
+  {const P=PODS.find(p=>p.big),blk=mat(0x1d1a18,.35);P.standH=.06;
+   [-.13,.13].forEach(dx=>{add(rbox(.035,P.standH,.05,.006),blk,P.cx+dx,P.floor+P.standH/2,.17,G,{ray:false});add(rbox(.035,.03,.012,.004),blk,P.cx+dx,P.floor+P.standH+.006,.205,G,{ray:false});});}
 })();
 
-/* ---------- the goldfish glass (models/goldfish-glass: built in Blender, loaded by room.js), kept in one of the memory cabinet's pods.
-   Clicking it takes it down: it slides out of its pod, floats up in front of you and grows; drag to turn it, scroll or pinch to bring it
-   closer, and Esc / 放回去 sends it back. While held it is drawn in its own small scene over a dimmed room, so the room never cuts into it. ---------- */
-/* the owner's own works (後台「創作」分頁): defaults here, the owner's edits arrive in content.json under works.items */
-const WORKS={goldfish:{title:'金魚酒杯',year:'',medium:'',size:'',period:'大學時期',desc:'倒放的高腳杯裡裝著半杯淡金色的水。一條紅色的金魚貼著水面停著，一片鰭伸出了水面。',pod:0,motion:false,hover:true}};
+/* ---------- the owner's own works (後台「創作」分頁), kept in the memory cabinet's pods. Each is built in Blender and loaded by its own
+   models/<name>/room.js. Clicking one takes it down: it slides out of its pod, floats up in front of you and grows; drag to turn it,
+   scroll or pinch to bring it closer, and Esc / 放回去 sends it back. While held it is drawn in a second pass over the dimmed room. ---------- */
+const BIGPOD=PODS.findIndex(p=>p.big);
+// defaults here; the owner's edits arrive in content.json under works.items
+const WORKS={
+  goldfish:{title:'金魚酒杯',year:'',medium:'',size:'',period:'大學時期',desc:'倒放的高腳杯裡裝著半杯淡金色的水。一條紅色的金魚貼著水面停著，一片鰭伸出了水面。',pod:0,motion:false,hover:true},
+  wings:{title:'以碎為翼',year:'2013',medium:'複合媒材',size:'寬 40 公分',period:'大學時期',desc:'碎掉的鏡子，一片一片拼成一對翅膀，襯在深色的絨布上。',pod:BIGPOD,motion:false,hover:true},
+};
 const WOVR={};
 const work=id=>Object.assign({},WORKS[id],WOVR[id]||{});
-const GF={id:'goldfish',pod:-1,swim:false,swimSet:false,act:{type:'work',id:'goldfish',label:'金魚酒杯'},obj:null,H:.18,HB:.5,p:new THREE.Vector3(),q:new THREE.Quaternion(),out:new THREE.Vector3()};
+// how each work sits and is held: H its height on the shelf, HB its height in your hands, z how far into the pod (pod-local), lift above the
+// pod floor, tilt back (radians), big: needs the tall pod; swim: has a 讓牠游動 switch; ownEnv: its mirrors reflect its own neutral studio, not the room
+const WK={
+  goldfish:{H:.18,HB:.5,z:.19,lift:.003,tilt:0,swim:true,url:'models/goldfish-glass/goldfish_glass.glb',lib:'GoldfishGlass'},
+  wings:{H:.40,HB:.36,z:.17,lift:0,tilt:.07,big:true,ownEnv:true,url:'models/mirror-wings/mirror_wings.glb',lib:'MirrorWings'},
+};
 PODS.forEach(P=>{P.podAct=P.hit.userData.act;});
-function gfPlace(pod){   // stand the glass in pod `pod`; that pod's click plane then stands for the glass
-  pod=clamp(Math.round(+pod||0),0,PODS.length-1);if(pod===GF.pod)return;
-  if(GF.pod>=0)PODS[GF.pod].hit.userData.act=PODS[GF.pod].podAct;
-  GF.pod=pod;const P=PODS[pod],cab=P.hit.parent;P.hit.userData.act=GF.act;
+Object.keys(WK).forEach(id=>Object.assign(WK[id],{id,pod:-1,obj:null,swimOn:false,swimSet:false,act:{type:'work',id,label:WORKS[id].title},
+  p:new THREE.Vector3(),q:new THREE.Quaternion(),out:new THREE.Vector3()}));
+function wPlace(id,pod){   // stand work `id` in pod `pod`; that pod's click plane then stands for the work
+  const w=WK[id];pod=Math.round(+pod);
+  if(!(pod>=0&&pod<PODS.length))pod=WORKS[id].pod;
+  if(w.big&&!PODS[pod].big)pod=BIGPOD;                                        // a framed work only fits the tall pod
+  if(Object.values(WK).some(o=>o!==w&&o.pod===pod))return;                    // that pod is already taken
+  if(pod===w.pod)return;
+  if(w.pod>=0)PODS[w.pod].hit.userData.act=PODS[w.pod].podAct;
+  w.pod=pod;const P=PODS[pod],cab=P.hit.parent;P.hit.userData.act=w.act;
   cab.updateMatrixWorld(true);
-  GF.p.set(P.cx,P.floor+.003+GF.H/2,.19).applyMatrix4(cab.matrixWorld);   // standing on the pod's floor, near the front of its opening
-  GF.q.copy(cab.quaternion);                                              // its front (the fish's side) faces the room, like the pod
-  GF.out.set(0,0,1).applyQuaternion(cab.quaternion);                      // the way out of the pod
-  if(GF.obj&&!INSP.on){const R=GF.obj.root;R.position.copy(GF.p);R.quaternion.copy(GF.q);}}
-gfPlace(WORKS.goldfish.pod);
-if(window.GoldfishGlass)GoldfishGlass.load('models/goldfish-glass/goldfish_glass.glb').then(g=>{
-  GF.obj=g;GF.s=GF.H/g.height;GF.sBig=GF.HB/g.height;if(g.setMotion)g.setMotion(GF.swim);
-  g.root.position.copy(GF.p);g.root.quaternion.copy(GF.q);g.root.scale.setScalar(GF.s);scene.add(g.root);
-}).catch(e=>console.warn('金魚酒杯載入失敗',e));
-function applyWorks(w){Object.keys(WOVR).forEach(k=>delete WOVR[k]);Object.assign(WOVR,(w&&w.items)||{});
-  const v=work('goldfish');GF.act.label=v.title||WORKS.goldfish.title;gfPlace(v.pod);
-  if(!GF.swimSet)gfSwim(v.motion===true,false);   // the owner's default, until the visitor chooses
+  w.p.set(P.cx,P.floor+(P.big?P.standH:0)+w.lift+w.H/2*Math.cos(w.tilt),w.z).applyMatrix4(cab.matrixWorld);   // standing on the pod's floor (or its stand)
+  w.q.copy(cab.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-w.tilt));   // its front faces the room, like the pod
+  w.out.set(0,0,1).applyQuaternion(cab.quaternion);                                                             // the way out of the pod
+  if(w.obj&&!(INSP.on&&INSP.cur===w)){const R=w.obj.root;R.position.copy(w.p);R.quaternion.copy(w.q);}}
+Object.keys(WK).forEach(id=>wPlace(id,WORKS[id].pod));
+function captureEnv(w){   // what the room looks like from just in front of the work, for its mirrors to reflect
+  if(!w.obj||!w.obj.setEnvMap||w.ownEnv)return;   // ownEnv: keeps its own neutral studio (the warm room made the mirrors look copper, not silver)
+  if(!w.cube){w.rt=new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType});w.cube=new THREE.CubeCamera(.05,40,w.rt);}
+  w.cube.position.copy(w.p).addScaledVector(w.out,.35);w.cube.updateMatrixWorld();
+  const vis=w.obj.root.visible;w.obj.root.visible=false;w.cube.update(renderer,scene);w.obj.root.visible=vis;w.obj.setEnvMap(w.rt.texture);}
+Object.keys(WK).forEach(id=>{const w=WK[id],lib=window[w.lib];if(!lib)return;
+  lib.load(w.url+'?v=2026-11-16c',{renderer}).then(g=>{
+    w.obj=g;w.s=w.H/g.height;w.sBig=w.HB/g.height;if(g.setMotion)g.setMotion(w.swimOn);
+    g.root.position.copy(w.p);g.root.quaternion.copy(w.q);g.root.scale.setScalar(w.s);scene.add(g.root);
+    setTimeout(()=>captureEnv(w),1500);
+  }).catch(e=>console.warn('作品載入失敗：'+WORKS[id].title,e));});
+function applyWorks(o){Object.keys(WOVR).forEach(k=>delete WOVR[k]);Object.assign(WOVR,(o&&o.items)||{});
+  Object.keys(WK).forEach(id=>{const w=WK[id],v=work(id);w.act.label=v.title||WORKS[id].title;wPlace(id,v.pod);
+    if(w.swim&&!w.swimSet)setSwim(w,v.motion===true,false);});   // the owner's default, until the visitor chooses
   if(INSP.on)inspCaption();}
-const INSP={on:false,dir:0,k:0,dist:.62,user:new THREE.Quaternion(),face:false,vx:0,vy:0,drag:null,pts:new Map(),pinch:0,LAYER:5};
-// While held, the glass moves to its own layer (5; layer 1 is for put-away exhibits) and is drawn in a second pass over the dimmed room,
-// still lit by the room's own lights, so the fish keeps the colours it has on the shelf.
+const INSP={on:false,cur:null,dir:0,k:0,dist:.62,user:new THREE.Quaternion(),face:false,vx:0,vy:0,drag:null,pts:new Map(),pinch:0,LAYER:5};
+// While held, the work moves to its own layer (5; layer 1 is for put-away exhibits) and is drawn in a second pass over the dimmed room,
+// still lit by the room's own lights, so it keeps the colours it has on the shelf.
 {INSP.dim=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({uniforms:{uA:{value:0}},transparent:true,depthTest:false,depthWrite:false,fog:false,
    vertexShader:`varying vec2 vU;void main(){vU=uv;gl_Position=vec4(position.xy,0.,1.);}`,
    fragmentShader:`uniform float uA;varying vec2 vU;void main(){float r=length(vU-.5);gl_FragColor=vec4(mix(vec3(.17,.13,.1),vec3(.07,.05,.04),smoothstep(.15,.75,r)),uA*mix(.5,.78,smoothstep(.1,.7,r)));}`}));
  INSP.dim.frustumCulled=false;INSP.dim.renderOrder=-10;INSP.dim.layers.set(INSP.LAYER);scene.add(INSP.dim);}
-function inspLayer(held){GF.obj.meshes.forEach(m=>m.layers.set(held?INSP.LAYER:0));}
-function inspOpen(){
-  if(INSP.on)return;
-  if(!GF.obj){toast('金魚酒杯還在準備中，等一下再試一次');return;}
-  scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held glass too
-  INSP.on=true;INSP.dir=1;INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
+function inspLayer(w,held){w.obj.meshes.forEach(m=>m.layers.set(held?INSP.LAYER:0));}
+function inspOpen(id){
+  const w=WK[id];if(!w||INSP.on)return;
+  if(!w.obj){toast('「'+(work(id).title||WORKS[id].title)+'」還在準備中，等一下再試一次');return;}
+  scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held work too
+  captureEnv(w);                                                      // its mirrors reflect the room as it is right now
+  INSP.on=true;INSP.cur=w;INSP.dir=1;INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
-  inspCaption();
+  inspCaption();$('#inspSwim').hidden=!w.swim;if(w.swim)setSwim(w,w.swimOn,false);
   $('#inspTip').textContent=isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去';
   const el=$('#insp');el.hidden=false;requestAnimationFrame(()=>el.classList.add('on'));setTimeout(()=>$('#inspBack').focus({preventScroll:true}),30);}
-function gfSwim(on,byVisitor){GF.swim=!!on;if(byVisitor)GF.swimSet=true;if(GF.obj&&GF.obj.setMotion)GF.obj.setMotion(GF.swim);
-  const b=$('#inspSwim');b.textContent=GF.swim?'停下來':'讓牠游動';b.setAttribute('aria-pressed',GF.swim);}
+function setSwim(w,on,byVisitor){w.swimOn=!!on;if(byVisitor)w.swimSet=true;if(w.obj&&w.obj.setMotion)w.obj.setMotion(w.swimOn);
+  if(INSP.cur===w){const b=$('#inspSwim');b.textContent=w.swimOn?'停下來':'讓牠游動';b.setAttribute('aria-pressed',w.swimOn);}}
 function inspCaption(){   // name, then year · medium · size · period, then the owner's words about the work
-  const v=work(GF.id),meta=[v.year,v.medium,v.size,v.period].map(x=>String(x||'').trim()).filter(Boolean);
-  $('#inspT').textContent=v.title||WORKS[GF.id].title;$('#inspM').textContent=meta.join('・');$('#inspM').hidden=!meta.length;
+  const id=INSP.cur.id,v=work(id),meta=[v.year,v.medium,v.size,v.period].map(x=>String(x||'').trim()).filter(Boolean);
+  $('#inspT').textContent=v.title||WORKS[id].title;$('#inspM').textContent=meta.join('・');$('#inspM').hidden=!meta.length;
   $('#inspB').textContent=v.desc||'';$('#inspB').hidden=!v.desc;}
 function inspClose(){if(!INSP.on||INSP.dir<0)return;INSP.dir=-1;INSP.drag=null;INSP.pts.clear();$('#insp').classList.remove('on','grab');}
 {const el=$('#insp');
@@ -1654,22 +1690,21 @@ function inspClose(){if(!INSP.on||INSP.dir<0)return;INSP.dir=-1;INSP.drag=null;I
  const up=e=>{if(!INSP.pts.delete(e.pointerId))return;el.classList.remove('grab');const d=INSP.drag;INSP.drag=null;INSP.pinch=0;
    if(!d||d.id!==e.pointerId)return;
    if(performance.now()-d.t>90)INSP.vx=INSP.vy=0;   // let go after holding still: no spin
-   if(d.moved<6&&e.type==='pointerup'){   // a tap well away from the glass puts it back
-     const s=GF.obj.root.position.clone().project(camera),px=(s.x+1)/2*innerWidth,py=(1-s.y)/2*innerHeight;
+   if(d.moved<6&&e.type==='pointerup'){   // a tap well away from the work puts it back
+     const s=INSP.cur.obj.root.position.clone().project(camera),px=(s.x+1)/2*innerWidth,py=(1-s.y)/2*innerHeight;
      if(Math.hypot(e.clientX-px,e.clientY-py)>Math.min(innerWidth,innerHeight)*.36)inspClose();}};
  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
  el.addEventListener('wheel',e=>{e.preventDefault();INSP.dist=clamp(INSP.dist*Math.exp(e.deltaY*.0012),.34,.95);},{passive:false});
  $('#inspBack').addEventListener('click',inspClose);
- $('#inspSwim').addEventListener('click',()=>gfSwim(!GF.swim,true));
+ $('#inspSwim').addEventListener('click',()=>{const w=INSP.cur;if(w&&w.swim)setSwim(w,!w.swimOn,true);});
  $('#inspFace').addEventListener('click',()=>{INSP.face=true;INSP.vx=INSP.vy=0;});}
-const _qa=new THREE.Quaternion(),_ax=new THREE.Vector3(),_end=new THREE.Vector3(),_ctl=new THREE.Vector3(),_eq=new THREE.Quaternion(),_v=new THREE.Vector3(),_q0=new THREE.Quaternion();
+const _qa=new THREE.Quaternion(),_ax=new THREE.Vector3(),_end=new THREE.Vector3(),_ctl=new THREE.Vector3(),_eq=new THREE.Quaternion(),_q0=new THREE.Quaternion();
 function inspTurn(yaw,pitch){   // turn around the screen's own axes: sideways drags spin it, up-down drags tip it toward or away from you
   INSP.user.premultiply(_qa.setFromAxisAngle(_ax.set(0,1,0),yaw)).premultiply(_qa.setFromAxisAngle(_ax.set(1,0,0),pitch)).normalize();}
 function inspTick(dt){
-  if(!GF.obj)return;
-  GF.obj.tick(reduceMotion?dt*.4:dt);   // still by default, like the sculpture itself; the visitor can let the fish swim
+  for(const id in WK){const w=WK[id];if(w.obj)w.obj.tick(reduceMotion?dt*.4:dt);}   // still by default, like the sculptures themselves
   if(!INSP.on)return;
-  const R=GF.obj.root;
+  const w=INSP.cur,R=w.obj.root;
   INSP.k=clamp(INSP.k+INSP.dir*dt*(reduceMotion?4:1.1),0,1);
   if(!INSP.drag&&(INSP.vx||INSP.vy)){inspTurn(INSP.vx,INSP.vy);const f=Math.pow(.04,dt);INSP.vx*=f;INSP.vy*=f;if(Math.abs(INSP.vx)+Math.abs(INSP.vy)<1e-4)INSP.vx=INSP.vy=0;}
   if(INSP.face)INSP.user.slerp(_q0.identity(),1-Math.pow(.004,dt));
@@ -1678,15 +1713,15 @@ function inspTick(dt){
   _end.set(0,.035,-INSP.dist).applyQuaternion(camera.quaternion).add(camera.position);
   _eq.copy(camera.quaternion).multiply(INSP.user);
   // out of the pod first (along its opening), then up into your hands
-  _ctl.copy(GF.p).addScaledVector(GF.out,.38);_ctl.y+=.1;
+  _ctl.copy(w.p).addScaledVector(w.out,.38);_ctl.y+=.1;
   const a=(1-e)*(1-e),b=2*(1-e)*e,c=e*e;
-  R.position.set(GF.p.x*a+_ctl.x*b+_end.x*c,GF.p.y*a+_ctl.y*b+_end.y*c,GF.p.z*a+_ctl.z*b+_end.z*c);
-  R.quaternion.slerpQuaternions(GF.q,_eq,e);
-  R.scale.setScalar(lerp(GF.s,GF.sBig,e));
+  R.position.set(w.p.x*a+_ctl.x*b+_end.x*c,w.p.y*a+_ctl.y*b+_end.y*c,w.p.z*a+_ctl.z*b+_end.z*c);
+  R.quaternion.slerpQuaternions(w.q,_eq,e);
+  R.scale.setScalar(lerp(w.s,w.sBig,e));
   INSP.dim.material.uniforms.uA.value=e;
-  inspLayer(k>.14);   // drawn over the room only once it is clear of the cabinet
+  inspLayer(w,k>.14);   // drawn over the room only once it is clear of the cabinet
   if(INSP.dir<0&&k===0){   // back on its shelf
-    INSP.on=false;INSP.dir=0;R.position.copy(GF.p);R.quaternion.copy(GF.q);R.scale.setScalar(GF.s);inspLayer(false);
+    INSP.on=false;INSP.dir=0;INSP.cur=null;R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);inspLayer(w,false);
     $('#insp').hidden=true;modalOpen=false;updateCursorUI();canvas.focus();}}
 
 /* ============================================================
@@ -2994,7 +3029,7 @@ function interact(a){
     case 'guestbook':if(popOff('guestbook'))return;return openGuestbook();
     case 'fire':if(popOff('fire'))return;return openFire();
     case 'drink':{const k='drink:'+a.idx,v=ovr(k);if(popOff(k))return;return openModal(simple('陽台・白色小圓桌',esc(v.t||a.label),esc(v.b||DRINKS[a.idx])));}
-    case 'work':return inspOpen();
+    case 'work':return inspOpen(a.id);
     case 'pod':return openModal(simple('記憶收藏櫃',`第 ${a.idx+1} 格`,`這一格還空著，等一件小東西住進來。<br>整座櫃子目前有 ${PODS.length} 格。`,'之後新增物件時，櫃子會依照物件的數量與大小重新長出形狀。'));
     default:{const t=TEXT[a.type];if(!t||popOff(a.type))return;const v=ovr(a.type);openModal(simple('內在房間',esc(v.t||t[0]),esc(v.b||t[1]).replace(/\n/g,'<br>')));}
   }
@@ -3944,8 +3979,8 @@ window.__roomCatalog=()=>{const hover={};targets.forEach(m=>{const a=m.userData&
     ['flyer','課程傳單','覺察書寫小組','八週，每週一次。一起練習把心裡的話寫下來，讓寫字變成照顧自己的方式。'],['fire','初心之火（彈窗文字）','初心之火','這是房主的初心之火，一直燒著。'],
     ...DRINKS.map((d,i)=>['drink:'+i,'陽台飲料 '+(i+1),d.split('：')[0],d])];
   const exhibits={};Object.keys(EXHIBITS).forEach(id=>{const E=EXHIBITS[id],o=exObj[id];exhibits[id]={kind:E.kind,W:E.W,H:E.H,OW:o.OW,OH:o.OH,img:E.img,video:E.video||null,def:E.def};});
-  const works={};Object.keys(WORKS).forEach(id=>{works[id]={def:Object.assign({},WORKS[id])};});
-  return {texts,hover,exhibits,works,pods:PODS.length,wall:{z0:-3.42,z1:3.42,h:3.06,zMin:EX_Z_MIN,zMax:EX_Z_MAX,hMin:.75,hMax:2.2},tv:{w:TV_W,h:TV_H,def:TV_DEF},fireDefault:50};};
+  const works={};Object.keys(WORKS).forEach(id=>{works[id]={def:Object.assign({},WORKS[id]),big:!!WK[id].big};});
+  return {texts,hover,exhibits,works,pods:PODS.length,bigPods:PODS.map((p,i)=>p.big?i:-1).filter(i=>i>=0),wall:{z0:-3.42,z1:3.42,h:3.06,zMin:EX_Z_MIN,zMax:EX_Z_MAX,hMin:.75,hMax:2.2},tv:{w:TV_W,h:TV_H,def:TV_DEF},fireDefault:50};};
 /* ---------- start ---------- */
 if(isTouch){$('#keys').innerHTML='<kbd>左下搖桿</kbd><span>走動</span><kbd>右下「蹲下」</kbd><span>切換蹲下／站起</span><kbd>拖曳畫面</kbd><span>環顧四周</span><kbd>輕點</kbd><span>與物件互動</span>';}
 $('#crouchBtn').addEventListener('click',e=>{touchCrouch=!touchCrouch;e.currentTarget.setAttribute('aria-pressed',touchCrouch);e.currentTarget.textContent=touchCrouch?'站起':'蹲下';});
