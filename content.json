@@ -137,6 +137,10 @@
         "pop": false,
         "hov": false
       },
+      "sweets": {
+        "pop": false,
+        "hov": false
+      },
       "mug": {
         "h": "還溫溫的。",
         "pop": false
@@ -152,6 +156,10 @@
       "swcab": {
         "pop": false,
         "hov": false
+      },
+      "brainhorn": {
+        "b": "為腦神經外科設計的吉祥物。",
+        "pop": false
       },
       "memcab": {
         "pop": false
@@ -270,5 +278,5 @@
       }
     ]
   },
-  "savedAt": 1794841471857
+  "savedAt": 1794845557173
 }
