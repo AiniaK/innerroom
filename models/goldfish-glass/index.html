@@ -355,19 +355,25 @@ function fishKit(THREE) {
       g.fillStyle = gr; g.fillRect(0, y, W, 4 + rand() * 14);
     }
     const seg = (x0, y0, x1, y1, w, a0, a1) => {     // 一條鰭條：暗紅的影子加上金色的反光
-      for (const [dy, colr, k] of [[1.6, '104,0,8', .55], [0, '255,198,96', .8]]) {
+      for (const [dy, colr, k] of [[1.6, '104,0,8', .55], [0, '255,206,112', 1]]) {
         const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, `rgba(${colr},${a0 * k})`); gr.addColorStop(1, `rgba(${colr},${a1 * k})`);
         g.strokeStyle = gr; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0 + dy); g.bezierCurveTo(x0 + (x1 - x0) * .4, y0 + dy, x0 + (x1 - x0) * .6, y1 + dy, x1, y1 + dy); g.stroke();
       }
     };
-    const N = 26;
+    const N = 34;
     const ray = (x, y, depth, spread) => {
       const xe = depth === 0 ? W * (.30 + rand() * .14) : depth === 1 ? W * (.58 + rand() * .12) : W;
       const ye = y + (rand() - .5) * 3;
-      seg(x, y, xe, ye, [2.4, 1.8, 1.2][depth], [.5, .46, .4][depth], [.46, .4, .24][depth]);
+      seg(x, y, xe, ye, [3, 2.2, 1.5][depth], [.62, .58, .52][depth], [.58, .52, .36][depth]);
       if (depth < 2) { ray(xe, ye, depth + 1, spread / 2); ray(xe, ye + spread * (rand() > .5 ? 1 : -1), depth + 1, spread / 2); }
     };
     for (let i = 0; i < N; i++) ray(0, (i + .5 + (rand() - .5) * .4) / N * H, 0, H / N * .5);
+    for (let i = 0; i < 42; i++) {       // 細長的金線：從靠近根部一路延伸到末端，像鰭膜上流動的金絲
+      const y0 = rand() * H, y1 = y0 + (rand() - .5) * 26, x0 = W * (.04 + rand() * .3), a = .32 + rand() * .34;
+      const gr = g.createLinearGradient(x0, 0, W, 0); gr.addColorStop(0, 'rgba(255,214,128,0)'); gr.addColorStop(.18, `rgba(255,214,128,${a})`); gr.addColorStop(1, `rgba(255,224,150,${a * .45})`);
+      g.strokeStyle = gr; g.lineWidth = .7 + rand() * .9; g.beginPath(); g.moveTo(x0, y0);
+      g.bezierCurveTo(x0 + (W - x0) * .35, y0 + (rand() - .5) * 10, x0 + (W - x0) * .7, y1 + (rand() - .5) * 10, W, y1); g.stroke();
+    }
     for (let i = 0; i < 150; i++) {      // 金粉
       const x = W * (.05 + rand() * .93), y = rand() * H, r = .7 + rand() * 1.6;
       g.fillStyle = `rgba(255,${(208 + rand() * 40) | 0},${(104 + rand() * 60) | 0},${.3 + rand() * .5})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();

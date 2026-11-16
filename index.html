@@ -327,7 +327,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="config.js"></script>
 <script src="data/models.js"></script>
-<script src="models/goldfish-glass/room.js?v=2026-11-16b"></script>
+<script src="models/goldfish-glass/room.js?v=2026-11-17a"></script>
 <script src="models/mirror-wings/room.js?v=2026-11-16c"></script>
 <script>
 (()=>{
@@ -1617,10 +1617,11 @@ const WORKS={
 const WOVR={};
 const work=id=>Object.assign({},WORKS[id],WOVR[id]||{});
 // how each work sits and is held: H its height on the shelf, HB its height in your hands, z how far into the pod (pod-local), lift above the
-// pod floor, tilt back (radians), big: needs the tall pod; swim: has a 讓牠游動 switch; ownEnv: its mirrors reflect its own neutral studio, not the room
+// pod floor, tilt back (radians), big: needs the tall pod; swim: has a 讓牠游動 switch; ownEnv: its mirrors reflect its own neutral studio, not the room;
+// heldLight: how strongly the hand-held light (below) lights it while you hold it (the goldfish has none, so it keeps the room's colours)
 const WK={
   goldfish:{H:.18,HB:.5,z:.19,lift:.003,tilt:0,swim:true,url:'models/goldfish-glass/goldfish_glass.glb',lib:'GoldfishGlass'},
-  wings:{H:.40,HB:.36,z:.17,lift:0,tilt:.07,big:true,ownEnv:true,url:'models/mirror-wings/mirror_wings.glb',lib:'MirrorWings'},
+  wings:{H:.40,HB:.36,z:.17,lift:0,tilt:.07,big:true,ownEnv:true,heldLight:1,url:'models/mirror-wings/mirror_wings.glb',lib:'MirrorWings'},
 };
 PODS.forEach(P=>{P.podAct=P.hit.userData.act;});
 Object.keys(WK).forEach(id=>Object.assign(WK[id],{id,pod:-1,obj:null,swimOn:false,swimSet:false,act:{type:'work',id,label:WORKS[id].title},
@@ -1654,13 +1655,19 @@ function applyWorks(o){Object.keys(WOVR).forEach(k=>delete WOVR[k]);Object.assig
   Object.keys(WK).forEach(id=>{const w=WK[id],v=work(id);w.act.label=v.title||WORKS[id].title;wPlace(id,v.pod);
     if(w.swim&&!w.swimSet)setSwim(w,v.motion===true,false);});   // the owner's default, until the visitor chooses
   if(INSP.on)inspCaption();}
-const INSP={on:false,cur:null,dir:0,k:0,dist:.62,user:new THREE.Quaternion(),face:false,vx:0,vy:0,drag:null,pts:new Map(),pinch:0,LAYER:5};
+const INSP={on:false,cur:null,dir:0,k:0,dist:.62,user:new THREE.Quaternion(),face:false,vx:0,vy:0,drag:null,pts:new Map(),pinch:0,LAYER:5,DIM:6};
 // While held, the work moves to its own layer (5; layer 1 is for put-away exhibits) and is drawn in a second pass over the dimmed room,
 // still lit by the room's own lights, so it keeps the colours it has on the shelf.
 {INSP.dim=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({uniforms:{uA:{value:0}},transparent:true,depthTest:false,depthWrite:false,fog:false,
    vertexShader:`varying vec2 vU;void main(){vU=uv;gl_Position=vec4(position.xy,0.,1.);}`,
    fragmentShader:`uniform float uA;varying vec2 vU;void main(){float r=length(vU-.5);gl_FragColor=vec4(mix(vec3(.17,.13,.1),vec3(.07,.05,.04),smoothstep(.15,.75,r)),uA*mix(.5,.78,smoothstep(.1,.7,r)));}`}));
- INSP.dim.frustumCulled=false;INSP.dim.renderOrder=-10;INSP.dim.layers.set(INSP.LAYER);scene.add(INSP.dim);}
+ INSP.dim.frustumCulled=false;INSP.dim.layers.set(INSP.DIM);scene.add(INSP.dim);   // drawn in a pass of its own before the work: three draws transparent things after opaque ones, so in the same pass the veil covered the work too
+ // a light that rides with your view and reaches only the held work (layer 5 alone), whatever the time of day: a soft key from the
+ // upper left, a fill from the right and a little all-round light, so a dark piece such as the mirror wings on velvet reads clearly
+ INSP.rig=new THREE.Group();scene.add(INSP.rig);
+ const aim=new THREE.Object3D();aim.position.set(0,0,-.6);INSP.rig.add(aim);
+ INSP.lights=[[new THREE.DirectionalLight(0xfff6ea,0),.8,[-.5,.7,.3]],[new THREE.DirectionalLight(0xeef2ff,0),.3,[.7,.1,.2]]]
+   .map(([l,max,pos])=>{l.layers.set(INSP.LAYER);if(pos){l.position.set(...pos);l.target=aim;}INSP.rig.add(l);return {l,max};});}
 function inspLayer(w,held){w.obj.meshes.forEach(m=>m.layers.set(held?INSP.LAYER:0));}
 function inspOpen(id){
   const w=WK[id];if(!w||INSP.on)return;
@@ -1719,6 +1726,9 @@ function inspTick(dt){
   R.quaternion.slerpQuaternions(w.q,_eq,e);
   R.scale.setScalar(lerp(w.s,w.sBig,e));
   INSP.dim.material.uniforms.uA.value=e;
+  INSP.rig.position.copy(camera.position);INSP.rig.quaternion.copy(camera.quaternion);
+  INSP.lights.forEach(o=>{o.l.intensity=o.max*e*(w.heldLight||0);});
+  const M2=w.obj.materials;if(M2&&M2.mirror){M2.mirror.envMapIntensity=1+e*.4;if(M2.edge)M2.edge.envMapIntensity=.9+e*.3;}   // the mirrors catch more light in your hands
   inspLayer(w,k>.14);   // drawn over the room only once it is clear of the cabinet
   if(INSP.dir<0&&k===0){   // back on its shelf
     INSP.on=false;INSP.dir=0;INSP.cur=null;R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);inspLayer(w,false);
@@ -3968,7 +3978,7 @@ function frame(now){
   inspTick(dt);
   renderer.render(scene,camera);
   if(INSP.on&&INSP.k>0){const au=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;renderer.autoClear=false;renderer.clearDepth();
-    camera.layers.set(INSP.LAYER);renderer.render(scene,camera);camera.layers.set(0);renderer.autoClear=true;renderer.shadowMap.autoUpdate=au;}   // the glass in your hands, over the dimmed room
+    camera.layers.set(INSP.DIM);renderer.render(scene,camera);camera.layers.set(INSP.LAYER);renderer.render(scene,camera);camera.layers.set(0);renderer.autoClear=true;renderer.shadowMap.autoUpdate=au;}   // the glass in your hands, over the dimmed room
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
