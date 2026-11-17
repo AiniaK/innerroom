@@ -47,6 +47,9 @@ export function validateContent(c) {
   for (const [id, s] of Object.entries(ex.items)) {
     if (!KEY.test(id) || !isObj(s)) fail(400, 'invalid_content', 'exhibits.items');
     if (s.mode !== undefined && !['hang', 'lean'].includes(s.mode)) fail(400, 'invalid_content', id + '.mode');
+    // 影片展品：牆上直接播放（play）或只放封面、點開才播放（cover）；封面可換成房主上傳的照片
+    if (s.wall !== undefined && !['play', 'cover'].includes(s.wall)) fail(400, 'invalid_content', id + '.wall');
+    if (s.cover !== undefined && (!isMediaRef(s.cover) || !/\.(jpe?g|png|webp)$/i.test(s.cover))) fail(400, 'invalid_content', id + '.cover');
     // 後台新增的展品：自帶圖片（影片另附封面圖）與畫面尺寸（公尺）
     const custom = bool(s.custom, id + '.custom');
     if (custom && (!isMediaRef(s.img) || !/\.(jpe?g|png|webp)$/i.test(s.img))) fail(400, 'invalid_content', id + '.img');
@@ -55,6 +58,7 @@ export function validateContent(c) {
       kind: str(s.kind, 40, id + '.kind'), title: str(s.title, 80, id + '.title'), desc: str(s.desc, 1600, id + '.desc'),
       hidden: bool(s.hidden, id + '.hidden'), popup: bool(s.popup, id + '.popup'), hover: bool(s.hover, id + '.hover'),
       mode: s.mode, along: num(s.along, -10, 10, id + '.along'), height: num(s.height, 0, 5, id + '.height'), scale: num(s.scale, .05, 10, id + '.scale'),
+      wall: s.wall, cover: s.cover,
       ...(custom ? { custom: true, img: s.img, video: s.video, W: num(s.W, .05, 3, id + '.W') ?? .6, H: num(s.H, .05, 3, id + '.H') ?? .6 } : {}),
     });
   }
