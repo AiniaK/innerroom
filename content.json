@@ -228,6 +228,54 @@
         "along": 1.55,
         "height": 1.62,
         "scale": 0.9953343701399688
+      },
+      "ex-1118000816": {
+        "kind": "明信片",
+        "title": "Medify新年賀卡",
+        "desc": "",
+        "hidden": false,
+        "popup": true,
+        "hover": true,
+        "mode": "hang",
+        "along": -0.44,
+        "height": 1.7,
+        "scale": 0.2,
+        "custom": true,
+        "img": "media/ex-20261118-000811.jpg",
+        "W": 0.501,
+        "H": 0.7
+      },
+      "ex-1118001006": {
+        "kind": "明信片",
+        "title": "Medify端午節賀卡",
+        "desc": "",
+        "hidden": false,
+        "popup": true,
+        "hover": true,
+        "mode": "hang",
+        "along": -0.4,
+        "height": 1.45,
+        "scale": 0.2,
+        "custom": true,
+        "img": "media/ex-20261118-000959.jpg",
+        "W": 0.495,
+        "H": 0.7
+      },
+      "ex-1118001100": {
+        "kind": "明信片",
+        "title": "Medify中秋節賀卡",
+        "desc": "",
+        "hidden": false,
+        "popup": true,
+        "hover": true,
+        "mode": "hang",
+        "along": -0.6,
+        "height": 1.5,
+        "scale": 0.2,
+        "custom": true,
+        "img": "media/ex-20261118-001054.jpg",
+        "W": 0.495,
+        "H": 0.7
       }
     }
   },
@@ -276,5 +324,5 @@
       }
     ]
   },
-  "savedAt": 1794931008793
+  "savedAt": 1794931882982
 }
