@@ -47,7 +47,7 @@
       },
       "cap": {
         "t": "HELMET MASTERPIECE",
-        "b": "未實現的設計品，但我很喜歡。",
+        "b": "未實現的設計品，我很喜歡。",
         "h": "HELMET MASTERPIECE 帽子"
       },
       "shirt_ride_white": {
@@ -499,5 +499,5 @@
       }
     ]
   },
-  "savedAt": 1794947943208
+  "savedAt": 1794949535581
 }
