@@ -1,6 +1,10 @@
 {
   "texts": {
     "items": {
+      "blank": {
+        "pop": false,
+        "hov": false
+      },
       "storebox": {
         "b": "這裡收納曾經放在牆上的物件",
         "h": "這裡收納曾經放在牆上的物件",
@@ -11,6 +15,82 @@
         "hov": false
       },
       "emptycab": {
+        "pop": false,
+        "hov": false
+      },
+      "cabdoor": {
+        "pop": false
+      },
+      "shirtstack0": {
+        "t": "RIDE"
+      },
+      "shirtstack1": {
+        "t": "6543N1"
+      },
+      "shirtstack2": {
+        "t": "IN TORQUE WE TRUST"
+      },
+      "shirtstack3": {
+        "t": "戰損"
+      },
+      "cap": {
+        "t": "HELMET MASTERPIECE",
+        "b": "未實現的設計品，但我很喜歡。"
+      },
+      "shirt_ride_white": {
+        "t": "RIDE・白",
+        "pop": false,
+        "hov": false
+      },
+      "shirt_ride_black": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_ride_grey": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_n1_white": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_n1_black": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_n1_grey": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_faith_white": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_faith_black": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_faithplain_white": {
+        "b": "沒有金魚的版本，做給自己穿",
+        "hov": false
+      },
+      "shirt_faithplain_black": {
+        "b": "沒有金魚的版本，做給自己穿",
+        "hov": false
+      },
+      "shirt_battle_white": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_battle_black": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_hoodorange_hood": {
+        "pop": false,
+        "hov": false
+      },
+      "shirt_hoodpink_hood": {
         "pop": false,
         "hov": false
       },
@@ -146,10 +226,6 @@
         "pop": false
       },
       "shelf": {
-        "pop": false,
-        "hov": false
-      },
-      "blank": {
         "pop": false,
         "hov": false
       },
@@ -324,5 +400,5 @@
       }
     ]
   },
-  "savedAt": 1794934247009
+  "savedAt": 1794939775960
 }
