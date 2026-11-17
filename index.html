@@ -1490,13 +1490,13 @@ function buildExhibit(id){const E=EXHIBITS[id],g=new THREE.Group();g.rotation.or
   add(rbox(OW,fw,fd,.008),frameM,0,fw/2,0,g,{act});add(rbox(OW,fw,fd,.008),frameM,0,OH-fw/2,0,g,{act});
   add(rbox(fw,OH,fd,.008),frameM,-OW/2+fw/2,OH/2,0,g,{act});add(rbox(fw,OH,fd,.008),frameM,OW/2-fw/2,OH/2,0,g,{act});
   add(new THREE.BoxGeometry(OW-.01,OH-.01,.006),mat(0xC9B79C),0,OH/2,-fd/2+.003,g,{act});   // backing board
-  let tex,picM;
-  if(E.video){const el=document.createElement('video');el.muted=true;el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');el.src=exVideoURL(E);el.play().catch(()=>{});E._el=el;
+  let tex,picM;const st0=exState[id]||{},still=!!E.video&&st0.wall==='cover';   // a clip can hang as a still cover, played only when opened
+  if(E.video&&!still){const el=document.createElement('video');el.muted=true;el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');el.src=exVideoURL(E);el.play().catch(()=>{});E._el=el;
     ['pointerdown','touchend','keydown'].forEach(ev=>addEventListener(ev,()=>{if(el.paused)el.play().catch(()=>{});},{passive:true}));   // phones may wait for a first touch
     tex=new THREE.VideoTexture(el);tex.colorSpace=THREE.SRGBColorSpace;picM=new THREE.MeshBasicMaterial({map:tex,toneMapped:false,fog:false});exGlowMats.push(picM);}   // a touch brighter than the clip itself, so it glows clear through the paper texture
-  else{tex=new THREE.TextureLoader().load(E.img);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();picM=mat(0xffffff,1,{map:tex});}
+  else{tex=new THREE.TextureLoader().load(st0.cover||E.img);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();picM=mat(0xffffff,1,{map:tex});}
   add(new THREE.PlaneGeometry(E.W,E.H),picM,0,OH/2,.002,g,{act,cast:false});
-  exObj[id]={g,act,OW,OH};}
+  exObj[id]={g,act,OW,OH,key:exKey(id)};}
 // a postcard taped flat to the wall: the card (white paper edge) and four strips of washi tape across its corners
 let tapeAlpha=null;
 function buildPostcard(id,g,act){const E=EXHIBITS[id],W=E.W,H=E.H,z=-.0125;
@@ -1508,7 +1508,12 @@ function buildPostcard(id,g,act){const E=EXHIBITS[id],W=E.W,H=E.H,z=-.0125;
   const tm=new THREE.MeshStandardMaterial({color:0xE8DCC2,roughness:.85,transparent:true,opacity:.82,alphaMap:tapeAlpha,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
   const tl=Math.min(W,H)*.26,tw=tl*.3;
   for(const[sx,sy,r]of[[-1,1,.75],[1,1,-.75],[-1,-1,-.75],[1,-1,.75]]){const m=add(new THREE.PlaneGeometry(tl,tw),tm,sx*W/2,H/2+sy*H/2,z+.0024,g,{act,cast:false});m.rotation.z=r+(Math.random()-.5)*.12;m.renderOrder=3;}
-  exObj[id]={g,act,OW:W,OH:H,postcard:true};}
+  exObj[id]={g,act,OW:W,OH:H,postcard:true,key:exKey(id)};}
+const exKey=id=>{const E=EXHIBITS[id],st=exState[id]||{};return (E.video&&st.wall==='cover'?'c':'p')+'|'+(st.cover||'')+'|'+(st.kind||E.kind);};   // what the frame was built to show
+function rebuildExhibit(id){const o=exObj[id],E=EXHIBITS[id];   // the owner switched a clip between playing and a still cover, or changed its cover
+  if(o){o.g.traverse(m=>{const i=targets.indexOf(m);if(i>=0)targets.splice(i,1);if(m.material){const k=exGlowMats.indexOf(m.material);if(k>=0)exGlowMats.splice(k,1);}});scene.remove(o.g);}
+  if(E._el){E._el.pause();E._el.removeAttribute('src');E._el.load();E._el=null;}
+  buildExhibit(id);}
 function placeExhibit(id){const o=exObj[id],st=exState[id];if(!o)return;const E=EXHIBITS[id];
   const sc=st.scale>0?st.scale:1;o.g.scale.setScalar(sc);const half=o.OW*sc/2;st.along=clamp(st.along,EX_Z_MIN+half,EX_Z_MAX-half);st.height=clamp(st.height,.75,2.2);
   o.act.label=(st.kind||E.kind)+'・'+st.title;
@@ -1521,18 +1526,19 @@ Object.keys(EXHIBITS).forEach(id=>{buildExhibit(id);placeExhibit(id);});
 function addCustomExhibit(id,s){if(EXHIBITS[id]||!s||!s.custom||!s.img)return;const kind=s.kind||(s.video?'影像':'攝影紀錄');
   EXHIBITS[id]={kind,img:s.img,video:s.video||null,W:clamp(+s.W||.6,.05,3),H:clamp(+s.H||.6,.05,3),
     def:{kind,title:s.title||'',desc:s.desc||'',hidden:false,mode:'hang',along:0,height:1.5}};
-  exState[id]=Object.assign({},EXHIBITS[id].def);buildExhibit(id);
+  exState[id]=Object.assign({},EXHIBITS[id].def,s);buildExhibit(id);   // built straight away with the owner's choices (still cover or playing)
   if(typeof solids!=='undefined')exSolid[id]=solids.push([99,99,99,99])-1;}
-function applyExhibits(d){const items=(d&&d.items)||{};Object.keys(items).forEach(id=>addCustomExhibit(id,items[id]));Object.keys(EXHIBITS).forEach(id=>{exState[id]=Object.assign({},EXHIBITS[id].def,items[id]||{});placeExhibit(id);});
+function applyExhibits(d){const items=(d&&d.items)||{};Object.keys(items).forEach(id=>addCustomExhibit(id,items[id]));Object.keys(EXHIBITS).forEach(id=>{exState[id]=Object.assign({},EXHIBITS[id].def,items[id]||{});if(exObj[id]&&exObj[id].key!==exKey(id))rebuildExhibit(id);placeExhibit(id);});
   if(!modal.hidden&&card.querySelector('#exView'))openExhibit(card.querySelector('#exView').dataset.id,true);}
 // the enlarged view: the picture on one side, its title and story on the other; the owner gets the tools beneath
-let exDucked=false;
+let exDucked=false,exVid=null;
 function openExhibit(id,keep){const E=EXHIBITS[id],st=exState[id];if(!E)return;
-  openModal(`<div id="exView" data-id="${id}" class="exhibit"><div class="pic">${E.video?`<video src="${exVideoURL(E)}" autoplay loop muted playsinline></video>`:`<img alt="" src="${E.img}">`}</div>
+  openModal(`<div id="exView" data-id="${id}" class="exhibit"><div class="pic">${E.video?`<video src="${exVideoURL(E)}" poster="${st.cover||E.img}" autoplay loop muted playsinline></video>`:`<img alt="" src="${E.img}">`}</div>
     <div class="txt"><div class="eyebrow" id="exK"></div><h2 id="exT"></h2><p id="exD" style="white-space:pre-line"></p><div id="exOwner"></div></div></div>`,{wide:true});
   {const im=card.querySelector('#exView img');if(im)im.alt=st.title;}
   {const v=card.querySelector('#exView video');if(v&&soundOn){   // opened up close, a clip plays with its own sound (the one on the wall stays silent); the room's sounds step back meanwhile
-    v.muted=false;v.volume=1;v.play().catch(()=>{v.muted=true;v.play().catch(()=>{});});
+    if(IOS&&AC){const g=AC.createGain();g.gain.value=VOL_CLIP;g.connect(AC.destination);shadowFor(v).out=g;exVid=v;v.muted=true;v.play().catch(()=>{});}   // iPhone: its volume cannot be set, so a decoded copy of its sound plays at the same level
+    else{v.muted=false;v.volume=VOL_CLIP;v.play().catch(()=>{v.muted=true;v.play().catch(()=>{});});}
     exDucked=true;if(AC&&au.master){au.master.gain.cancelScheduledValues(AC.currentTime);au.master.gain.setTargetAtTime(.1,AC.currentTime,.25);}}}
   card.querySelector('#exK').textContent=st.kind||E.kind;card.querySelector('#exT').textContent=st.title;card.querySelector('#exD').textContent=st.desc;}
 
@@ -3272,7 +3278,8 @@ const DRINKS=['柚子氣泡：微苦的柚皮，和一點蜂蜜。喝一口，�
 const modal=$('#modal'),card=$('#modalCard');
 function openModal(html,opt={}){card.classList.toggle('wide',!!opt.wide);card.classList.toggle('admin',!!opt.admin);card.classList.toggle('book',!!opt.book);card.innerHTML='<button class="x" type="button" aria-label="關閉" data-close>×</button>'+html;modal.hidden=false;modalOpen=true;
   if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;const f=card.querySelector('[data-focus]')||card.querySelector('.x');setTimeout(()=>f&&f.focus(),30);}
-function closeModal(){if(exDucked){exDucked=false;const v=card.querySelector('#exView video');if(v)v.pause();applySound();}   // the room's sounds come back
+function closeModal(){if(exDucked){exDucked=false;const v=card.querySelector('#exView video');if(v)v.pause();applySound();}
+  if(exVid){const s=shadowFor(exVid);shadowStop(s);if(s.out)s.out.disconnect();shadows.delete(exVid);exVid=null;}   // the room's sounds come back
   if(gbBookCloser){gbBookCloser=null;bkTeardown();if(bk.src&&bk.src.onClose){const f=bk.src.onClose;bk.src=null;f();}}modal.hidden=true;modalOpen=false;card.innerHTML='';card.classList.remove('book');updateCursorUI();canvas.focus();}
 modal.addEventListener('click',e=>{if(e.target===modal||e.target===card&&card.classList.contains('book')||e.target.closest('[data-close]')){if(gbBookCloser)gbBookCloser();else closeModal();}});   // the notebook closes itself and is put down first
 let toastT=0;function toast(s){const t=$('#toast');t.querySelector('span').textContent=s;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200);}
@@ -3683,6 +3690,8 @@ const skyMoonC={};const skyMoon=r=>{if(skyMoonC[r])return skyMoonC[r];const c=do
 
 
 /* ---------- ambient sound (synthesised) ---------- */
+// every clip in the room plays no louder than the tablet does right beside it: VOL_MAX through the room's master (0.7 with sound on)
+const VOL_MAX=.32,VOL_CLIP=VOL_MAX*.7;
 let AC=null;const au={};let lampOn=false;
 // sound on/off button, top right (left of the owner's button): mutes everything — music, TV and the room's ambience
 let soundOn=(()=>{try{return localStorage.getItem('room.sound')!=='off';}catch(e){return true;}})();
@@ -3777,9 +3786,9 @@ function updateAudio(dt,now){if(!AC)return;const p=camera.position,T=AC.currentT
   if(nearWin>.02){if(Math.random()<dt*2.2*night){const f=4200+Math.random()*400;for(let i=0;i<3;i++)blip(f,f*1.01,.03,.05,au.nature,i*.045);}
     if(Math.random()<dt*.5*dayness*(1-wx.rain)){const base=2400+Math.random()*1800,n=2+Math.floor(Math.random()*4);for(let i=0;i<n;i++)blip(base*(1+Math.random()*.25),base*(1.25+Math.random()*.5),.06+Math.random()*.07,.05,au.nature,i*(.09+Math.random()*.06));}}
   // soft low burning: only audible close to the fire, louder with a stronger flame, gently breathing
-  if(musicGain){const dM=Math.hypot(p.x-TAB_POS.x,p.z-TAB_POS.z);musicGain.gain.setTargetAtTime(musicTracks().length&&!musicPaused?Math.pow(clamp((3.2-dM)/2.4,0,1),1.4)*.32:0,T,.3);}
+  if(musicGain){const dM=Math.hypot(p.x-TAB_POS.x,p.z-TAB_POS.z);musicGain.gain.setTargetAtTime(musicTracks().length&&!musicPaused?Math.pow(clamp((3.2-dM)/2.4,0,1),1.4)*VOL_MAX:0,T,.3);}
   if(tvGain){const dTV=TV_POS.distanceTo(p);const dh=Math.hypot(p.x-TV_POS.x,p.z-TV_POS.z);const fx=Math.max(0,4.45-p.x),fz=Math.max(0,Math.abs(p.z-TV_POS.z)-.9),dF=Math.hypot(fx,fz);   // distance from the front of the TV stand
-    const g=tvDoc?Math.pow(clamp((1.2-dF)/.8,0,1),1.2)*.36:0;/* silent beyond 1 m, full (still soft) from about 65 cm in */tvGain.gain.setTargetAtTime(g,T,.25);}
+    const g=tvDoc?Math.pow(clamp((1.2-dF)/.8,0,1),1.2)*VOL_MAX:0;/* silent beyond 1 m, full (still soft) from about 65 cm in */tvGain.gain.setTargetAtTime(g,T,.25);}
   const dFire=tmpV.set(3,.7,.3).distanceTo(p),nearFire=Math.pow(clamp(1-(dFire-.4)/2.6,0,1),1.6),fl=S.fire/100;
   const breath=.8+.12*Math.sin(now*.0013)+.08*Math.sin(now*.0041+1.3);
   au.burn.gain.setTargetAtTime(fl>0?nearFire*(.05+.14*fl)*breath:0,T,.4);
@@ -3898,7 +3907,7 @@ function shadowStop(s){if(s.node){try{s.node.stop();}catch(e){}s.node.disconnect
 function shadowStart(v,s){shadowStop(s);const n=AC.createBufferSource();n.buffer=s.buf;n.loop=v.loop;n.connect(s.out);
   s.off=Math.min(v.currentTime,s.buf.duration-.01);s.t0=AC.currentTime;n.start(0,s.off);s.node=n;}
 function shadowSync(){if(!IOS||!AC)return;
-  for(const v of [tvVideo,musicEl]){const s=shadowFor(v);if(!s.out)continue;const url=v.currentSrc||v.src||'';
+  for(const v of exVid?[tvVideo,musicEl,exVid]:[tvVideo,musicEl]){const s=shadowFor(v);if(!s.out)continue;const url=v.currentSrc||v.src||'';
     if(url!==s.url){if(url)shadowLoad(v,s,url);else{s.url=null;s.buf=null;shadowStop(s);}continue;}
     if(s.fallback){if(v.muted&&!v.dataset.autoMuted)v.muted=false;continue;}
     if(!v.muted)v.muted=true;

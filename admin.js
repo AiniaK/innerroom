@@ -224,6 +224,7 @@ function collectExhibits() {
     s.desc = f('desc').value.trim();
     s.popup = f('popup').checked; s.hover = f('hover').checked; s.hidden = f('hidden').checked;
     s.mode = f('mode').value;
+    if (f('wall')) s.wall = f('wall').value;   // 影片展品：牆上直接播放，或只放封面、點開才播放
     const w = +f('width').value;
     if (w > 0) s.scale = clamp(w / 100 / E.OW, .2, 4);
     const half = E.OW * (s.scale > 0 ? s.scale : 1) / 2;
@@ -355,7 +356,7 @@ function collectWorks() {
 function renderExhibits() {
   $('#exList').innerHTML = Object.keys(ex).map(id => {
     const E = exCat(id), s = ex[id];
-    return `<div class="adm-row ex${s.popup === false ? ' off' : ''}" data-ex="${esc(id)}"><div class="k">${E.custom ? (E.video ? '新增的影片' : '新增的照片') : '展品'}<br>${esc(id)}<br><img src="${esc(viewURL(E.img))}" alt="" style="width:100%;max-width:120px;margin-top:8px;border:4px solid #D9B98E;border-radius:3px;box-sizing:border-box">${E.custom ? `<br><button type="button" class="btn small ghost" data-del-ex="${esc(id)}" style="margin-top:8px">刪除這件展品</button>` : ''}</div><div class="f">
+    return `<div class="adm-row ex${s.popup === false ? ' off' : ''}" data-ex="${esc(id)}"><div class="k">${E.custom ? (E.video ? '新增的影片' : '新增的照片') : '展品'}<br>${esc(id)}<br><img src="${esc(viewURL(s.cover || E.img))}" alt="" style="width:100%;max-width:120px;margin-top:8px;border:4px solid #D9B98E;border-radius:3px;box-sizing:border-box">${E.custom ? `<br><button type="button" class="btn small ghost" data-del-ex="${esc(id)}" style="margin-top:8px">刪除這件展品</button>` : ''}</div><div class="f">
       <input type="text" data-f="kind" maxlength="20" value="${esc(s.kind || E.kind)}" placeholder="類別" aria-label="類別">
       <input type="text" data-f="title" maxlength="40" value="${esc(s.title)}" placeholder="名稱" aria-label="名稱">
       <textarea data-f="desc" maxlength="800" rows="3" placeholder="介紹文字" aria-label="介紹文字">${esc(s.desc || '')}</textarea>
@@ -363,7 +364,9 @@ function renderExhibits() {
         <label>擺放 <select data-f="mode" style="width:auto"><option value="hang" ${s.mode === 'hang' ? 'selected' : ''}>掛在牆上</option><option value="lean" ${s.mode !== 'hang' ? 'selected' : ''}>斜靠在地上</option></select></label>
         <label>水平位置 <input type="number" data-f="along" step="0.05" value="${(+s.along).toFixed(2)}"></label>
         <label>高度 <input type="number" data-f="height" step="0.05" value="${(+s.height).toFixed(2)}"></label>
-        <label>寬度（公分） <input type="number" data-f="width" step="1" min="10" value="${exWidthOf(id)}"></label></div></div>
+        <label>寬度（公分） <input type="number" data-f="width" step="1" min="10" value="${exWidthOf(id)}"></label>
+        ${E.video ? `<label>牆上 <select data-f="wall" style="width:auto"><option value="play" ${s.wall !== 'cover' ? 'selected' : ''}>直接播放影片</option><option value="cover" ${s.wall === 'cover' ? 'selected' : ''}>只放封面，點開才播放</option></select></label>
+        <label class="btn small" style="cursor:pointer">更換封面<input type="file" accept="image/jpeg,image/png,image/webp" data-cover="${esc(id)}" hidden></label>${s.cover ? `<button type="button" class="btn small" data-cover-reset="${esc(id)}">改回影片的畫面</button>` : ''}` : ''}</div></div>
       <canvas class="exw" data-w="${esc(id)}" width="600" height="300" aria-label="白牆示意"></canvas></div>`;
   }).join('');
   const W = catalog.wall;
@@ -391,6 +394,17 @@ function renderExhibits() {
     r.addEventListener('change', e => { if (e.target.dataset.f === 'popup') r.classList.toggle('off', !e.target.checked); draw(); markDirty(); });
   });
   draw();
+  // 影片展品的封面：上傳一張照片當牆上的封面（也是點開時影片開始前的畫面）
+  document.querySelectorAll('#exList [data-cover]').forEach(inp => inp.onchange = async e => {
+    const id = inp.dataset.cover, file = e.target.files[0]; e.target.value = ''; if (!file) return;
+    const ui = uploadUIFor('#exStat', '#exProg');
+    let pic; try { ui.say('整理封面中…'); pic = await imageToJpeg(URL.createObjectURL(file), 1600); } catch { ui.say('讀不到這張照片，請換一張再試。', true); return; }
+    const path = newPath('ex-cover', file, 'jpg');
+    try { await uploadMedia(pic.blob, path, ui); } catch (er) { ui.progress(null); ui.say('上傳沒有成功：' + explain(er), true); return; }
+    collectExhibits(); ex[id].cover = path; renderExhibits(); markDirty(); refreshFiles();
+    ui.say('封面換好了，記得按「儲存並更新房間」。');
+  });
+  document.querySelectorAll('#exList [data-cover-reset]').forEach(b => b.onclick = () => { const id = b.dataset.coverReset; collectExhibits(); delete ex[id].cover; renderExhibits(); markDirty(); });
   document.querySelectorAll('[data-del-ex]').forEach(b => b.onclick = () => {
     const id = b.dataset.delEx;
     if (!confirm(`要刪除「${ex[id].title || id}」嗎？按「儲存並更新房間」之後，網站上就不會再有這件展品。`)) return;
@@ -805,7 +819,7 @@ function refsOf(c) {
   const s = new Set();
   if (c.tv && c.tv.src) s.add(c.tv.src);
   ((c.music && c.music.tracks) || []).forEach(t => { if (t.src) s.add(t.src); if (t.cover) s.add(t.cover); });
-  Object.values((c.exhibits && c.exhibits.items) || {}).forEach(e => { if (e && e.custom) { if (e.img) s.add(e.img); if (e.video) s.add(e.video); } });
+  Object.values((c.exhibits && c.exhibits.items) || {}).forEach(e => { if (e && e.cover) s.add(e.cover); if (e && e.custom) { if (e.img) s.add(e.img); if (e.video) s.add(e.video); } });
   return s;
 }
 function currentRefs() { return refsOf({ tv, music, exhibits: { items: ex } }); }
