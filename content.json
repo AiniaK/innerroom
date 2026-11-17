@@ -350,8 +350,8 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": -0.55,
-        "height": 1.05,
+        "along": -0.8,
+        "height": 1.35,
         "scale": 0.2,
         "custom": true,
         "img": "media/ex-20261118-000959.jpg",
@@ -366,8 +366,8 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": -0.75,
-        "height": 1.15,
+        "along": -1,
+        "height": 1.35,
         "scale": 0.2,
         "custom": true,
         "img": "media/ex-20261118-001054.jpg",
@@ -382,8 +382,8 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": -0.54,
-        "height": 1.35,
+        "along": -0.79,
+        "height": 1.6,
         "scale": 0.2,
         "custom": true,
         "img": "media/ex-20261118-001331.jpg",
@@ -495,5 +495,5 @@
       }
     ]
   },
-  "savedAt": 1794945787844
+  "savedAt": 1794945897102
 }
