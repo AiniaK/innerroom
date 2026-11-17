@@ -326,7 +326,7 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": 0.65,
+        "along": 1.1,
         "height": 1.5,
         "scale": 0.9999999999999998
       },
@@ -338,7 +338,7 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": 1.55,
+        "along": 1.95,
         "height": 1.62,
         "scale": 0.9953343701399688
       },
@@ -350,8 +350,8 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": -0.4,
-        "height": 1.45,
+        "along": -0.55,
+        "height": 1.05,
         "scale": 0.2,
         "custom": true,
         "img": "media/ex-20261118-000959.jpg",
@@ -366,8 +366,8 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": -0.6,
-        "height": 1.5,
+        "along": -0.75,
+        "height": 1.15,
         "scale": 0.2,
         "custom": true,
         "img": "media/ex-20261118-001054.jpg",
@@ -382,13 +382,64 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": -0.44,
-        "height": 1.7,
+        "along": -0.54,
+        "height": 1.35,
         "scale": 0.2,
         "custom": true,
         "img": "media/ex-20261118-001331.jpg",
         "W": 0.5,
         "H": 0.7
+      },
+      "ex-1118035809": {
+        "kind": "影像",
+        "title": "CanyonStory2",
+        "desc": "",
+        "hidden": false,
+        "popup": true,
+        "hover": true,
+        "mode": "hang",
+        "along": 0.35,
+        "height": 1.75,
+        "scale": 0.6233766233766234,
+        "custom": true,
+        "img": "media/ex-canyonstory2-20261118-035745.jpg",
+        "video": "media/ex-canyonstory2-20261118-035750.mp4",
+        "W": 0.7,
+        "H": 0.394
+      },
+      "ex-1118040036": {
+        "kind": "影像",
+        "title": "video_17608372214469-1Hk1B0Eo",
+        "desc": "",
+        "hidden": false,
+        "popup": true,
+        "hover": true,
+        "mode": "hang",
+        "along": 0.15,
+        "height": 1.3,
+        "scale": 0.6233766233766234,
+        "custom": true,
+        "img": "media/ex-video-17608372214469-1hk1b0eo-20261118-040023.jpg",
+        "video": "media/ex-video-17608372214469-1hk1b0eo-20261118-040028.mp4",
+        "W": 0.7,
+        "H": 0.394
+      },
+      "ex-1118040125": {
+        "kind": "影像",
+        "title": "Grassland",
+        "desc": "",
+        "hidden": false,
+        "popup": true,
+        "hover": true,
+        "mode": "hang",
+        "along": -0.3,
+        "height": 1.65,
+        "scale": 0.6233766233766234,
+        "custom": true,
+        "img": "media/ex-grassland-20261118-035855.jpg",
+        "video": "media/ex-grassland-20261118-040112.mp4",
+        "W": 0.7,
+        "H": 0.394
       }
     }
   },
@@ -444,5 +495,5 @@
       }
     ]
   },
-  "savedAt": 1794944971701
+  "savedAt": 1794945787844
 }
