@@ -1526,10 +1526,15 @@ function addCustomExhibit(id,s){if(EXHIBITS[id]||!s||!s.custom||!s.img)return;co
 function applyExhibits(d){const items=(d&&d.items)||{};Object.keys(items).forEach(id=>addCustomExhibit(id,items[id]));Object.keys(EXHIBITS).forEach(id=>{exState[id]=Object.assign({},EXHIBITS[id].def,items[id]||{});placeExhibit(id);});
   if(!modal.hidden&&card.querySelector('#exView'))openExhibit(card.querySelector('#exView').dataset.id,true);}
 // the enlarged view: the picture on one side, its title and story on the other; the owner gets the tools beneath
+let exDucked=false;
 function openExhibit(id,keep){const E=EXHIBITS[id],st=exState[id];if(!E)return;
   openModal(`<div id="exView" data-id="${id}" class="exhibit"><div class="pic">${E.video?`<video src="${exVideoURL(E)}" autoplay loop muted playsinline></video>`:`<img alt="" src="${E.img}">`}</div>
     <div class="txt"><div class="eyebrow" id="exK"></div><h2 id="exT"></h2><p id="exD" style="white-space:pre-line"></p><div id="exOwner"></div></div></div>`,{wide:true});
-  {const im=card.querySelector('#exView img');if(im)im.alt=st.title;}card.querySelector('#exK').textContent=st.kind||E.kind;card.querySelector('#exT').textContent=st.title;card.querySelector('#exD').textContent=st.desc;}
+  {const im=card.querySelector('#exView img');if(im)im.alt=st.title;}
+  {const v=card.querySelector('#exView video');if(v&&soundOn){   // opened up close, a clip plays with its own sound (the one on the wall stays silent); the room's sounds step back meanwhile
+    v.muted=false;v.volume=1;v.play().catch(()=>{v.muted=true;v.play().catch(()=>{});});
+    exDucked=true;if(AC&&au.master){au.master.gain.cancelScheduledValues(AC.currentTime);au.master.gain.setTargetAtTime(.1,AC.currentTime,.25);}}}
+  card.querySelector('#exK').textContent=st.kind||E.kind;card.querySelector('#exT').textContent=st.title;card.querySelector('#exD').textContent=st.desc;}
 
 /* ---------- sunset lamp on the corner of the recommended-books cabinet: three frosted acrylic panels fading from pale orange
    through red to black, with a glowing bulb inside that slowly sinks like the sun and rises again ---------- */
@@ -3267,7 +3272,8 @@ const DRINKS=['柚子氣泡：微苦的柚皮，和一點蜂蜜。喝一口，�
 const modal=$('#modal'),card=$('#modalCard');
 function openModal(html,opt={}){card.classList.toggle('wide',!!opt.wide);card.classList.toggle('admin',!!opt.admin);card.classList.toggle('book',!!opt.book);card.innerHTML='<button class="x" type="button" aria-label="關閉" data-close>×</button>'+html;modal.hidden=false;modalOpen=true;
   if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;const f=card.querySelector('[data-focus]')||card.querySelector('.x');setTimeout(()=>f&&f.focus(),30);}
-function closeModal(){if(gbBookCloser){gbBookCloser=null;bkTeardown();if(bk.src&&bk.src.onClose){const f=bk.src.onClose;bk.src=null;f();}}modal.hidden=true;modalOpen=false;card.innerHTML='';card.classList.remove('book');updateCursorUI();canvas.focus();}
+function closeModal(){if(exDucked){exDucked=false;const v=card.querySelector('#exView video');if(v)v.pause();applySound();}   // the room's sounds come back
+  if(gbBookCloser){gbBookCloser=null;bkTeardown();if(bk.src&&bk.src.onClose){const f=bk.src.onClose;bk.src=null;f();}}modal.hidden=true;modalOpen=false;card.innerHTML='';card.classList.remove('book');updateCursorUI();canvas.focus();}
 modal.addEventListener('click',e=>{if(e.target===modal||e.target===card&&card.classList.contains('book')||e.target.closest('[data-close]')){if(gbBookCloser)gbBookCloser();else closeModal();}});   // the notebook closes itself and is put down first
 let toastT=0;function toast(s){const t=$('#toast');t.querySelector('span').textContent=s;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200);}
 const simple=(eyebrow,title,body,note)=>`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>${body}</p>${note?`<div class="note">${note}</div>`:''}`;
