@@ -22,12 +22,16 @@
       off += 8 + len;
     }
     const SIZE = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
-    const ARR = { 5126: Float32Array, 5123: Uint16Array, 5125: Uint32Array, 5121: Uint8Array };
+    const ARR = { 5126: Float32Array, 5123: Uint16Array, 5125: Uint32Array, 5121: Uint8Array, 5122: Int16Array, 5120: Int8Array };
     const acc = (i) => {
       const a = json.accessors[i], bv = json.bufferViews[a.bufferView], n = SIZE[a.type], C = ARR[a.componentType];
       const start = bin + (bv.byteOffset || 0) + (a.byteOffset || 0);
       if (bv.byteStride && bv.byteStride !== n * C.BYTES_PER_ELEMENT) throw new Error('不支援交錯的頂點資料');
-      return new THREE.BufferAttribute(new C(buf.slice(start, start + a.count * n * C.BYTES_PER_ELEMENT)), n);
+      const raw = new C(buf.slice(start, start + a.count * n * C.BYTES_PER_ELEMENT));
+      // 壓縮過的網格（tools/quantize-glb.mjs）：16 位元整數還原成浮點數
+      if (a.extras && a.extras.q) { const { o, s } = a.extras.q, f = new Float32Array(raw.length); for (let j = 0; j < raw.length; j++) f[j] = o[j % n] + s[j % n] * raw[j] / 32767; return new THREE.BufferAttribute(f, n); }
+      if (a.normalized && C === Int16Array) { const f = new Float32Array(raw.length); for (let j = 0; j < raw.length; j++) f[j] = Math.max(-1, raw[j] / 32767); return new THREE.BufferAttribute(f, n); }
+      return new THREE.BufferAttribute(raw, n);
     };
     const meshes = (json.meshes || []).map((m) => m.primitives.map((p) => {
       const g = new THREE.BufferGeometry();

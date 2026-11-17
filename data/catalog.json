@@ -16,7 +16,133 @@
    "emptycab",
    "矮櫃",
    "矮櫃",
-   "櫃子裡面還空著。櫃子上放著一組微縮模型：臥佛、點心小桌和電視。"
+   "兩扇門的矮櫃，裡面整齊疊著車隊的團服。櫃子上放著一組微縮模型：臥佛、點心小桌和電視。"
+  ],
+  [
+   "cabdoor",
+   "矮櫃的門",
+   "矮櫃的門",
+   "點一下打開櫃門，裡面疊著車隊的團服。"
+  ],
+  [
+   "shirtstack0",
+   "RIDE 團服",
+   "RIDE 團服",
+   "一疊折好的團服，白、黑、灰綠三色。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。"
+  ],
+  [
+   "shirtstack1",
+   "6543N1 團服",
+   "6543N1 團服",
+   "一疊折好的團服，白、黑、灰綠三色。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。"
+  ],
+  [
+   "shirtstack2",
+   "IN TORQUE WE TRUST 團服",
+   "IN TORQUE WE TRUST 團服",
+   "信仰系列：白、黑兩件，和沒有金魚的白、黑兩件。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。"
+  ],
+  [
+   "shirtstack3",
+   "戰損系列團服",
+   "戰損系列團服",
+   "BORN TO RIDE 與 BURNING FUEL。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。"
+  ],
+  [
+   "shirtstack4",
+   "RIDER 帽T",
+   "RIDER 帽T",
+   "冬季的帽T，橘、粉兩件。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。"
+  ],
+  [
+   "cap",
+   "HELMET MASTERPIECE 帽子",
+   "HELMET MASTERPIECE 帽子",
+   "為車隊設計的帽子。正面：GOLDFISH BRAIN HELMET MASTERPIECE；側面 RIDE SAVE；背面 Since 2023 June；帽簷上貼著安全帽反光貼紙。"
+  ],
+  [
+   "shirt_ride_white",
+   "RIDE 團服・白",
+   "RIDE 團服・白",
+   "為車隊設計的團服。正面：RIDE never die；背面：WHEN LIFE GETS YOU DOWN, REMEMBER ONLY ONE DOWN THE REST IS UP."
+  ],
+  [
+   "shirt_ride_black",
+   "RIDE 團服・黑",
+   "RIDE 團服・黑",
+   "為車隊設計的團服。正面：RIDE never die；背面：WHEN LIFE GETS YOU DOWN, REMEMBER ONLY ONE DOWN THE REST IS UP."
+  ],
+  [
+   "shirt_ride_grey",
+   "RIDE 團服・灰綠",
+   "RIDE 團服・灰綠",
+   "為車隊設計的團服。正面：RIDE never die；背面：WHEN LIFE GETS YOU DOWN, REMEMBER ONLY ONE DOWN THE REST IS UP."
+  ],
+  [
+   "shirt_n1_white",
+   "6543N1 團服・白",
+   "6543N1 團服・白",
+   "為車隊設計的團服。背面是排檔的 6 5 4 3 2 N 1，和一條金魚。"
+  ],
+  [
+   "shirt_n1_black",
+   "6543N1 團服・黑",
+   "6543N1 團服・黑",
+   "為車隊設計的團服。背面是排檔的 6 5 4 3 2 N 1，和一條金魚。"
+  ],
+  [
+   "shirt_n1_grey",
+   "6543N1 團服・灰綠",
+   "6543N1 團服・灰綠",
+   "為車隊設計的團服。背面是排檔的 6 5 4 3 2 N 1，和一條金魚。"
+  ],
+  [
+   "shirt_faith_white",
+   "IN TORQUE WE TRUST・白",
+   "IN TORQUE WE TRUST・白",
+   "為車隊設計的團服。正面是握著油門的手與比出搖滾手勢的手；背面有 QR code：SCAN THIS!"
+  ],
+  [
+   "shirt_faith_black",
+   "IN TORQUE WE TRUST・黑",
+   "IN TORQUE WE TRUST・黑",
+   "為車隊設計的團服。正面是握著油門的手與比出搖滾手勢的手；背面有 QR code：SCAN THIS!"
+  ],
+  [
+   "shirt_faithplain_white",
+   "IN TORQUE WE TRUST・沒有金魚・白",
+   "IN TORQUE WE TRUST・沒有金魚・白",
+   "為車隊設計的團服。沒有金魚的版本，中間是一圈 Ride Like You Believe。"
+  ],
+  [
+   "shirt_faithplain_black",
+   "IN TORQUE WE TRUST・沒有金魚・黑",
+   "IN TORQUE WE TRUST・沒有金魚・黑",
+   "為車隊設計的團服。沒有金魚的版本，中間是一圈 Ride Like You Believe。"
+  ],
+  [
+   "shirt_battle_white",
+   "BORN TO RIDE・白",
+   "BORN TO RIDE・白",
+   "為車隊設計的團服。正面：BORN TO RIDE, ALWAYS READY；背面：FAITH. FIRE. FULL THROTTLE."
+  ],
+  [
+   "shirt_battle_black",
+   "BURNING FUEL・黑",
+   "BURNING FUEL・黑",
+   "為車隊設計的團服。正面：BURNING FUEL, BURNING SOUL；背面：FAITH. FIRE. FULL THROTTLE."
+  ],
+  [
+   "shirt_hoodorange_hood",
+   "RIDER 帽T・橘",
+   "RIDER 帽T・橘",
+   "冬季的長袖帽T，布料比較厚。正面是 X 裡的金魚；背面是橘色的 RIDER。"
+  ],
+  [
+   "shirt_hoodpink_hood",
+   "RIDER 帽T・粉",
+   "RIDER 帽T・粉",
+   "冬季的長袖帽T，布料比較厚。正面是 X 裡的金魚；背面是粉色的 RIDER。"
   ],
   [
    "buddha",
@@ -229,10 +355,64 @@
    "上面幾層收著房主的紀錄：夢境紀錄、覺察筆記、心情日記，點一本書打開來看。下面是一張小書桌。"
   ],
   [
-   "blank",
-   "空白冊",
-   "空白冊",
-   "還沒寫的頁數。新的紀錄同步進來時，會長成新的一本。"
+   "kcbox",
+   "鑰匙圈盒",
+   "鑰匙圈盒",
+   "一個沒有蓋子的盒子，裡面放著三個房主設計的鑰匙圈。拿起來看看吧。"
+  ],
+  [
+   "kc_acrylic",
+   "金魚安全帽壓克力鑰匙圈",
+   "金魚安全帽壓克力鑰匙圈",
+   "三層壓克力疊成的安全帽。中間那層的金魚是活動的，搖一搖鑰匙圈，金魚就在安全帽裡晃來晃去。"
+  ],
+  [
+   "kc_strap",
+   "金魚腦織帶鑰匙圈",
+   "金魚腦織帶鑰匙圈",
+   "雙面織帶，一面橘色、一面粉色。戴著安全帽的騎士，面罩裡是一條金魚。"
+  ],
+  [
+   "stickers",
+   "貼紙",
+   "貼紙",
+   "五張房主設計的貼紙，一張雷射、四張反光。拿起來會像扇子一樣展開，點一張就能抽出來看。"
+  ],
+  [
+   "sticker_A",
+   "DON'T TEST MY MEMORY",
+   "DON'T TEST MY MEMORY",
+   "雷射貼紙。轉動的時候，顏色會跟著角度變成一道一道的彩虹。"
+  ],
+  [
+   "sticker_B",
+   "GOLDFISH BRAIN",
+   "GOLDFISH BRAIN",
+   "反光貼紙。「我可能會忘記路，但我永遠不會忘記騎車。」"
+  ],
+  [
+   "sticker_D",
+   "安全帽裡的金魚",
+   "安全帽裡的金魚",
+   "反光貼紙。"
+  ],
+  [
+   "sticker_E",
+   "金魚腦・粉",
+   "金魚腦・粉",
+   "反光貼紙，粉紅色的安全帽。"
+  ],
+  [
+   "sticker_F",
+   "金魚腦・金",
+   "金魚腦・金",
+   "反光貼紙，金色的安全帽。"
+  ],
+  [
+   "kc_snake",
+   "白蛇與黑蛇織帶鑰匙圈",
+   "白蛇與黑蛇織帶鑰匙圈",
+   "雙面織帶，一面纏著白蛇，一面纏著黑蛇。"
   ],
   [
    "swcab",
@@ -304,7 +484,6 @@
   "drink:0": "夏日特調・柚子氣泡",
   "drink:1": "夏日特調・百香果冰茶",
   "shelf": "書桌櫃",
-  "blank": "空白冊",
   "hchair": "書桌椅",
   "sakura": "玻璃罩・微縮櫻花",
   "bed": "雙人床",
@@ -315,6 +494,7 @@
   "plant": "窗台小花盆",
   "water": "一杯水",
   "emptycab": "矮櫃",
+  "cabdoor": "矮櫃的門",
   "tvstand": "微縮模型・電視櫃",
   "buddha": "微縮模型・臥佛",
   "minitable": "微縮模型・小桌",

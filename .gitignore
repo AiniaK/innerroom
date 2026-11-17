@@ -29,3 +29,6 @@ models/*/preview*.png
 
 # Blender 自動備份檔
 *.blend1
+
+# 房主放的原始設計圖（處理成貼圖後放在 assets/，原圖不上傳）
+design-source/

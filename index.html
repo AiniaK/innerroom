@@ -332,10 +332,13 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="config.js"></script>
-<script src="data/models.js"></script>
-<script src="models/goldfish-glass/room.js?v=2026-11-17a"></script>
-<script src="models/mirror-wings/room.js?v=2026-11-16c"></script>
-<script src="models/brainhorn/room.js?v=2026-11-17a"></script>
+<script src="data/models.js?v=2026-11-18a"></script>
+<script src="models/goldfish-glass/room.js?v=2026-11-18q"></script>
+<script src="models/mirror-wings/room.js?v=2026-11-18q"></script>
+<script src="models/brainhorn/room.js?v=2026-11-18q"></script>
+<script src="models/keychains/room.js?v=2026-11-18w"></script>
+<script src="models/shirts/room.js?v=2026-11-18w"></script>
+<script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
 (()=>{
 'use strict';
@@ -356,17 +359,21 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
 
 /* ---------- renderer ---------- */
 const canvas=$('#c');
+// phones and tablets get a lighter room (fewer pixels, coarser shadows refreshed a few times a second, a thinner forest and
+// fewer cherry blossoms): the same room, sized for a phone's GPU so it turns smoothly
+const LOW=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+renderer.setPixelRatio(Math.min(devicePixelRatio,LOW?1.3:1.75));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.05;
 renderer.useLegacyLights=true;
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFShadowMap;   // filtered over a wider footprint (shadow.radius) so edges are soft instead of stair-stepped
+if(LOW)renderer.shadowMap.autoUpdate=false;   // phones: redrawn a few times a second from the frame loop instead
 /* soft shadow edges: three's PCF takes 17 fixed taps, which turns into a dotted pattern when spread wide. Instead sample a dense grid
    over the radius, nudged per pixel by a little noise, so the penumbra is a smooth gradient (lighter grid on phones and tablets). */
-{const lo=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),N=lo?5:7;
+{const lo=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),N=lo?4:7;
  const a=THREE.ShaderChunk.shadowmap_pars_fragment,i=a.indexOf('#if defined( SHADOWMAP_TYPE_PCF )'),j=a.indexOf('#elif defined( SHADOWMAP_TYPE_PCF_SOFT )');
  if(i>0&&j>i&&a.slice(i,j).includes('dx0'))THREE.ShaderChunk.shadowmap_pars_fragment=a.slice(0,i)+`#if defined( SHADOWMAP_TYPE_PCF )
       vec2 texelSize=vec2(1.)/shadowMapSize;float stp=2.*shadowRadius/${N-1}.;
@@ -578,6 +585,8 @@ const JOURNAL_CATS=[
   {key:'mood',name:'心情日記',colors:[0xE8D7BF,0xD9B99B,0xC9A27E,0xF0E4D0,0xBFA48A]},
   {key:'mood',name:'心情日記',colors:[0xE8D7BF,0xD9B99B,0xC9A27E,0xF0E4D0,0xBFA48A]},
 ];
+const KC_BOX={W:.27,D:.2,H:.045,T:.008,FLOOR:.0085};   // the keychain box: width, depth, height, wall, floor thickness
+let KCBOX=null;   // where the open box of keychains stands on the desk: {x, y (desk top), z}
 let HUTCH=null;   // the hutch's shelves, for the dream books: {zB, rows:[[y, xFrom, xTo]], height:[clear height per row]}
 function buildHutch(){   // (built after the clay materials exist) a clay hutch desk: turned legs and two drawers below, a wavy-sided hutch of shelves above, a little flower on the crest
   const act={type:'shelf',label:'書桌櫃'};
@@ -630,8 +639,8 @@ function buildHutch(){   // (built after the clay materials exist) a clay hutch 
   const R=rng(42);
   HUTCH={zB,rows:[[T1+.0275,inX1+.03,inX2-.03],[shelfY[0]+.019,inX1+.03,inX2-.24],[shelfY[1]+.019,inX1+.03,inX2-.03]],height:[shelfY[0]-.019-(T1+.0275),shelfY[1]-.019-(shelfY[0]+.019),HT-.0225-(shelfY[1]+.019)]};
   put(new THREE.CylinderGeometry(.05,.065,.2,24),M.ceramic,inX2-.12,shelfY[0]+.019+.1,zB+.17,{act:{type:'shelf',label:'陶瓶'}});
-  // the cubby: blank notebooks lying flat, and the little clay box on the desk
-  for(let k=0;k<3;k++)put(rbox(.26,.033,.19,.004),mat([0xF0E6D4,0xE2D3BC,0xD8C7AD][k],.8),inX1+dw+.04+(inW-dw)/2,HB+.0165+k*.034,zB+.14,{ry:(R()-.5)*.15,act:{type:'blank',label:'空白冊'}});
+  // the cubby: an open box (no lid) on the desk, holding three keychains the owner designed (models/keychains); each can be picked up
+  KCBOX={x:inX1+dw+.04+(inW-dw)/2,y:HB,z:zB+.14};   // the box itself is picked up as a whole (see kcBoxObj)
   // matching clay chair beside the desk, between the hutch and the bed, angled toward the desk
   {const CH={x:1.3,z:-3.0},dx=-.8,dz=.6,cg=new THREE.Group();cg.position.set(CH.x,0,CH.z);cg.rotation.y=Math.atan2(dx,dz);scene.add(cg);
    const ca={type:'hchair',label:'書桌椅'},cp=(g,m,x,y,z,o={})=>{const r=add(g,m,x,y,z,cg,Object.assign({act:ca},o));r.userData.noInk=true;return r;};
@@ -686,6 +695,19 @@ const knitTex=ctex(256,256,(g,w,h)=>{g.fillStyle='#f3e6dc';g.fillRect(0,0,w,h);
 const CL={wood:clay(0xE0BE92,grain),sheet:clay(0xEADCC6),duvet:clay(0xE2D1B4,speckle),pillow:clay(0xFBF8F2),knit:clay(0xCF9877,knitTex)};
 buildHutch();
 // ---- on the right of the desk: a glass dome over a tiny cherry tree on a round grassy plinth, a sword stuck in the grass with a gourd and a red ribbon ----
+const unb64=t=>{const bin=atob(t),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer;};
+// figurines and the cherry tree: decimated meshes (quantized positions, normals, uvs) wearing their original colours baked into a small JPEG
+const figGeo=(D,idx,big)=>{const pos=new Uint16Array(unb64(D.pos)),n=pos.length/3,P=new Float32Array(n*3);for(let i=0;i<n*3;i++){const a=i%3;P[i]=D.mn[a]+pos[i]/65535*(D.mx[a]-D.mn[a]);}
+  const nb=new Int8Array(unb64(D.nrm)),N=new Float32Array(nb.length);for(let i=0;i<nb.length;i++)N[i]=nb[i]/127;
+  const ub=new Uint16Array(unb64(D.uv)),U=new Float32Array(ub.length);for(let i=0;i<ub.length;i++)U[i]=ub[i]/65535;
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('normal',new THREE.BufferAttribute(N,3));g.setAttribute('uv',new THREE.BufferAttribute(U,2));
+  g.setIndex(new THREE.BufferAttribute(big?new Uint32Array(unb64(D[idx])):new Uint16Array(unb64(D[idx])),1));return g;};
+const figTex=(D,harm)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
+  im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);
+    if(harm){const id=g.getImageData(0,0,c.width,c.height),d=id.data,n=d.length/4,L=new Float32Array(n*3);   // same colour harmony as before, in linear light
+      for(let i=0;i<n;i++)for(let k=0;k<3;k++){const v=d[i*4+k]/255;L[i*3+k]=v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4);}harm(L);
+      for(let i=0;i<n;i++)for(let k=0;k<3;k++){const v=L[i*3+k];d[i*4+k]=255*(v<=.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-.055);}g.putImageData(id,0,0);}
+    t.image=c;t.needsUpdate=true;};im.src=D.tex;return t;};
 const SKU={};
 // cherry blossom shapes for the dome: a single petal (rounded, narrowing to its base, a small notch at the tip), and five of them as a flower
 SKU.petalOutline=(w,l,n=14)=>{const pts=[];for(let i=0;i<=n;i++){const t=i/n,a=Math.PI*t;   // around from one side of the base to the other
@@ -693,7 +715,7 @@ SKU.petalOutline=(w,l,n=14)=>{const pts=[];for(let i=0;i<=n;i++){const t=i/n,a=M
   const L=pts.map(([x,y])=>[x,y]),Rt=pts.slice().reverse().map(([x,y])=>[-x,y]);
   const out=[...L.slice(0,-1),[w*.12,l*.93],[0,l*.84],[-w*.12,l*.93],...Rt.slice(1)];return out;};   // the notch
 SKU.petalGeo=(w,l)=>{const sh=new THREE.Shape(SKU.petalOutline(w,l).map(([x,y])=>new THREE.Vector2(x,y-l/2)));return new THREE.ShapeGeometry(sh);};
-SKU.flowerGeo=()=>{const parts=[];for(let k=0;k<5;k++){const sh=new THREE.Shape(SKU.petalOutline(.62,1).map(([x,y])=>new THREE.Vector2(x,y+.08)));
+SKU.flowerGeo=(n=14)=>{const parts=[];for(let k=0;k<5;k++){const sh=new THREE.Shape(SKU.petalOutline(.62,1,n).map(([x,y])=>new THREE.Vector2(x,y+.08)));
     const g=new THREE.ShapeGeometry(sh);g.rotateZ(k/5*Math.PI*2);parts.push(g);}
   const P=[],I=[];let o=0;for(const g of parts){const a=g.attributes.position;for(let i=0;i<a.count;i++)P.push(a.getX(i),a.getY(i),(k=>0)(i));g.index.array.forEach(v=>I.push(v+o));o+=a.count;}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setIndex(I);g.computeVertexNormals();return g;};
@@ -725,19 +747,17 @@ SKU.flowerGeo=()=>{const parts=[];for(let k=0;k<5;k++){const sh=new THREE.Shape(
   // the tree (owner's model, heavily simplified): bark, branches and mossy rock as one mesh; blossoms as little clusters
   const D=SAKURA,S=.0306,T=new THREE.Group();   /* largest size that still clears the glass */
   T.position.set(-.00066*S,GY+.002-D.mn[1]*S,.02486*S);   /* rock centred on the grass */T.scale.setScalar(S);G.add(T);SKU.T=T;SKU.S=S;
-  {const pos=new Uint16Array(u8(D.pos).buffer),n=pos.length/3,P=new Float32Array(n*3);
-   for(let i=0;i<n;i++)for(let a=0;a<3;a++)P[i*3+a]=D.mn[a]+pos[i*3+a]/65535*(D.mx[a]-D.mn[a]);
-   const cb=u8(D.col),Cf=new Float32Array(cb.length);for(let i=0;i<cb.length;i++){const c=cb[i]/255;Cf[i]=c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4);}
-   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('color',new THREE.BufferAttribute(Cf,3));
-   g.setIndex(new THREE.BufferAttribute(new Uint32Array(u8(D.idx32).buffer),1));g.computeVertexNormals();
-   put(g,mat(0xffffff,.9,{vertexColors:true,side:THREE.DoubleSide}),0,0,0,{parent:T});
+  {put(figGeo(D,'idx32',true),mat(0xffffff,.9,{map:figTex(D),side:THREE.DoubleSide}),0,0,0,{parent:T});
    const bl=new Uint16Array(u8(D.bl).buffer),bs=u8(D.bs),nb=bl.length/3,R=rng(17);
-   const fg=SKU.flowerGeo();   // a five-petalled cherry blossom, each petal with the little notch at its tip
+   const fg=SKU.flowerGeo(LOW?4:6);   // a five-petalled cherry blossom, each petal with the little notch at its tip (a coarser outline on phones: each flower is a few millimetres across)
    const im=new THREE.InstancedMesh(fg,new THREE.MeshToonMaterial({color:0xBEBEBE,gradientMap:gradMap,side:THREE.DoubleSide}),nb),m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),c=new THREE.Color();
    const pinks=[0xD89A9F,0xE0A9A8,0xCB8B90,0xE4B6B0,0xD59496];SKU.bl=[]; /* dusty pinks, a little muted so they sit with the room's creams in daylight */
+   let kept=0;
    for(let i=0;i<nb;i++){const p=[0,1,2].map(a=>D.mn[a]+bl[i*3+a]/65535*(D.mx[a]-D.mn[a]));SKU.bl.push(p);
-     const s=.05*bs[i]/100*(.75+R()*.5);e.set(R()*6.28,R()*6.28,R()*6.28);q.setFromEuler(e);
-     m4.compose(new THREE.Vector3(p[0]+(R()-.5)*.04,p[1]+(R()-.5)*.04,p[2]+(R()-.5)*.04),q,new THREE.Vector3(s,s,s));im.setMatrixAt(i,m4);im.setColorAt(i,c.setHex(pinks[Math.floor(R()*pinks.length)]));}
+     const s=.05*bs[i]/100*(.75+R()*.5)*(LOW?1.3:1.14);e.set(R()*6.28,R()*6.28,R()*6.28);q.setFromEuler(e);   // phones: every other blossom, each a little bigger
+     m4.compose(new THREE.Vector3(p[0]+(R()-.5)*.04,p[1]+(R()-.5)*.04,p[2]+(R()-.5)*.04),q,new THREE.Vector3(s,s,s));const col=pinks[Math.floor(R()*pinks.length)];
+     if(LOW?i%5>1:i%3===2)continue;   /* desktop keeps two in three, phones two in five: each a little bigger, so the crown stays as full */im.setMatrixAt(kept,m4);im.setColorAt(kept,c.setHex(col));kept++;}
+   im.count=kept;
    im.userData.act=act;targets.push(im);T.add(im);SKU.blMat=im.material;}
   // sword stuck in the grass, leaning a little; a gourd tied below the guard, its red ribbon streaming out
   {const sw=new THREE.Group();sw.position.set(.055,GY,.03);sw.rotation.set(.05,-.4,-.12);sw.scale.setScalar(.6/1.27);G.add(sw);
@@ -914,8 +934,32 @@ add(new THREE.CylinderGeometry(.031,.028,.075,24),mat(0xDDEBEF,.05,{transparent:
 
 /* ---------- east low cabinet (empty for now) + oval table with fire ---------- */
 const ecAct={type:'emptycab',label:'矮櫃'};
-add(rbox(.45,.72,2.0,.02),M.oak,4.69,.37,.4,scene,{act:ecAct});
-for(const z of[-.08,.88]){add(rbox(.02,.6,.92,.01),M.trim,4.455,.38,z,scene,{act:ecAct});add(new THREE.CylinderGeometry(.008,.008,.08,8),M.metal,4.43,.42,z+(z<.4?.4:-.4),scene,{ray:false});}
+// a real cupboard now: top, base, back, ends and a middle divider; two doors on hinges at the outer ends. Inside, the team T-shirts
+// the owner designed lie folded in two neat stacks (models/shirts); click a door to open both, then a shirt to take it out
+const CAB={x:4.69,front:4.465,floor:.06,secs:[-.08,.88]},inM=mat(0xE9DCC6,.95);
+// the four stacks in the cupboard (two in each half), bottom to top: [model, colour, name]
+const SHIRTS=[   // lvl 0: the cupboard floor, 1: the shelf above it
+  {lvl:0,sec:0,dz:-.2,name:'RIDE 團服',items:[['ride','white','RIDE 團服・白'],['ride','black','RIDE 團服・黑'],['ride','grey','RIDE 團服・灰綠']]},
+  {lvl:0,sec:0,dz:.2,name:'6543N1 團服',items:[['n1','white','6543N1 團服・白'],['n1','black','6543N1 團服・黑'],['n1','grey','6543N1 團服・灰綠']]},
+  {lvl:0,sec:1,dz:0,name:'IN TORQUE WE TRUST 團服',items:[['faith','white','IN TORQUE WE TRUST・白'],['faith','black','IN TORQUE WE TRUST・黑'],['faithplain','white','IN TORQUE WE TRUST・沒有金魚・白'],['faithplain','black','IN TORQUE WE TRUST・沒有金魚・黑']]},
+  {lvl:1,sec:0,dz:-.2,name:'戰損系列團服',items:[['battle','white','BORN TO RIDE・白'],['battle','black','BURNING FUEL・黑']]},
+  {lvl:1,sec:1,dz:0,name:'RIDER 帽T',items:[['hoodorange','hood','RIDER 帽T・橘'],['hoodpink','hood','RIDER 帽T・粉']]}];
+const CAB_SHELF=.38;   // the top of the shelf inside the cupboard
+const shirtThick=m=>m.startsWith('hood')?.108:.047;   // measured: a folded tee is about 4.7 cm with its folds, a hoodie (hood folded over) about 11
+add(rbox(.45,.04,2.0,.012),M.oak,4.69,.71,.4,scene,{act:ecAct});                    // top (the diorama stands on it)
+add(rbox(.45,.06,2.0,.012),M.oak,4.69,.03,.4,scene,{act:ecAct});                    // base
+add(rbox(.02,.72,2.0,.008),M.oak,4.91,.37,.4,scene,{act:ecAct});                    // back
+for(const z of[-.59,1.39,.4])add(rbox(.45,.62,.02,.006),M.oak,4.69,.37,z,scene,{act:ecAct});   // the two ends and the divider
+for(const z of[-.08,.88])add(rbox(.42,.02,.94,.004),M.oak,4.7,CAB_SHELF-.01,z,scene,{act:ecAct});   // a shelf in each half: clothes below and above
+add(new THREE.PlaneGeometry(1.96,.6),inM,4.895,.38,.4,scene,{ry:-Math.PI/2,act:ecAct,cast:false});   // the inside, a little lighter
+const DOORS=[],doorAct={type:'cabdoor',label:'矮櫃的門'};let doorsOpen=false;
+for(const [z,s] of [[-.08,-1],[.88,1]]){   // each door hangs from its outer edge
+  // the doors lie over the front of the shell (overlay doors): they cover the end, top, base and half the divider, so no gaps show
+  const g=new THREE.Group();g.position.set(4.4545,.38,z+s*.51);scene.add(g);   // hinged at the end panel's outer face
+  add(rbox(.02,.66,.983,.003),M.trim,0,0,-s*.4915,g,{act:doorAct});
+  add(new THREE.CylinderGeometry(.008,.008,.08,8),M.metal,-.025,.04,-s*.92,g,{act:doorAct});
+  DOORS.push({g,s,a:0});}
+function doorsTick(dt){for(const d of DOORS){d.a+=((doorsOpen?1:0)-d.a)*(1-Math.exp(-dt*5));d.g.rotation.y=d.s*d.a*1.75;}}
 let tvScreen=null;
 /* ---------- miniature diorama on the low cabinet: reclining Buddha watching TV with a little snack table ----------
    local axes: +z points back toward the room (viewer), the TV sits at the wall end */
@@ -941,7 +985,6 @@ let tvScreen=null;
   // the owner's reclining Buddha model: head to the left, back toward the room, facing the TV
   const HARM=(Cf)=>{for(let i=0;i<Cf.length;i+=3){const r=Cf[i],g=Cf[i+1],b=Cf[i+2],l=.3*r+.55*g+.15*b;   // figurines: less saturated, a touch of warm cream, softer contrast, so they sit in the room
     for(let k=0;k<3;k++){let v=l+(Cf[i+k]-l)*.72;v=v*.86+[.62,.55,.46][k]*.14;Cf[i+k]=Math.pow(Math.max(v,0),.94);}}return Cf;};
-const unb64=t=>{const bin=atob(t),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer;};
   {const D=MODEL_DATA.buddha,g=new THREE.BufferGeometry();
    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(unb64(D.pos)),3));
    g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(unb64(D.uv)),2));
@@ -990,11 +1033,12 @@ const unb64=t=>{const bin=atob(t),u=new Uint8Array(bin.length);for(let i=0;i<bin
   // Pocky box from the owner's model, simplified to a box wearing its six baked faces
   {const D=MODEL_DATA.pocky,k=.17,tl=new THREE.TextureLoader();
    const soften=(src)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
-     im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);
-       const id=g.getImageData(0,0,c.width,c.height),px=id.data;
-       for(let i=0;i<px.length;i+=4){const r=px[i],gg=px[i+1],b=px[i+2],l=.3*r+.59*gg+.11*b;
-         px[i]=(r*.6+l*.4)*.94+240*.06;px[i+1]=(gg*.6+l*.4)*.94+226*.06;px[i+2]=(b*.6+l*.4)*.94+205*.06;}   // 40% desaturate, warm cream veil
-       g.putImageData(id,0,0);t.image=c;t.needsUpdate=true;};im.src=src;return t;};
+     im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');
+       if(typeof g.filter==='string'){g.filter='saturate(.6)';g.drawImage(im,0,0);g.filter='none';g.fillStyle='rgba(240,226,205,.06)';g.fillRect(0,0,c.width,c.height);}   // 40% desaturate, warm cream veil (done by the canvas: no pixel loop)
+       else{g.drawImage(im,0,0);const id=g.getImageData(0,0,c.width,c.height),px=id.data;
+         for(let i=0;i<px.length;i+=4){const r=px[i],gg=px[i+1],b=px[i+2],l=.3*r+.59*gg+.11*b;px[i]=(r*.6+l*.4)*.94+240*.06;px[i+1]=(gg*.6+l*.4)*.94+226*.06;px[i+2]=(b*.6+l*.4)*.94+205*.06;}
+         g.putImageData(id,0,0);}
+       t.image=c;t.needsUpdate=true;};im.src=src;return t;};
    const mats=D.faces.map(u=>mat(0xffffff,.6,{map:soften(u)}));
    const m=new THREE.Mesh(new THREE.BoxGeometry(D.size[0]*k,D.size[1]*k,D.size[2]*k),mats);
    m.position.set(.045,top+D.size[1]*k/2,.002);m.rotation.y=-.35;m.castShadow=m.receiveShadow=true;m.userData.act=A.pocky;T.add(m);targets.push(m);}
@@ -1057,13 +1101,9 @@ const unb64=t=>{const bin=atob(t),u=new Uint8Array(bin.length);for(let i=0;i<bin
      const tail=(m,pts,r)=>add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))),24,r,10,false),m,0,0,0,g,{act});
      return {g,el,ear,tail};};
    // sculpted animals: smooth single-piece bodies (built offline from blended soft shapes) with fur colour painted in; eyes and noses added here
-   const sdfAnimal=(D,parent,x,y,z,ry,sc,act)=>{const pos=new Uint16Array(unb64(D.pos)),n=pos.length/3,P=new Float32Array(n*3);
-     for(let i=0;i<n;i++)for(let a=0;a<3;a++)P[i*3+a]=D.mn[a]+pos[i*3+a]/65535*(D.mx[a]-D.mn[a]);
-     const cb=new Uint8Array(unb64(D.col)),Cf=new Float32Array(cb.length);for(let i=0;i<cb.length;i++){const c=cb[i]/255;Cf[i]=c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4);}HARM(Cf);
-     const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(P,3));geo.setAttribute('color',new THREE.BufferAttribute(Cf,3));
-     geo.setIndex(new THREE.BufferAttribute(new Uint16Array(unb64(D.idx)),1));geo.computeVertexNormals();
+   const sdfAnimal=(D,parent,x,y,z,ry,sc,act)=>{const geo=figGeo(D,'idx'),tex=figTex(D,HARM);
      const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=ry;g.scale.setScalar(sc);parent.add(g);
-     add(geo,mat(0xffffff,.9,{vertexColors:true}),0,0,0,g,{act});
+     add(geo,mat(0xffffff,.9,{map:tex}),0,0,0,g,{act});
      const Z=new THREE.Vector3(0,0,1),sph=new THREE.SphereGeometry(1,18,12);
      const put=(m,p,nv,sx,sy,sz,lift=0)=>{const o=add(sph,m,p[0]+nv[0]*lift,p[1]+nv[1]*lift,p[2]+nv[2]*lift,g,{act});o.scale.set(sx,sy,sz);o.quaternion.setFromUnitVectors(Z,new THREE.Vector3(...nv).normalize());return o;};
      for(const f of D.feats){const s_=f.s;
@@ -1085,13 +1125,9 @@ const unb64=t=>{const bin=atob(t),u=new Uint8Array(bin.length);for(let i=0;i<bin
    sdfAnimal(SDFM.dog,G,.2,.012,-.062,.08,.27,{type:'dog1',label:'微縮模型・趴著睡的狗狗'});
    // 2) on the floor in front of the speaker: a chubby ginger cat flopped on its side, cheek on one paw, the other paw on its pink tummy.
    //    One smooth sculpted body (built offline from blended soft shapes), with its stripes and belly painted into the surface.
-   {const D=FATCAT,u16=t=>new Uint16Array(unb64(t)),pos=u16(D.pos),n=pos.length/3,P=new Float32Array(n*3);
-    for(let i=0;i<n;i++)for(let a=0;a<3;a++)P[i*3+a]=D.mn[a]+pos[i*3+a]/65535*(D.mx[a]-D.mn[a]);
-    const cb=new Uint8Array(unb64(D.col)),Cf=new Float32Array(cb.length);for(let i=0;i<cb.length;i++){const c=cb[i]/255;Cf[i]=c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4);}HARM(Cf);
-    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(P,3));geo.setAttribute('color',new THREE.BufferAttribute(Cf,3));
-    geo.setIndex(new THREE.BufferAttribute(u16(D.idx),1));geo.computeVertexNormals();
+   {const D=FATCAT,geo=figGeo(D,'idx'),tex=figTex(D,HARM);
     const g=new THREE.Group();g.position.set(-.21,.012,-.075);g.scale.setScalar(.112);G.add(g);const A2={type:'cat2',label:'微縮模型・翻肚的胖橘貓'};
-    add(geo,mat(0xffffff,.9,{vertexColors:true}),0,0,0,g,{act:A2});
+    add(geo,mat(0xffffff,.9,{map:tex}),0,0,0,g,{act:A2});
     // the owner's sleeping orange tabby model, styled like the yawning cat: two thin closed-eye lines and a small coral nose
     const lidM=mat(0x5A3420,.6);
     for(const pts of D.eyes){const cur=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));
@@ -1445,6 +1481,7 @@ const exState={},exObj={},exSolid={};
 Object.keys(EXHIBITS).forEach(id=>exState[id]=Object.assign({},EXHIBITS[id].def));
 function buildExhibit(id){const E=EXHIBITS[id],g=new THREE.Group();g.rotation.order='YXZ';g.rotation.y=Math.PI/2;scene.add(g);
   const act={type:'exhibit',id,label:(exState[id].kind||E.kind)+'・'+exState[id].title},fw=.035,fd=.028,OW=E.W+2*fw,OH=E.H+2*fw;
+  if((exState[id].kind||E.kind)==='明信片'){buildPostcard(id,g,act);return;}   // postcards: no frame, just taped to the wall
   const frameM=mat(0xD9B98E,.8,{map:woodTex});
   add(rbox(OW,fw,fd,.008),frameM,0,fw/2,0,g,{act});add(rbox(OW,fw,fd,.008),frameM,0,OH-fw/2,0,g,{act});
   add(rbox(fw,OH,fd,.008),frameM,-OW/2+fw/2,OH/2,0,g,{act});add(rbox(fw,OH,fd,.008),frameM,OW/2-fw/2,OH/2,0,g,{act});
@@ -1456,10 +1493,22 @@ function buildExhibit(id){const E=EXHIBITS[id],g=new THREE.Group();g.rotation.or
   else{tex=new THREE.TextureLoader().load(E.img);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();picM=mat(0xffffff,1,{map:tex});}
   add(new THREE.PlaneGeometry(E.W,E.H),picM,0,OH/2,.002,g,{act,cast:false});
   exObj[id]={g,act,OW,OH};}
+// a postcard taped flat to the wall: the card (white paper edge) and four strips of washi tape across its corners
+let tapeAlpha=null;
+function buildPostcard(id,g,act){const E=EXHIBITS[id],W=E.W,H=E.H,z=-.0125;
+  if(!tapeAlpha){const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,256,64);x.fillStyle='#fff';x.beginPath();x.moveTo(6,0);   // torn ends
+    for(let y=0;y<=64;y+=4)x.lineTo(4+Math.random()*7,y);for(let y=64;y>=0;y-=4)x.lineTo(250-Math.random()*7,y);x.closePath();x.fill();tapeAlpha=new THREE.CanvasTexture(c);}
+  add(new THREE.BoxGeometry(W*1.004,H*1.004,.0016),mat(0xF3EEE4,.9),0,H/2,z,g,{act});   // the card
+  const tex=new THREE.TextureLoader().load(E.img);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  add(new THREE.PlaneGeometry(W,H),mat(0xffffff,1,{map:tex,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),0,H/2,z+.0014,g,{act,cast:false});   // clear of the card's face, or the two flicker
+  const tm=new THREE.MeshStandardMaterial({color:0xE8DCC2,roughness:.85,transparent:true,opacity:.82,alphaMap:tapeAlpha,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
+  const tl=Math.min(W,H)*.26,tw=tl*.3;
+  for(const[sx,sy,r]of[[-1,1,.75],[1,1,-.75],[-1,-1,-.75],[1,-1,.75]]){const m=add(new THREE.PlaneGeometry(tl,tw),tm,sx*W/2,H/2+sy*H/2,z+.0024,g,{act,cast:false});m.rotation.z=r+(Math.random()-.5)*.12;m.renderOrder=3;}
+  exObj[id]={g,act,OW:W,OH:H,postcard:true};}
 function placeExhibit(id){const o=exObj[id],st=exState[id];if(!o)return;const E=EXHIBITS[id];
   const sc=st.scale>0?st.scale:1;o.g.scale.setScalar(sc);const half=o.OW*sc/2;st.along=clamp(st.along,EX_Z_MIN+half,EX_Z_MAX-half);st.height=clamp(st.height,.75,2.2);
   o.act.label=(st.kind||E.kind)+'・'+st.title;
-  if(st.mode==='hang'){o.g.rotation.x=0;o.g.position.set(EX_WALL_X+.018,st.height-o.OH*sc/2,st.along);}
+  if(st.mode==='hang'||o.postcard){o.g.rotation.x=0;o.g.position.set(EX_WALL_X+.018,st.height-o.OH*sc/2,st.along);}   /* a postcard is always taped up, never leaned */
   else{o.g.rotation.x=-Math.asin(Math.min(.9,.12/(o.OH*sc)));o.g.position.set(EX_WALL_X+.145,0,st.along);}
   o.g.traverse(m=>m.layers.set(st.hidden?1:0));   // put away: neither drawn nor clickable
   const k=exSolid[id];if(k!=null&&typeof solids!=='undefined')solids[k]=(!st.hidden&&st.mode!=='hang')?[EX_WALL_X,EX_WALL_X+.23,st.along-half-.02,st.along+half+.02]:[99,99,99,99];}
@@ -1669,17 +1718,40 @@ const work=id=>Object.assign({},WORKS[id],WOVR[id]||{});
 // pod floor, tilt back (radians), big: needs the tall pod; swim: has a 讓牠游動 switch; ownEnv: its mirrors reflect its own neutral studio, not the room;
 // heldLight: how strongly the hand-held light (below) lights it while you hold it (the goldfish has none, so it keeps the room's colours)
 const WK={
-  goldfish:{H:.18,HB:.5,z:.19,lift:.003,tilt:0,swim:true,url:'models/goldfish-glass/goldfish_glass.glb',lib:'GoldfishGlass'},
+  goldfish:{H:.18,HB:.5,z:.19,lift:.003,tilt:0,swim:true,url:'models/goldfish-glass/goldfish_glass.glb?v=2026-11-18q',lib:'GoldfishGlass'},
   // 腦角獸: a plush on the ring sofa (not in the cabinet), leaning on the backrest beside the beige cushion, looking out into the room;
   // its name and words come from 物件說明 (TEXT.brainhorn), not from 創作
-  brainhorn:{H:.24,HB:.36,fixed:{dz:-.82,lean:.14,yaw:Math.PI/2-.3},textKey:'brainhorn',label:'腦角獸',url:'models/brainhorn/brainhorn.glb',lib:'Brainhorn'},
-  wings:{H:.40,HB:.36,z:.17,lift:0,tilt:.07,big:true,ownEnv:true,heldLight:1,url:'models/mirror-wings/mirror_wings.glb',lib:'MirrorWings'},
+  brainhorn:{H:.24,HB:.36,fixed:{dz:-.82,lean:.14,yaw:Math.PI/2-.3},textKey:'brainhorn',label:'腦角獸',url:'models/brainhorn/brainhorn.glb?v=2026-11-18q',lib:'Brainhorn'},
+  // the three keychains lying in the open box on the desk, face up; at = (x, z) on the box floor, yaw = turn on the floor
+  // the team T-shirts, folded, three to a stack in the low cupboard (RIDE on the left, 6543N1 on the right); taken out, they unfold in front of you
+  // the team cap, on the upper shelf beside the battle-damaged tees, its peak toward the room
+  cap:{H:0,HB:.32,heldLight:.3,heldTilt:.18,fixed:{cabItem:{lvl:1,sec:0,dz:.22}},textKey:'cap',label:'HELMET MASTERPIECE 帽子',url:'cap',lib:'Caps'},
+  // the stacks themselves: picked up whole, they fan out in front of you; tap a shirt to draw it out and unfold it
+  ...Object.fromEntries(SHIRTS.map((st,si)=>['shirtstack'+si,{H:0,HB:.5,heldLight:.3,fixed:{stackOf:si},textKey:'shirtstack'+si,label:st.name,lib:'local'}])),
+  ...Object.fromEntries(SHIRTS.flatMap((stack,si)=>stack.items.map(([m,c,label],lv)=>['shirt_'+m+'_'+c,{H:0,HB:m.startsWith('hood')?.46:.62,heldLight:.3,
+    fixed:{inStack:si,level:lv},textKey:'shirt_'+m+'_'+c,label,url:m+'-'+c,lib:'Shirts'}]))),
+  // the open box on the desk: picked up as a whole, tipped toward you; tap a thing inside to take it out and look at it
+  kcbox:{H:0,heldLight:.15,HB:.46,heldTilt:.95,fixed:{desk:true},textKey:'kcbox',label:'鑰匙圈盒',lib:'local'},
+  kc_acrylic:{H:0,heldLight:.3,HB:.2,fixed:{box:true,at:[.088,.052],yaw:-.25,lift:.0045},textKey:'kc_acrylic',label:'金魚安全帽壓克力鑰匙圈',url:'acrylic',lib:'Keychains'},
+  kc_strap:{H:0,heldLight:.3,HB:.44,fixed:{box:true,at:[-.055,.05],yaw:Math.PI/2+.06,lift:.001},textKey:'kc_strap',label:'金魚腦織帶鑰匙圈',url:'strap',lib:'Keychains'},
+  // the stickers: a little stack beside the keychains; held, they fan out like a hand of cards and one can be drawn out
+  stickers:{H:0,heldLight:.3,HB:.26,fixed:{box:true,at:[-.078,-.04],yaw:.2,lift:.0006},textKey:'stickers',label:'貼紙',url:'stickers',lib:'Keychains'},
+  kc_snake:{H:0,heldLight:.3,HB:.46,fixed:{box:true,at:[.052,-.045],yaw:Math.PI/2-.06,lift:.001},textKey:'kc_snake',label:'白蛇與黑蛇織帶鑰匙圈',url:'snake',lib:'Keychains'},
+  wings:{H:.40,HB:.36,z:.17,lift:0,tilt:.07,big:true,ownEnv:true,heldLight:1,url:'models/mirror-wings/mirror_wings.glb?v=2026-11-18q',lib:'MirrorWings'},
 };
 PODS.forEach(P=>{P.podAct=P.hit.userData.act;});
 Object.keys(WK).forEach(id=>Object.assign(WK[id],{id,pod:-1,obj:null,swimOn:false,swimSet:false,act:{type:'work',id,label:WK[id].label||WORKS[id].title},
   p:new THREE.Vector3(),q:new THREE.Quaternion(),out:new THREE.Vector3()}));
 function wPlace(id,pod){   // stand work `id` in pod `pod`; that pod's click plane then stands for the work
   const w=WK[id];
+  if(w.fixed&&w.fixed.box){w.pod=-2;return;}
+  if(w.fixed&&w.fixed.cabItem){if(w.pod===-2)return;w.pod=-2;const F=w.fixed.cabItem;   // standing on a cupboard shelf, the peak toward the room
+    w.q.setFromEuler(new THREE.Euler(-.04,-Math.PI/2,0,'YXZ'));w.p.set(CAB.x+.02,(F.lvl?CAB_SHELF:CAB.floor)+.073,CAB.secs[F.sec]+F.dz);   /* tipped back a touch so the brim tip and the back of the crown both rest on the shelf */w.out.set(-1,.4,0).normalize();return;}
+  if(w.fixed&&w.fixed.inStack!==undefined){w.pod=-2;return;}   // lies in its stack; it moves with the stack (see shirtStackObj)
+  if(w.fixed&&w.fixed.stackOf!==undefined){if(w.pod===-2)return;w.pod=-2;const st=SHIRTS[w.fixed.stackOf];   // a stack of folded shirts on the cupboard floor, collars toward the room
+    w.q.setFromEuler(new THREE.Euler(-Math.PI/2,Math.PI/2,0,'YXZ'));w.p.set(CAB.x+.005,(st.lvl?CAB_SHELF:CAB.floor)+.002,CAB.secs[st.sec]+st.dz);w.out.set(-1,.4,0).normalize();return;}   // lies in the keychain box; it moves with the box (see kcBoxObj)
+  if(w.fixed&&w.fixed.desk){if(w.pod===-2||!KCBOX)return;w.pod=-2;   // the box on the desk
+    w.q.identity();w.p.set(KCBOX.x,KCBOX.y+KC_BOX.H/2,KCBOX.z);w.out.set(0,1,0);return;}
   if(w.fixed){if(w.pod===-2)return;w.pod=-2;const F=w.fixed;   // not in the cabinet: sitting on the ring sofa
     w.q.setFromEuler(new THREE.Euler(-F.lean,F.yaw,0,'YXZ'));
     w.p.set(backHalf(F.dz)+.12,.435,F.dz+.2).add(new THREE.Vector3(0,w.H/2,0).applyQuaternion(w.q));   // its centre, half its height above where it sits
@@ -1702,14 +1774,54 @@ function captureEnv(w){   // what the room looks like from just in front of the 
   if(!w.cube){w.rt=new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType});w.cube=new THREE.CubeCamera(.05,40,w.rt);}
   w.cube.position.copy(w.p).addScaledVector(w.out,.35);w.cube.updateMatrixWorld();
   const vis=w.obj.root.visible;w.obj.root.visible=false;w.cube.update(renderer,scene);w.obj.root.visible=vis;w.obj.setEnvMap(w.rt.texture);}
+{const w=WK.kcbox,g=kcBoxObj();w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the keychain box is built here, not loaded
+ g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});}
+SHIRTS.forEach((st,si)=>{const w=WK['shirtstack'+si],g=shirtStackObj(si);w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the shirt stacks, filled as the shirts load
+ g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);});
 Object.keys(WK).forEach(id=>{const w=WK[id],lib=window[w.lib];if(!lib)return;
-  lib.load(w.url+'?v=2026-11-17e',{renderer}).then(g=>{
+  lib.load(w.url+'?v=2026-11-17f',{renderer}).then(g=>{
     if(id==='brainhorn')g=plushOf(g);
+    if(w.fixed&&w.fixed.inStack!==undefined){const S2=WK['shirtstack'+w.fixed.inStack];w.obj=g;w.s=1;w.sBig=w.HB/g.height;S2.obj.put(id,g,w.fixed.level,w.url.split('-')[0]);g.onChange=()=>{if(INSP.cur===w)inspCaption();};
+      g.meshes.forEach(m=>{m.userData.act=S2.act;targets.push(m);if(INSP.on&&INSP.cur===S2)m.layers.set(INSP.LAYER);});return;}   // in a stack: clicking it in the room picks up the stack
+    if(w.fixed&&w.fixed.box){w.obj=g;w.s=1;w.sBig=w.HB/g.height;WK.kcbox.obj.put(id,g,w.fixed);g.onChange=()=>{if(INSP.cur===w)inspCaption();};
+      g.meshes.forEach(m=>{m.userData.act=WK.kcbox.act;targets.push(m);if(INSP.on&&INSP.cur===WK.kcbox)m.layers.set(INSP.LAYER);});return;}   // in the box: clicking it in the room picks up the box
     if(w.fixed)g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});   // not in a pod: click the thing itself
-    w.obj=g;w.s=w.H/g.height;w.sBig=w.HB/g.height;if(g.setMotion)g.setMotion(w.swimOn);
+    g.onChange=()=>{if(INSP.cur===w)inspCaption();};
+    w.obj=g;w.s=w.H?w.H/g.height:1;w.sBig=w.HB/g.height;if(g.setMotion)g.setMotion(w.swimOn);   // H 0: life size
     g.root.position.copy(w.p);g.root.quaternion.copy(w.q);g.root.scale.setScalar(w.s);scene.add(g.root);
     setTimeout(()=>captureEnv(w),1500);
-  }).catch(e=>console.warn('作品載入失敗：'+WORKS[id].title,e));});
+  }).catch(e=>console.warn('作品載入失敗：'+((WORKS[id]||{}).title||w.label),e));});
+function kcBoxObj(){   // a linen-covered box with no lid; its origin in the middle of the box, so it turns about its centre
+  const B=KC_BOX,root=new THREE.Group(),meshes=[],linen=mat(0xE6D9C3,.95,{map:fabricTex}),inner=mat(0xC9B497,.95),y0=-B.H/2;
+  const part=(g,m,x,y,z,rx)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);if(rx)o.rotation.x=rx;o.castShadow=o.receiveShadow=true;root.add(o);meshes.push(o);return o;};
+  part(rbox(B.W,B.FLOOR,B.D,.003),linen,0,y0+B.FLOOR/2,0);
+  part(new THREE.PlaneGeometry(B.W-2*B.T,B.D-2*B.T),inner,0,y0+B.FLOOR+.0004,0,-Math.PI/2).castShadow=false;
+  for(const [w,d,x,z] of [[B.W,B.T,0,B.D/2-B.T/2],[B.W,B.T,0,-B.D/2+B.T/2],[B.T,B.D,B.W/2-B.T/2,0],[B.T,B.D,-B.W/2+B.T/2,0]])part(rbox(w,B.H,d,.003),linen,x,0,z);
+  const items={};
+  return {root,meshes,height:B.W,tick(){},items,
+    put(id,g,F){   // lay a thing face up on the box floor
+      g.root.position.set(F.at[0],y0+B.FLOOR+F.lift,F.at[1]);g.root.quaternion.setFromEuler(new THREE.Euler(-Math.PI/2,F.yaw,0,'YXZ'));g.root.scale.setScalar(1);
+      root.add(g.root);items[id]=g;g.meshes.forEach(m=>meshes.push(m));},
+    pick(ndc,cam,layer){   // which thing in the box was tapped
+      const r=new THREE.Raycaster();r.setFromCamera(ndc,cam);r.layers.set(layer);
+      const own=[];Object.values(items).forEach(g=>own.push(...g.meshes));const hit=r.intersectObjects(own,false)[0];if(!hit)return false;
+      for(const [id,g] of Object.entries(items))if(g.meshes.includes(hit.object))return id;return false;}};}
+function shirtStackObj(si){   // stack-local: +z is up out of the stack (toward you once held), +y toward the collars
+  const root=new THREE.Group(),meshes=[],items={},kids=[];let fan=0,want=0;
+  const layout=()=>{const n=kids.length;let z=0;
+    kids.forEach((k,i)=>{const t=shirtThick(k.m);
+      const sx=[.006,-.008,.004,-.005][i],sy=[-.01,.008,-.004,.006][i],sr=[.03,-.045,.02,-.025][i];
+      const a=(i-(n-1)/2)*.4,px=Math.sin(a)*.34,py=Math.cos(a)*.34-.34;   // the fan: turning about a point below, like a hand of cards
+      const top=k.m.startsWith('hood')?.044:.0095,x=sx+(px-sx)*fan,y=sy+(py-sy)*fan,zz=(z+t-top)+(i*.012-(z+t-top))*fan*.6,r=sr*(k.m.startsWith('hood')?.3:1)+(-a-sr)*fan;   // the folds hang below the shirt's face: sit it so they rest on the one beneath
+      if(k.g.root.parent===root){k.g.root.position.set(x,y-k.cy,zz);k.g.root.rotation.set(0,0,r);}
+      z+=t;});};
+  return {root,meshes,height:.4,items,
+    put(id,g,level,m){g.root.scale.setScalar(1);root.add(g.root);items[id]=g;kids[level]={g,m,cy:m.startsWith('hood')?.15:.16};g.meshes.forEach(x=>meshes.push(x));if(kids.filter(Boolean).length===kids.length)layout();},
+    tick(dt){if(fan!==want){fan+=(want-fan)*(1-Math.exp(-dt*5));if(Math.abs(fan-want)<.002)fan=want;}if(kids.every(Boolean))layout();},
+    held(e){want=e>.9?1:0;},
+    pick(ndc,cam,layer){if(fan<.5)return false;const r=new THREE.Raycaster();r.setFromCamera(ndc,cam);r.layers.set(layer);
+      const own=[];Object.values(items).forEach(g=>own.push(...g.meshes));const hit=r.intersectObjects(own,false)[0];if(!hit)return false;
+      for(const [id,g] of Object.entries(items))if(g.meshes.includes(hit.object))return id;return false;}};}
 function plushOf(m){   // the plush in the room's own clay look; its origin moved to the middle of its body so it turns about its centre
   const C={Body:clay(0xF6F1EA),Brain:clay(0xE29FAE),BrainLobes:clay(0xF2BCC8),Horns:clay(0xC4B5EA),Eyes:clay(0x2A3160),Mouth:clay(0xB7A6E2),Spots:clay(0xC4B5EA),Stars:clay(0xC4B5EA)};
   const meshes=[];Object.entries(m.parts).forEach(([name,o])=>{o.material=C[name]||C.Body;o.castShadow=true;o.receiveShadow=true;o.userData.noInk=true;meshes.push(o);});
@@ -1719,7 +1831,7 @@ function applyWorks(o){Object.keys(WOVR).forEach(k=>delete WOVR[k]);Object.assig
   Object.keys(WK).forEach(id=>{const w=WK[id];if(!WORKS[id])return;const v=work(id);w.act.label=v.title||WORKS[id].title;wPlace(id,v.pod);
     if(w.swim&&!w.swimSet)setSwim(w,v.motion===true,false);});   // the owner's default, until the visitor chooses
   if(INSP.on)inspCaption();}
-const INSP={on:false,cur:null,dir:0,k:0,dist:.62,user:new THREE.Quaternion(),face:false,vx:0,vy:0,drag:null,pts:new Map(),pinch:0,LAYER:5,DIM:6};
+const INSP={ease:0,parent:null,pUser:null,pDist:.62,on:false,cur:null,dir:0,k:0,dist:.62,user:new THREE.Quaternion(),face:false,vx:0,vy:0,drag:null,pts:new Map(),pinch:0,LAYER:5,DIM:6};
 // While held, the work moves to its own layer (5; layer 1 is for put-away exhibits) and is drawn in a second pass over the dimmed room,
 // still lit by the room's own lights, so it keeps the colours it has on the shelf.
 {INSP.dim=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({uniforms:{uA:{value:0}},transparent:true,depthTest:false,depthWrite:false,fog:false,
@@ -1741,17 +1853,32 @@ function inspOpen(id){
   INSP.on=true;INSP.cur=w;INSP.dir=1;INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
   inspCaption();$('#inspSwim').hidden=!w.swim;if(w.swim)setSwim(w,w.swimOn,false);
-  $('#inspTip').textContent=isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去';
+  $('#inspTip').textContent=isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去';if(w.textKey)inspCaption();   // the box, the sticker stack: their own hints
   const el=$('#insp');el.hidden=false;requestAnimationFrame(()=>el.classList.add('on'));setTimeout(()=>$('#inspBack').focus({preventScroll:true}),30);}
 function setSwim(w,on,byVisitor){w.swimOn=!!on;if(byVisitor)w.swimSet=true;if(w.obj&&w.obj.setMotion)w.obj.setMotion(w.swimOn);
   if(INSP.cur===w){const b=$('#inspSwim');b.textContent=w.swimOn?'停下來':'讓牠游動';b.setAttribute('aria-pressed',w.swimOn);}}
 function inspCaption(){   // name, then year · medium · size · period, then the owner's words about the work
+  const o=INSP.cur.obj;
+  if(o&&o.info){   // the sticker stack: the drawn-out sticker's own name, or the stack's
+    const sk=o.selectedKey;$('#inspTip').textContent=sk?(isTouch?'拖曳翻轉・點旁邊放回扇形':'拖曳翻轉・點旁邊或按 Esc 放回扇形'):(isTouch?'點一張貼紙抽出來看':'點一張貼紙抽出來看・按 Esc 放回去');
+    if(sk){const k='sticker_'+sk,v=ovr(k),t=TEXT[k],I=o.info[sk];$('#inspT').textContent=v.t||t[0];
+      $('#inspM').textContent=(I.kind==='laser'?'雷射貼紙':'反光貼紙')+'・'+I.w+' × '+I.h+' 公分';$('#inspM').hidden=false;$('#inspB').textContent=v.b||t[1];$('#inspB').hidden=popOff(k);return;}}
   if(INSP.cur.textKey){const k=INSP.cur.textKey,v=ovr(k),t=TEXT[k];   // an object of the room (物件說明): its popup title and words
+    $('#inspTip').textContent=INSP.cur.id==='kcbox'?'點盒子裡的東西拿出來看・拖曳翻轉':INSP.cur.id.startsWith('shirtstack')?'點一件衣服拿出來攤開・拖曳翻轉':INSP.parent?(isTouch?'拖曳翻轉・點旁邊放回盒子':'拖曳翻轉・按 Esc 放回盒子'):(isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去');
     $('#inspT').textContent=v.t||t[0];$('#inspM').hidden=true;$('#inspB').textContent=v.b||t[1];$('#inspB').hidden=popOff(k);return;}
   const id=INSP.cur.id,v=work(id),meta=[v.year,v.medium,v.size,v.period].map(x=>String(x||'').trim()).filter(Boolean);
   $('#inspT').textContent=v.title||WORKS[id].title;$('#inspM').textContent=meta.join('・');$('#inspM').hidden=!meta.length;
   $('#inspB').textContent=v.desc||'';$('#inspB').hidden=!v.desc;}
-function inspClose(){if(!INSP.on||INSP.dir<0)return;INSP.dir=-1;INSP.drag=null;INSP.pts.clear();$('#insp').classList.remove('on','grab');}
+function inspChild(id){   // take a thing out of the box in your hands: it lifts out and comes up to you, the box waits behind it
+  const it=WK[id],box=INSP.cur;if(!it||!it.obj||INSP.dir<0)return;
+  const R=it.obj.root,sv=new THREE.Vector3();R.updateWorldMatrix(true,false);R.matrixWorld.decompose(it.p,it.q,sv);it.s=sv.x;it.slot=R.matrix.clone();   // its place in the box
+  it.out.copy(camera.position).sub(it.p).normalize().multiplyScalar(.45);scene.attach(R);
+  INSP.parent=box;INSP.pUser=INSP.user.clone();INSP.pDist=INSP.dist;
+  INSP.cur=it;INSP.k=0;INSP.dir=1;INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;
+  $('#inspSwim').hidden=true;inspCaption();}
+function inspClose(){if(!INSP.on||INSP.dir<0)return;
+  if(INSP.cur.obj&&INSP.cur.obj.back&&INSP.cur.obj.back())return;   // a drawn-out sticker goes back into the fan first
+  INSP.dir=-1;INSP.drag=null;INSP.pts.clear();$('#insp').classList.remove('on','grab');}
 {const el=$('#insp');
  el.addEventListener('pointerdown',e=>{if(e.target.closest('button')||INSP.dir<0)return;el.setPointerCapture(e.pointerId);INSP.pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
    if(INSP.pts.size===1){INSP.drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:0,t:performance.now()};INSP.vx=INSP.vy=0;INSP.face=false;el.classList.add('grab');}
@@ -1764,17 +1891,21 @@ function inspClose(){if(!INSP.on||INSP.dir<0)return;INSP.dir=-1;INSP.drag=null;I
    if(!d||d.id!==e.pointerId)return;
    if(performance.now()-d.t>90)INSP.vx=INSP.vy=0;   // let go after holding still: no spin
    if(d.moved<6&&e.type==='pointerup'){   // a tap well away from the work puts it back
+     const o=INSP.cur.obj,pk=o&&o.pick&&o.pick(new THREE.Vector2(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1),camera,INSP.LAYER);
+     if(typeof pk==='string'){inspChild(pk);return;}if(pk)return;   // a thing in the box: take it out; the sticker fan: draw one out, or put it back
      const s=INSP.cur.obj.root.position.clone().project(camera),px=(s.x+1)/2*innerWidth,py=(1-s.y)/2*innerHeight;
      if(Math.hypot(e.clientX-px,e.clientY-py)>Math.min(innerWidth,innerHeight)*.36)inspClose();}};
  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
  el.addEventListener('wheel',e=>{e.preventDefault();INSP.dist=clamp(INSP.dist*Math.exp(e.deltaY*.0012),.34,.95);},{passive:false});
  $('#inspBack').addEventListener('click',inspClose);
  $('#inspSwim').addEventListener('click',()=>{const w=INSP.cur;if(w&&w.swim)setSwim(w,!w.swimOn,true);});
- $('#inspFace').addEventListener('click',()=>{INSP.face=true;INSP.vx=INSP.vy=0;});}
-const _qa=new THREE.Quaternion(),_ax=new THREE.Vector3(),_end=new THREE.Vector3(),_ctl=new THREE.Vector3(),_eq=new THREE.Quaternion(),_q0=new THREE.Quaternion();
+ $('#inspFace').addEventListener('click',()=>{const o=INSP.cur&&INSP.cur.obj;if(o&&o.face&&o.face())return;INSP.face=true;INSP.vx=INSP.vy=0;});}
+const _q1=new THREE.Quaternion(),_m4=new THREE.Matrix4(),_v=new THREE.Vector3(),_qa=new THREE.Quaternion(),_ax=new THREE.Vector3(),_end=new THREE.Vector3(),_ctl=new THREE.Vector3(),_eq=new THREE.Quaternion(),_q0=new THREE.Quaternion();
 function inspTurn(yaw,pitch){   // turn around the screen's own axes: sideways drags spin it, up-down drags tip it toward or away from you
+  if(INSP.cur&&INSP.cur.obj&&INSP.cur.obj.turn&&INSP.cur.obj.turn(yaw,pitch))return;   // a sticker drawn out of the fan turns on its own
   INSP.user.premultiply(_qa.setFromAxisAngle(_ax.set(0,1,0),yaw)).premultiply(_qa.setFromAxisAngle(_ax.set(1,0,0),pitch)).normalize();}
 function inspTick(dt){
+  doorsTick(dt);
   for(const id in WK){const w=WK[id];if(w.obj)w.obj.tick(reduceMotion?dt*.4:dt);}   // still by default, like the sculptures themselves
   if(!INSP.on)return;
   const w=INSP.cur,R=w.obj.root;
@@ -1782,20 +1913,29 @@ function inspTick(dt){
   if(!INSP.drag&&(INSP.vx||INSP.vy)){inspTurn(INSP.vx,INSP.vy);const f=Math.pow(.04,dt);INSP.vx*=f;INSP.vy*=f;if(Math.abs(INSP.vx)+Math.abs(INSP.vy)<1e-4)INSP.vx=INSP.vy=0;}
   if(INSP.face)INSP.user.slerp(_q0.identity(),1-Math.pow(.004,dt));
   const k=INSP.k,e=k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+  if(INSP.parent){   // a thing out of the box: the box steps back and down, out of the way; the thing's way home follows its place in the box
+    const P=INSP.parent.obj.root,f=1-Math.exp(-dt*5);
+    _v.set(0,-.13,-(INSP.pDist+.3)).applyQuaternion(camera.quaternion).add(camera.position);P.position.lerp(_v,f);
+    P.updateMatrixWorld(true);_m4.multiplyMatrices(P.matrixWorld,w.slot);_m4.decompose(w.p,w.q,_v);w.s=_v.x;}
   // where it is held: straight ahead, a little above centre so the caption stays clear of it
   _end.set(0,.035,-INSP.dist).applyQuaternion(camera.quaternion).add(camera.position);
-  _eq.copy(camera.quaternion).multiply(INSP.user);
+  _eq.copy(camera.quaternion).multiply(INSP.user);if(w.heldTilt)_eq.multiply(_qa.setFromAxisAngle(_ax.set(1,0,0),w.heldTilt));   // the box tips its open top toward you
   // out of the pod first (along its opening), then up into your hands
   _ctl.copy(w.p).addScaledVector(w.out,.38);_ctl.y+=.1;
   const a=(1-e)*(1-e),b=2*(1-e)*e,c=e*e;
-  R.position.set(w.p.x*a+_ctl.x*b+_end.x*c,w.p.y*a+_ctl.y*b+_end.y*c,w.p.z*a+_ctl.z*b+_end.z*c);
-  R.quaternion.slerpQuaternions(w.q,_eq,e);
+  _v.set(w.p.x*a+_ctl.x*b+_end.x*c,w.p.y*a+_ctl.y*b+_end.y*c,w.p.z*a+_ctl.z*b+_end.z*c);_q1.slerpQuaternions(w.q,_eq,e);
+  if(INSP.ease>0){const f=1-Math.exp(-dt*7);R.position.lerp(_v,f);R.quaternion.slerp(_q1,f);INSP.ease=Math.max(0,INSP.ease-dt*1.6);}   // the box coming forward again
+  else{R.position.copy(_v);R.quaternion.copy(_q1);}
   R.scale.setScalar(lerp(w.s,w.sBig,e));
-  INSP.dim.material.uniforms.uA.value=e;
+  INSP.dim.material.uniforms.uA.value=INSP.parent?1:e;   // taking a thing out of the held box: the room stays dimmed
+  if(w.obj.held)w.obj.held(e);   // the sticker stack fans out once it is in your hands
   INSP.rig.position.copy(camera.position);INSP.rig.quaternion.copy(camera.quaternion);
   INSP.lights.forEach(o=>{o.l.intensity=o.max*e*(w.heldLight||0);});
   const M2=w.obj.materials;if(M2&&M2.mirror){M2.mirror.envMapIntensity=1+e*.4;if(M2.edge)M2.edge.envMapIntensity=.9+e*.3;}   // the mirrors catch more light in your hands
-  inspLayer(w,k>.14);   // drawn over the room only once it is clear of the cabinet
+  inspLayer(w,k>.14||!!INSP.parent);   // drawn over the room only once it is clear of the cabinet (or of the box in your hands)
+  if(INSP.dir<0&&k===0&&INSP.parent){   // back into the box you are holding: the box is in your hands again
+    const box=INSP.parent;R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);box.obj.root.attach(R);
+    INSP.cur=box;INSP.parent=null;INSP.user.copy(INSP.pUser);INSP.dist=INSP.pDist;INSP.k=1;INSP.dir=1;INSP.ease=1;$('#insp').classList.add('on');inspCaption();return;}
   if(INSP.dir<0&&k===0){   // back on its shelf
     INSP.on=false;INSP.dir=0;INSP.cur=null;R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);inspLayer(w,false);
     $('#insp').hidden=true;modalOpen=false;updateCursorUI();canvas.focus();}}
@@ -2207,9 +2347,9 @@ function plantTaiwanForest(){
         for(let k=0;k<3;k++){const t=k/2,px=ca*(.24+t*.2),py=1.23-t*t*.2;a.push({geo:new THREE.IcosahedronGeometry(1,0),c:k%2?0xA89E80:0x9C9274,x:px,y:py,z:sa*(.24+t*.2),sx:.032,sy:.1,sz:.032,rz:-ca*(.5+t*.6),rx:sa*(.5+t*.6),jitter:300+i*4+k});}}
       return a;})()),
   };
-  const COUNTS_HI={broadA:320,broadB:130,cedar:170,fern:85,grass:260};
+  const COUNTS_HI=LOW?{broadA:170,broadB:70,cedar:90,fern:45,grass:160}:{broadA:320,broadB:130,cedar:170,fern:85,grass:260};   // phones: about half as many trees
   TYPES.grass=TYPES_HI.grass;     // silvergrass only grows on the meadow just outside: all of it gets the fine tufts
-  const COUNTS={broadA:900,broadB:450,cedar:900,fern:90,grass:260};
+  const COUNTS=LOW?{broadA:450,broadB:220,cedar:450,fern:50,grass:160}:{broadA:900,broadB:450,cedar:900,fern:90,grass:260};
   const meshes={},count={};
   for(const k in TYPES){meshes[k]=new THREE.InstancedMesh(TYPES[k],windMaterial(k,WIND_AMP[k]),COUNTS[k]);count[k]=0;}
   for(const k in TYPES_HI){const kk=k+'_hi';meshes[kk]=new THREE.InstancedMesh(TYPES_HI[k],windMaterial(kk,WIND_AMP[k]),COUNTS_HI[k]);count[kk]=0;COUNTS[kk]=COUNTS_HI[k];}
@@ -2643,7 +2783,7 @@ const rain=new THREE.LineSegments(rgeo,new THREE.LineBasicMaterial({color:0xd4dc
 const hemi=new THREE.HemisphereLight(0xdfe9f2,0xa8937a,.4);scene.add(hemi);
 const amb=new THREE.AmbientLight(0xfff0dc,.25);scene.add(amb);
 const sun=new THREE.DirectionalLight(0xffffff,1.6);sun.castShadow=true;
-{const S=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)?2048:4096;sun.shadow.mapSize.set(S,S);}   // finer shadows on computers; phones keep the lighter map
+{const S=LOW?1024:4096;sun.shadow.mapSize.set(S,S);}   // finer shadows on computers; phones keep the lighter map
 Object.assign(sun.shadow.camera,{left:-11,right:11,top:11,bottom:-11,near:1,far:70});
 sun.shadow.bias=-.0004;sun.shadow.normalBias=.018;sun.shadow.radius=5.5;sun.target.position.set(0,0,0);scene.add(sun,sun.target);
 const moon=new THREE.DirectionalLight(0x9fb2d6,0);moon.position.set(-10,25,-15);scene.add(moon);
@@ -2988,7 +3128,7 @@ let hovered=null;
 function pick(v){ray.setFromCamera(v,camera);const hits=ray.intersectObjects(targets,false);
   for(const h of hits){let o=h.object;while(o&&!o.userData.act)o=o.parent;if(o){pickPoint.copy(h.point);return o.userData.act;}return null;}return null;}
 const pickPoint=new THREE.Vector3();   // where the last pick landed, so the sofa knows where you chose to sit
-const HINT={work:()=>'點擊拿起來看',dlamp:()=>dlampOn?'點擊關燈':'點擊開燈',moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
+const HINT={cabdoor:()=>doorsOpen?'點擊關上櫃門':'點擊打開櫃門',work:()=>'點擊拿起來看',dlamp:()=>dlampOn?'點擊關燈':'點擊開燈',moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
 function updateHover(){
   let a=started&&!modalOpen?(locked?pick(center):(!isTouch?pick(mouse):null)):null;hovered=a;
   const el=$('#hover');if(a&&a.type==='work'&&(WK[a.id].textKey?(TOVR[WK[a.id].textKey]||{}).hov===false:work(a.id).hover===false))a=null;
@@ -3021,7 +3161,28 @@ const RECS=[
 const TEXT={
   storebox:['收納箱','櫃子角落一個有蓋子的收納箱，房主把暫時收起來的東西放在這裡。'],
   whitewall:['白牆','一整面空白的牆。之後會貼上拍立得照片和勳章，每一張都能拿起來看。'],
-  emptycab:['矮櫃','櫃子裡面還空著。櫃子上放著一組微縮模型：臥佛、點心小桌和電視。'],
+  emptycab:['矮櫃','兩扇門的矮櫃，裡面整齊疊著車隊的團服。櫃子上放著一組微縮模型：臥佛、點心小桌和電視。'],
+  cabdoor:['矮櫃的門','點一下打開櫃門，裡面疊著車隊的團服。'],
+  shirtstack0:['RIDE 團服','一疊折好的團服，白、黑、灰綠三色。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。'],
+  shirtstack1:['6543N1 團服','一疊折好的團服，白、黑、灰綠三色。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。'],
+  shirtstack2:['IN TORQUE WE TRUST 團服','信仰系列：白、黑兩件，和沒有金魚的白、黑兩件。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。'],
+  shirtstack3:['戰損系列團服','BORN TO RIDE 與 BURNING FUEL。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。'],
+  shirtstack4:['RIDER 帽T','冬季的帽T，橘、粉兩件。拿起來會像扇子一樣展開，點一件就能拿出來攤開看正反面。'],
+  cap:['HELMET MASTERPIECE 帽子','為車隊設計的帽子。正面：GOLDFISH BRAIN HELMET MASTERPIECE；側面 RIDE SAVE；背面 Since 2023 June；帽簷上貼著安全帽反光貼紙。'],
+  shirt_ride_white:['RIDE 團服・白','為車隊設計的團服。正面：RIDE never die；背面：WHEN LIFE GETS YOU DOWN, REMEMBER ONLY ONE DOWN THE REST IS UP.'],
+  shirt_ride_black:['RIDE 團服・黑','為車隊設計的團服。正面：RIDE never die；背面：WHEN LIFE GETS YOU DOWN, REMEMBER ONLY ONE DOWN THE REST IS UP.'],
+  shirt_ride_grey:['RIDE 團服・灰綠','為車隊設計的團服。正面：RIDE never die；背面：WHEN LIFE GETS YOU DOWN, REMEMBER ONLY ONE DOWN THE REST IS UP.'],
+  shirt_n1_white:['6543N1 團服・白','為車隊設計的團服。背面是排檔的 6 5 4 3 2 N 1，和一條金魚。'],
+  shirt_n1_black:['6543N1 團服・黑','為車隊設計的團服。背面是排檔的 6 5 4 3 2 N 1，和一條金魚。'],
+  shirt_n1_grey:['6543N1 團服・灰綠','為車隊設計的團服。背面是排檔的 6 5 4 3 2 N 1，和一條金魚。'],
+  shirt_faith_white:['IN TORQUE WE TRUST・白','為車隊設計的團服。正面是握著油門的手與比出搖滾手勢的手；背面有 QR code：SCAN THIS!'],
+  shirt_faith_black:['IN TORQUE WE TRUST・黑','為車隊設計的團服。正面是握著油門的手與比出搖滾手勢的手；背面有 QR code：SCAN THIS!'],
+  shirt_faithplain_white:['IN TORQUE WE TRUST・沒有金魚・白','為車隊設計的團服。沒有金魚的版本，中間是一圈 Ride Like You Believe。'],
+  shirt_faithplain_black:['IN TORQUE WE TRUST・沒有金魚・黑','為車隊設計的團服。沒有金魚的版本，中間是一圈 Ride Like You Believe。'],
+  shirt_battle_white:['BORN TO RIDE・白','為車隊設計的團服。正面：BORN TO RIDE, ALWAYS READY；背面：FAITH. FIRE. FULL THROTTLE.'],
+  shirt_battle_black:['BURNING FUEL・黑','為車隊設計的團服。正面：BURNING FUEL, BURNING SOUL；背面：FAITH. FIRE. FULL THROTTLE.'],
+  shirt_hoodorange_hood:['RIDER 帽T・橘','冬季的長袖帽T，布料比較厚。正面是 X 裡的金魚；背面是橘色的 RIDER。'],
+  shirt_hoodpink_hood:['RIDER 帽T・粉','冬季的長袖帽T，布料比較厚。正面是 X 裡的金魚；背面是粉色的 RIDER。'],
   buddha:['臥佛','側躺著、用手撐著頭的臥佛，正安靜地看著前面的電視。'],
   sidetable:['沙發邊桌','木頭桌面、白色細腳的邊桌，可以推到沙發旁邊。桌上放著一台平板。'],
   tv:['液晶電視','微縮的大電視。之後可以上傳影片，在這裡播放。'],
@@ -3057,7 +3218,16 @@ const TEXT={
   sweets:['點心碟','兩個瑪德蓮、兩個可麗露。配一杯茶剛剛好。'],
   mug:['馬克杯','還溫溫的。坐下來，慢慢喝。'],
   shelf:['書桌櫃','上面幾層收著房主的紀錄：夢境紀錄、覺察筆記、心情日記，點一本書打開來看。下面是一張小書桌。'],
-  blank:['空白冊','還沒寫的頁數。新的紀錄同步進來時，會長成新的一本。'],
+  kcbox:['鑰匙圈盒','一個沒有蓋子的盒子，裡面放著三個房主設計的鑰匙圈。拿起來看看吧。'],
+  kc_acrylic:['金魚安全帽壓克力鑰匙圈','三層壓克力疊成的安全帽。中間那層的金魚是活動的，搖一搖鑰匙圈，金魚就在安全帽裡晃來晃去。'],
+  kc_strap:['金魚腦織帶鑰匙圈','雙面織帶，一面橘色、一面粉色。戴著安全帽的騎士，面罩裡是一條金魚。'],
+  stickers:['貼紙','五張房主設計的貼紙，一張雷射、四張反光。拿起來會像扇子一樣展開，點一張就能抽出來看。'],
+  sticker_A:['DON\'T TEST MY MEMORY','雷射貼紙。轉動的時候，顏色會跟著角度變成一道一道的彩虹。'],
+  sticker_B:['GOLDFISH BRAIN','反光貼紙。「我可能會忘記路，但我永遠不會忘記騎車。」'],
+  sticker_D:['安全帽裡的金魚','反光貼紙。'],
+  sticker_E:['金魚腦・粉','反光貼紙，粉紅色的安全帽。'],
+  sticker_F:['金魚腦・金','反光貼紙，金色的安全帽。'],
+  kc_snake:['白蛇與黑蛇織帶鑰匙圈','雙面織帶，一面纏著白蛇，一面纏著黑蛇。'],
   swcab:['推薦書櫃','房主推薦的書。拿起一本，看看它在說什麼。上面有課程傳單和一本留言筆記本。'],
   brainhorn:['腦角獸','腦神經外科的吉祥物。頭上長著像神經元一樣的角，額頭上有一顆粉紅色的小腦袋，背上一排十字紋。'],
   memcab:['記憶收藏櫃','一格一格的空位，等著放進小東西。放進去的東西越多，櫃子的形狀也會跟著改變。'],
@@ -3107,6 +3277,7 @@ function interact(a){
     case 'guestbook':if(popOff('guestbook'))return;return openGuestbook();
     case 'fire':if(popOff('fire'))return;return openFire();
     case 'drink':{const k='drink:'+a.idx,v=ovr(k);if(popOff(k))return;return openModal(simple('陽台・白色小圓桌',esc(v.t||a.label),esc(v.b||DRINKS[a.idx])));}
+    case 'cabdoor':doorsOpen=!doorsOpen;toast(doorsOpen?'櫃門打開了，裡面疊著車隊的團服':'櫃門關上了');return;
     case 'work':return inspOpen(a.id);
     case 'pod':return openModal(simple('記憶收藏櫃',`第 ${a.idx+1} 格`,`這一格還空著，等一件小東西住進來。<br>整座櫃子目前有 ${PODS.length} 格。`,'之後新增物件時，櫃子會依照物件的數量與大小重新長出形狀。'));
     default:{const t=TEXT[a.type];if(!t||popOff(a.type))return;const v=ovr(a.type);openModal(simple('內在房間',esc(v.t||t[0]),esc(v.b||t[1]).replace(/\n/g,'<br>')));}
@@ -4069,6 +4240,7 @@ function frame(now){
   updateFire(dt,now);
   if(tvDoc&&!tvVideo.paused&&tvVideo.readyState>=2)drawTV();
   if(IOS&&now-(frame.shT||0)>200){frame.shT=now;shadowSync();}
+  if(LOW&&now-(frame.sdT||0)>250){frame.sdT=now;renderer.shadowMap.needsUpdate=true;}   // phones: shadows follow the sun and moving things a few times a second, not every frame
   sunLampTick(dt);
   DUST.tick(dt,now);
   if(natureTick)natureTick(dt,now);

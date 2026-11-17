@@ -76,7 +76,7 @@ def body_radius(d):
 
 
 bmx = bmesh.new()
-bmesh.ops.create_uvsphere(bmx, u_segments=160, v_segments=120, radius=1.0)
+bmesh.ops.create_uvsphere(bmx, u_segments=112, v_segments=84, radius=1.0)
 for v in bmx.verts:
     d = v.co.normalized()
     p = CEN + d * body_radius(d)
@@ -326,7 +326,7 @@ def smooth01(x):
 H_BASE, H_LOBE = 0.014, 0.011
 
 
-def relief(name, sd, cu, cv, h_in, h_edge, soft, rings=34, seg=180):
+def relief(name, sd, cu, cv, h_in, h_edge, soft, rings=26, seg=132):
     """以 (cu, cv) 為中心、外框是 sd=0 的一片隆起，貼在身體正面：中間高 h_in、邊緣圓圓地降到 h_edge"""
     def reach(th):
         lo, hi = 0.0, 0.3
@@ -377,7 +377,7 @@ BrainLobes = join(lobe_halves, 'BrainLobes')
 shade_smooth(BrainLobes)
 
 # ---------------- 頭頂兩側的角（神經元樹突） ----------------
-ho, hom = meta_object('HornMeta', 0.01, 0.6)
+ho, hom = meta_object('HornMeta', 0.013, 0.6)
 
 
 def capsule(a, b, r):
