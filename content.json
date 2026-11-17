@@ -22,20 +22,33 @@
         "pop": false
       },
       "shirtstack0": {
-        "t": "RIDE"
+        "t": "RIDE",
+        "b": "為車隊設計的第一款團服（2024）",
+        "h": "RIDE 團服"
       },
       "shirtstack1": {
-        "t": "6543N1"
+        "t": "6543N1",
+        "b": "為車隊設計的第二款團服（2024）",
+        "h": "6543N1 團服"
       },
       "shirtstack2": {
-        "t": "IN TORQUE WE TRUST"
+        "t": "IN TORQUE WE TRUST",
+        "b": "為車隊設計的第三款團服（2025）",
+        "h": "IN TORQUE WE TRUST 團服"
       },
       "shirtstack3": {
-        "t": "戰損"
+        "t": "戰損",
+        "b": "為車隊設計的第四款團服（2025）",
+        "h": "戰損系列團服"
+      },
+      "shirtstack4": {
+        "b": "為車隊設計的第一款冬季團服（2025）",
+        "h": "RIDER 帽T"
       },
       "cap": {
         "t": "HELMET MASTERPIECE",
-        "b": "未實現的設計品，但我很喜歡。"
+        "b": "未實現的設計品，但我很喜歡。",
+        "h": "HELMET MASTERPIECE 帽子"
       },
       "shirt_ride_white": {
         "t": "RIDE・白",
@@ -229,6 +242,14 @@
         "pop": false,
         "hov": false
       },
+      "kcbox": {
+        "pop": false,
+        "hov": false
+      },
+      "kc_acrylic": {
+        "t": "金魚腦鑰匙圈",
+        "b": "為車隊設計的周邊"
+      },
       "swcab": {
         "pop": false,
         "hov": false
@@ -400,5 +421,5 @@
       }
     ]
   },
-  "savedAt": 1794939775960
+  "savedAt": 1794940145045
 }
