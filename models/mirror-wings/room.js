@@ -105,20 +105,20 @@
     return t;
   }
   // 絨布：很淡的斑駁，讓大片深色不會死平
-  function velvetTexture() {
+  function velvetTexture() {   // 柔和的絨布明暗：兩層會重複接縫的平滑隨機起伏（8 格與 24 格），加一點細雜點；直接算像素，不用畫布繪圖
     const THREE = T(), S = 256, r = rng(2013);
     const c = document.createElement('canvas'); c.width = c.height = S;
-    const g = c.getContext('2d');
-    g.fillStyle = '#e4e4e4'; g.fillRect(0, 0, S, S);
-    for (let i = 0; i < 520; i++) {
-      const x = r() * S, y = r() * S, rad = 5 + r() * 26, v = r() < 0.5 ? 255 : 70;
-      const gr = g.createRadialGradient(x, y, 0, x, y, rad);
-      gr.addColorStop(0, `rgba(${v},${v},${v},${0.05 + r() * 0.07})`); gr.addColorStop(1, `rgba(${v},${v},${v},0)`);
-      g.fillStyle = gr;
-      for (let ox = -S; ox <= S; ox += S) for (let oy = -S; oy <= S; oy += S) { if ((ox && (x + ox + rad < 0 || x + ox - rad > S)) || (oy && (y + oy + rad < 0 || y + oy - rad > S))) continue; g.fillRect(x + ox - rad, y + oy - rad, rad * 2, rad * 2); }   // 只畫真的跨到邊上的複本
+    const g = c.getContext('2d'), id = g.createImageData(S, S), d = id.data;
+    const layer = (n, amp) => { const v = new Float32Array(n * n); for (let i = 0; i < n * n; i++) v[i] = (r() - 0.5) * 2 * amp; return { n, v }; };
+    const L = [layer(8, 22), layer(24, 12)];
+    const smooth = (t) => t * t * (3 - 2 * t);
+    const at = ({ n, v }, x, y) => { const fx = x / S * n, fy = y / S * n, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = smooth(fx - x0), ty = smooth(fy - y0);
+      const g2 = (i, j) => v[((j % n) + n) % n * n + ((i % n) + n) % n];
+      return (g2(x0, y0) * (1 - tx) + g2(x0 + 1, y0) * tx) * (1 - ty) + (g2(x0, y0 + 1) * (1 - tx) + g2(x0 + 1, y0 + 1) * tx) * ty; };
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const val = Math.max(0, Math.min(255, 228 + at(L[0], x, y) + at(L[1], x, y) + (r() - 0.5) * 26)), i = (y * S + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = val; d[i + 3] = 255;
     }
-    const id = g.getImageData(0, 0, S, S), d = id.data;
-    for (let i = 0; i < d.length; i += 4) { const n = (r() - 0.5) * 26; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
     g.putImageData(id, 0, 0);
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(5, 5); t.colorSpace = THREE.SRGBColorSpace;

@@ -105,6 +105,7 @@ input[type=range]{width:100%;accent-color:var(--ember)}
 #joy i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(251,246,236,.85);box-shadow:0 2px 8px rgba(40,28,18,.25)}
 #crouchBtn{position:fixed;right:calc(24px + env(safe-area-inset-right,0px));bottom:calc(46px + env(safe-area-inset-bottom,0px));z-index:5;font:inherit;font-size:15px;padding:14px 20px;cursor:pointer}
 #crouchBtn[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+body.holding #joy,body.holding #crouchBtn{display:none}   /* holding a thing up close: no walking controls until it is put back */
 #pause{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;pointer-events:none}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 @media (max-width:520px){.card{padding:24px 18px 20px}#intro h1{font-size:28px}}
@@ -337,7 +338,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="config.js"></script>
 <script src="data/models.js?v=2026-11-18a"></script>
 <script src="models/goldfish-glass/room.js?v=2026-11-18q"></script>
-<script src="models/mirror-wings/room.js?v=2026-11-18q"></script>
+<script src="models/mirror-wings/room.js?v=2026-11-18s"></script>
 <script src="models/brainhorn/room.js?v=2026-11-18q"></script>
 <script src="models/keychains/room.js?v=2026-11-18w"></script>
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
@@ -374,7 +375,7 @@ renderer.toneMappingExposure=1.05;
 renderer.useLegacyLights=true;
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFShadowMap;   // filtered over a wider footprint (shadow.radius) so edges are soft instead of stair-stepped
-if(LOW)renderer.shadowMap.autoUpdate=false;   // phones: redrawn a few times a second from the frame loop instead
+renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;   // (the very first render, whichever it is, makes the shadow maps) redrawn from the frame loop: 10 times a second on computers, 4 on phones (the sun moves slowly; nothing in the room moves fast)
 /* soft shadow edges: three's PCF takes 17 fixed taps, which turns into a dotted pattern when spread wide. Instead sample a dense grid
    over the radius, nudged per pixel by a little noise, so the penumbra is a smooth gradient (lighter grid on phones and tablets). */
 {const lo=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),N=lo?4:7;
@@ -706,12 +707,12 @@ const figGeo=(D,idx,big)=>{const pos=new Uint16Array(unb64(D.pos)),n=pos.length/
   const ub=new Uint16Array(unb64(D.uv)),U=new Float32Array(ub.length);for(let i=0;i<ub.length;i++)U[i]=ub[i]/65535;
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('normal',new THREE.BufferAttribute(N,3));g.setAttribute('uv',new THREE.BufferAttribute(U,2));
   g.setIndex(new THREE.BufferAttribute(big?new Uint32Array(unb64(D[idx])):new Uint16Array(unb64(D[idx])),1));return g;};
-const figTex=(D,harm)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
+const figTex=(D)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
   im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);
-    if(harm){const id=g.getImageData(0,0,c.width,c.height),d=id.data,n=d.length/4,L=new Float32Array(n*3);   // same colour harmony as before, in linear light
-      for(let i=0;i<n;i++)for(let k=0;k<3;k++){const v=d[i*4+k]/255;L[i*3+k]=v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4);}harm(L);
-      for(let i=0;i<n;i++)for(let k=0;k<3;k++){const v=L[i*3+k];d[i*4+k]=255*(v<=.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-.055);}g.putImageData(id,0,0);}
     t.image=c;t.needsUpdate=true;};im.src=D.tex;return t;};
+// the figurines' colour harmony (less saturated, a touch of warm cream, softer contrast), done by the GPU as it draws, not pixel by pixel at load
+const figHarm=m=>{m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+  { vec3 c=diffuseColor.rgb; float l=dot(c,vec3(.3,.55,.15)); vec3 v=vec3(l)+(c-vec3(l))*.72; v=v*.86+vec3(.62,.55,.46)*.14; diffuseColor.rgb=pow(max(v,vec3(0.)),vec3(.94)); }`);};m.customProgramCacheKey=()=>'figHarm';return m;};
 const SKU={};
 // cherry blossom shapes for the dome: a single petal (rounded, narrowing to its base, a small notch at the tip), and five of them as a flower
 SKU.petalOutline=(w,l,n=14)=>{const pts=[];for(let i=0;i<=n;i++){const t=i/n,a=Math.PI*t;   // around from one side of the base to the other
@@ -753,7 +754,7 @@ SKU.flowerGeo=(n=14)=>{const parts=[];for(let k=0;k<5;k++){const sh=new THREE.Sh
   T.position.set(-.00066*S,GY+.002-D.mn[1]*S,.02486*S);   /* rock centred on the grass */T.scale.setScalar(S);G.add(T);SKU.T=T;SKU.S=S;
   {put(figGeo(D,'idx32',true),mat(0xffffff,.9,{map:figTex(D),side:THREE.DoubleSide}),0,0,0,{parent:T});
    const bl=new Uint16Array(u8(D.bl).buffer),bs=u8(D.bs),nb=bl.length/3,R=rng(17);
-   const fg=SKU.flowerGeo(LOW?4:6);   // a five-petalled cherry blossom, each petal with the little notch at its tip (a coarser outline on phones: each flower is a few millimetres across)
+   const fg=SKU.flowerGeo(3);   // each flower is a few millimetres across: a coarse outline is plenty   // a five-petalled cherry blossom, each petal with the little notch at its tip (a coarser outline on phones: each flower is a few millimetres across)
    const im=new THREE.InstancedMesh(fg,new THREE.MeshToonMaterial({color:0xBEBEBE,gradientMap:gradMap,side:THREE.DoubleSide}),nb),m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),c=new THREE.Color();
    const pinks=[0xD89A9F,0xE0A9A8,0xCB8B90,0xE4B6B0,0xD59496];SKU.bl=[]; /* dusty pinks, a little muted so they sit with the room's creams in daylight */
    let kept=0;
@@ -1105,9 +1106,9 @@ let tvScreen=null;
      const tail=(m,pts,r)=>add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))),24,r,10,false),m,0,0,0,g,{act});
      return {g,el,ear,tail};};
    // sculpted animals: smooth single-piece bodies (built offline from blended soft shapes) with fur colour painted in; eyes and noses added here
-   const sdfAnimal=(D,parent,x,y,z,ry,sc,act)=>{const geo=figGeo(D,'idx'),tex=figTex(D,HARM);
+   const sdfAnimal=(D,parent,x,y,z,ry,sc,act)=>{const geo=figGeo(D,'idx'),tex=figTex(D);
      const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=ry;g.scale.setScalar(sc);parent.add(g);
-     add(geo,mat(0xffffff,.9,{map:tex}),0,0,0,g,{act});
+     add(geo,figHarm(mat(0xffffff,.9,{map:tex})),0,0,0,g,{act});
      const Z=new THREE.Vector3(0,0,1),sph=new THREE.SphereGeometry(1,18,12);
      const put=(m,p,nv,sx,sy,sz,lift=0)=>{const o=add(sph,m,p[0]+nv[0]*lift,p[1]+nv[1]*lift,p[2]+nv[2]*lift,g,{act});o.scale.set(sx,sy,sz);o.quaternion.setFromUnitVectors(Z,new THREE.Vector3(...nv).normalize());return o;};
      for(const f of D.feats){const s_=f.s;
@@ -1129,9 +1130,9 @@ let tvScreen=null;
    sdfAnimal(SDFM.dog,G,.2,.012,-.062,.08,.27,{type:'dog1',label:'微縮模型・趴著睡的狗狗'});
    // 2) on the floor in front of the speaker: a chubby ginger cat flopped on its side, cheek on one paw, the other paw on its pink tummy.
    //    One smooth sculpted body (built offline from blended soft shapes), with its stripes and belly painted into the surface.
-   {const D=FATCAT,geo=figGeo(D,'idx'),tex=figTex(D,HARM);
+   {const D=FATCAT,geo=figGeo(D,'idx'),tex=figTex(D);
     const g=new THREE.Group();g.position.set(-.21,.012,-.075);g.scale.setScalar(.112);G.add(g);const A2={type:'cat2',label:'微縮模型・翻肚的胖橘貓'};
-    add(geo,mat(0xffffff,.9,{map:tex}),0,0,0,g,{act:A2});
+    add(geo,figHarm(mat(0xffffff,.9,{map:tex})),0,0,0,g,{act:A2});
     // the owner's sleeping orange tabby model, styled like the yawning cat: two thin closed-eye lines and a small coral nose
     const lidM=mat(0x5A3420,.6);
     for(const pts of D.eyes){const cur=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));
@@ -1869,7 +1870,7 @@ function inspOpen(id){
   if(!w.obj){toast('「'+(work(id).title||WORKS[id].title)+'」還在準備中，等一下再試一次');return;}
   scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held work too
   captureEnv(w);                                                      // its mirrors reflect the room as it is right now
-  INSP.on=true;INSP.cur=w;INSP.dir=1;INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
+  INSP.on=true;INSP.cur=w;INSP.dir=1;document.body.classList.add('holding');INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
   inspCaption();$('#inspSwim').hidden=!w.swim;if(w.swim)setSwim(w,w.swimOn,false);
   $('#inspTip').textContent=isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去';if(w.textKey)inspCaption();if(id==='pills')$('#inspTip').textContent=pillTip();   // the box, the sticker stack: their own hints
@@ -1969,7 +1970,7 @@ function inspTick(dt){
     const box=INSP.parent;R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);box.obj.root.attach(R);
     INSP.cur=box;INSP.parent=null;INSP.user.copy(INSP.pUser);INSP.dist=INSP.pDist;INSP.k=1;INSP.dir=1;INSP.ease=1;$('#insp').classList.add('on');inspCaption();return;}
   if(INSP.dir<0&&k===0){   // back on its shelf
-    INSP.on=false;INSP.dir=0;INSP.cur=null;R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);inspLayer(w,false);
+    INSP.on=false;INSP.dir=0;INSP.cur=null;document.body.classList.remove('holding');R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);inspLayer(w,false);
     $('#insp').hidden=true;modalOpen=false;updateCursorUI();canvas.focus();}}
 
 /* ============================================================
@@ -3825,8 +3826,9 @@ function tvFit(){const vw=tvVideo.videoWidth,vh=tvVideo.videoHeight;if(!vw)retur
   else{if(ar>TV_W/TV_H){dw=TV_W;dh=dw/ar;}else{dh=TV_H;dw=dh*ar;}}       // whole video visible
   const k=tvView.scale/100;dw*=k;dh*=k;
   return {dx:(TV_W-dw)/2+tvView.offX/100*TV_W/2,dy:(TV_H-dh)/2-tvView.offY/100*TV_H/2,dw,dh,ar};}
-function drawTV(){const f=tvFit();if(!f||tvVideo.readyState<2)return false;
-  if(tvView.blur){ // cover-crop a tiny copy, upscale twice for a soft blur
+function drawTV(now){const f=tvFit();if(!f||tvVideo.readyState<2)return false;
+  if(tvView.blur&&now!==undefined&&now-(drawTV.bT||0)<250){tvCtx.imageSmoothingEnabled=true;tvCtx.drawImage(tvSmall,0,0,TV_W,TV_H);}   // the soft backdrop is redone a few times a second, not every frame
+  else if(tvView.blur){drawTV.bT=now||0; // cover-crop a tiny copy, upscale twice for a soft blur
     const vw=tvVideo.videoWidth,vh=tvVideo.videoHeight,tar=TV_W/TV_H;let sw=vw,sh=vh;if(vw/vh>tar)sw=vh*tar;else sh=vw/tar;
     tvSmallCtx.drawImage(tvVideo,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,BW_,BH_);
     try{tvSmallCtx.putImageData(softBlur(tvSmallCtx.getImageData(0,0,BW_,BH_),5),0,0);}catch(e){}
@@ -4228,7 +4230,34 @@ dlDomeMat.onBeforeCompile=sh=>{sh.uniforms.uGlow=dlGlow;sh.fragmentShader='unifo
 const dlLight=new THREE.PointLight(0xffa860,0,3.4,1.4);dlLight.position.set(DL.x,DL.y+.24,DL.z+.03);scene.add(dlLight);
 jrStart();
 
+// ---------- keeping the visit smooth ----------
+// is a spot (with a radius) inside what the camera sees right now?
+const _fr=new THREE.Frustum(),_frM=new THREE.Matrix4(),_frS=new THREE.Sphere();let _frT=-1;
+function onScreen(p,r){if(_frT!==frame.n){_frT=frame.n;camera.updateMatrixWorld();_frM.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);_fr.setFromProjectionMatrix(_frM);}
+  return _fr.intersectsSphere(_frS.set(p,r));}
+// the mountain world is only ever seen through the mountain window: when the window is off screen, none of it is drawn
+const MWIN=new THREE.Box3(new THREE.Vector3(MW.x1,MW.y1,-3.74),new THREE.Vector3(MW.x2,MW.y2,-3.6));let mtnList=[],mtnT=-1e9,mtnShown=true;
+function mountainCull(now){
+  if(now-mtnT>2000){mtnT=now;mtnList=[];scene.traverse(o=>{const m=o.material;if(m&&!Array.isArray(m)&&m.stencilWrite&&m.stencilFunc===THREE.EqualStencilFunc&&m.stencilRef===1)mtnList.push(o);});mtnShown=null;}   // re-gathered now and then: the magic tree and the butterflies come and go
+  onScreen(TV_POS,0);const see=_fr.intersectsBox(MWIN);
+  if(see!==mtnShown){mtnShown=see;for(const o of mtnList){if(see)o.layers.enable(0);else o.layers.disable(0);}}}
+// resolution follows how the device copes: if frames take too long, draw a little coarser; when there is room again, sharpen back
+const DPR_MAX=Math.min(devicePixelRatio,LOW?1.3:1.75),DPR_MIN=Math.min(DPR_MAX,LOW?.7:.8);let dprNow=DPR_MAX,ftAvg=16,dprT=0;
+function adaptRes(now,dtMs){if(dtMs>0&&dtMs<200)ftAvg+=(dtMs-ftAvg)*.05;if(now-dprT<2000)return;dprT=now;
+  let next=dprNow;if(ftAvg>24)next=Math.max(DPR_MIN,dprNow-.15);else if(ftAvg<14)next=Math.min(DPR_MAX,dprNow+.1);
+  if(Math.abs(next-dprNow)>.01){dprNow=next;renderer.setPixelRatio(dprNow);renderer.setSize(innerWidth,innerHeight,false);}}
+// warm up the GPU ahead of time: compile every shader and upload every texture in the background (while the visitor is still reading
+// the intro), so turning round or picking something up the first time does not stall. Done again as late arrivals (works, shirts) load.
+const _warmTex=new Set();let warmBusy=false;
+function prewarm(){if(warmBusy)return;warmBusy=true;
+  const par=renderer.compileAsync&&renderer.extensions.has('KHR_parallel_shader_compile'),p=par?renderer.compileAsync(scene,camera):new Promise(res=>{renderer.compile(scene,camera);res();});   // in parallel where the GPU driver allows it
+  p.catch(()=>{}).then(()=>{const todo=[];scene.traverse(o=>{const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
+      for(const m of ms)for(const k of ['map','alphaMap','bumpMap','normalMap','emissiveMap','gradientMap'])if(m[k]&&m[k].isTexture&&!_warmTex.has(m[k])&&m[k].image&&!m[k].isVideoTexture){_warmTex.add(m[k]);todo.push(m[k]);}});
+    const step=()=>{const t0=performance.now();while(todo.length&&performance.now()-t0<8){try{renderer.initTexture(todo.shift());}catch(e){}}   // a few at a time, never more than ~8 ms per go
+      if(todo.length)setTimeout(step,30);else warmBusy=false;};step();});}
+[400,4000,10000,20000].forEach(ms=>setTimeout(prewarm,ms));
 function frame(now){
+  frame.n=(frame.n||0)+1;adaptRes(now,now-last);mountainCull(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
   // movement
   let speedNow=0;const sprint=!!(keys.ShiftLeft||keys.ShiftRight);
@@ -4273,17 +4302,17 @@ function frame(now){
   // env
   skyU.uTime.value=now/1000;WIND.uTime.value=now/1000;WIND.uGust.value=1+wx.rain*.9+wx.mist*.15;
   if(now-envT>100||envT===0){updateEnv(now);envT=now;}
-  for(let i=0;i<RAIN;i++){const s=rseed[i];s.y-=s.v*dt;if(s.y<-6)s.y+=22;const j=i*6;rpos[j]=s.x;rpos[j+1]=s.y;rpos[j+2]=s.z;rpos[j+3]=s.x+.02;rpos[j+4]=s.y+.38;rpos[j+5]=s.z;}
-  rgeo.attributes.position.needsUpdate=true;rain.visible=wx.rain>.02;
+  if(wx.rain>.02)for(let i=0;i<RAIN;i++){const s=rseed[i];s.y-=s.v*dt;if(s.y<-6)s.y+=22;const j=i*6;rpos[j]=s.x;rpos[j+1]=s.y;rpos[j+2]=s.z;rpos[j+3]=s.x+.02;rpos[j+4]=s.y+.38;rpos[j+5]=s.z;}
+  if(wx.rain>.02)rgeo.attributes.position.needsUpdate=true;rain.visible=wx.rain>.02;
   updateFire(dt,now);
-  if(tvDoc&&!tvVideo.paused&&tvVideo.readyState>=2)drawTV();
+  if(tvDoc&&!tvVideo.paused&&tvVideo.readyState>=2&&tvVideo.currentTime!==frame.tvT&&onScreen(TV_POS,.5)){frame.tvT=tvVideo.currentTime;drawTV(now);}   // only a new frame of the clip, only when the screen can be seen
   if(IOS&&now-(frame.shT||0)>200){frame.shT=now;shadowSync();}
-  if(LOW&&now-(frame.sdT||0)>250){frame.sdT=now;renderer.shadowMap.needsUpdate=true;}   // phones: shadows follow the sun and moving things a few times a second, not every frame
+  if(now-(frame.sdT||0)>(LOW?250:100)){frame.sdT=now;renderer.shadowMap.needsUpdate=true;}   // shadows follow the sun and moving things a few times a second, not every frame
   sunLampTick(dt);
   DUST.tick(dt,now);
   if(natureTick)natureTick(dt,now);
   jrTick(now);
-  if(tabIsVideo()&&!musicEl.paused)drawTabletVideo();
+  if(tabIsVideo()&&!musicEl.paused){if(musicEl.currentTime!==frame.tabV&&onScreen(TAB_POS,.3)){frame.tabV=musicEl.currentTime;drawTabletVideo();}}
   else if(now-(frame.tabT||0)>1000){frame.tabT=now;if(musicTracks().length)drawTablet();}
   if(now-hoverT>90){updateHover();hoverT=now;}
   updateAudio(dt,now);
@@ -4306,7 +4335,7 @@ window.__roomCatalog=()=>{const hover={};targets.forEach(m=>{const a=m.userData&
 /* ---------- start ---------- */
 if(isTouch){$('#keys').innerHTML='<kbd>左下搖桿</kbd><span>走動</span><kbd>右下「蹲下」</kbd><span>切換蹲下／站起</span><kbd>拖曳畫面</kbd><span>環顧四周</span><kbd>輕點</kbd><span>與物件互動</span>';}
 $('#crouchBtn').addEventListener('click',e=>{touchCrouch=!touchCrouch;e.currentTarget.setAttribute('aria-pressed',touchCrouch);e.currentTarget.textContent=touchCrouch?'站起':'蹲下';});
-$('#enter').addEventListener('click',()=>{$('#intro').hidden=true;started=true;startAudio();if(isTouch){$('#joy').hidden=false;$('#crouchBtn').hidden=false;}else tryLock();canvas.focus();updateCursorUI();
+$('#enter').addEventListener('click',()=>{prewarm();$('#intro').hidden=true;started=true;startAudio();if(isTouch){$('#joy').hidden=false;$('#crouchBtn').hidden=false;}else tryLock();canvas.focus();updateCursorUI();
   setTimeout(()=>toast(isTouch?'輕點物件就能互動':'準心對準物件時，點擊就能互動'),600);});
 })();
 </script>
