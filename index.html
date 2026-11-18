@@ -331,12 +331,14 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
     <button class="btn primary" id="enter" type="button">進入房間</button>
   </div>
 </div>
+<script>/* the button answers at once, even while the room is still being set up: the click is remembered and the room opens as soon as it is ready */
+(function(){var b=document.getElementById('enter');b.addEventListener('click',function(){if(window.__roomReady)return;window.__enterQueued=true;b.textContent='準備中…';b.disabled=true;});})();</script>
 
 <div class="veil" id="modal" hidden><div class="card" id="modalCard" role="dialog" aria-modal="true"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="config.js"></script>
-<script src="data/models.js?v=2026-11-18a"></script>
+<script src="data/sakura-lite.js?v=2026-11-18a"></script>
 <script src="models/goldfish-glass/room.js?v=2026-11-18q"></script>
 <script src="models/mirror-wings/room.js?v=2026-11-18s"></script>
 <script src="models/brainhorn/room.js?v=2026-11-18q"></script>
@@ -713,6 +715,13 @@ const figTex=(D)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace
 // the figurines' colour harmony (less saturated, a touch of warm cream, softer contrast), done by the GPU as it draws, not pixel by pixel at load
 const figHarm=m=>{m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
   { vec3 c=diffuseColor.rgb; float l=dot(c,vec3(.3,.55,.15)); vec3 v=vec3(l)+(c-vec3(l))*.72; v=v*.86+vec3(.62,.55,.46)*.14; diffuseColor.rgb=pow(max(v,vec3(0.)),vec3(.94)); }`);};m.customProgramCacheKey=()=>'figHarm';return m;};
+// the heavier model data (the cherry tree in full, the clay animals, the Buddha, the Pocky box) arrives in the background after the
+// page opens; whatever needs it waits here and is built the moment it lands. The room itself never waits for it.
+let modelsReady=false;const _mq=[];
+function whenModels(fn){if(modelsReady){try{fn();}catch(e){console.warn(e);}}else _mq.push(fn);}
+function loadModels(){if(loadModels.s)return;const sc=document.createElement('script');sc.src='data/models.js?v=2026-11-18a';sc.async=true;
+  sc.onload=()=>{modelsReady=true;for(const f of _mq.splice(0)){try{f();}catch(e){console.warn('模型建立失敗',e);}}setTimeout(prewarm,400);};
+  sc.onerror=()=>{loadModels.s=null;setTimeout(loadModels,4000);};document.head.appendChild(sc);loadModels.s=sc;}
 const SKU={};
 // cherry blossom shapes for the dome: a single petal (rounded, narrowing to its base, a small notch at the tip), and five of them as a flower
 SKU.petalOutline=(w,l,n=14)=>{const pts=[];for(let i=0;i<=n;i++){const t=i/n,a=Math.PI*t;   // around from one side of the base to the other
@@ -750,20 +759,23 @@ SKU.flowerGeo=(n=14)=>{const parts=[];for(let k=0;k<5;k++){const sh=new THREE.Sh
      m4.compose(new THREE.Vector3(Math.cos(an)*r,GY+.002+R()*.005,Math.sin(an)*r),q,new THREE.Vector3(1,1,1).multiplyScalar(i<40?.8+R()*.5:1.2));fm.setMatrixAt(i,m4);fm.setColorAt(i,c.setHex(i<25?0xFBF7EE:i<40?0xF2E6B8:0xE8B4B6));}
    G.add(fm);}
   // the tree (owner's model, heavily simplified): bark, branches and mossy rock as one mesh; blossoms as little clusters
-  const D=SAKURA,S=.0306,T=new THREE.Group();   /* largest size that still clears the glass */
-  T.position.set(-.00066*S,GY+.002-D.mn[1]*S,.02486*S);   /* rock centred on the grass */T.scale.setScalar(S);G.add(T);SKU.T=T;SKU.S=S;
-  {put(figGeo(D,'idx32',true),mat(0xffffff,.9,{map:figTex(D),side:THREE.DoubleSide}),0,0,0,{parent:T});
+  const D0=SAKURA_LITE,S=.0306,T=new THREE.Group();   /* largest size that still clears the glass */
+  T.position.set(-.00066*S,GY+.002-D0.mn[1]*S,.02486*S);   /* rock centred on the grass */T.scale.setScalar(S);G.add(T);SKU.T=T;SKU.S=S;
+  // the tree: a light version (trunk and main limbs, a quarter of the blossoms) is there from the start; the full one replaces it when its data lands
+  const buildTree=D=>{for(const o of [...T.children]){T.remove(o);const i=targets.indexOf(o);if(i>=0)targets.splice(i,1);if(o.geometry)o.geometry.dispose();}
+   put(figGeo(D,D.lite?'idx':'idx32',!D.lite),mat(0xffffff,.9,{map:figTex(D),side:THREE.DoubleSide}),0,0,0,{parent:T});
    const bl=new Uint16Array(u8(D.bl).buffer),bs=u8(D.bs),nb=bl.length/3,R=rng(17);
    const fg=SKU.flowerGeo(3);   // each flower is a few millimetres across: a coarse outline is plenty   // a five-petalled cherry blossom, each petal with the little notch at its tip (a coarser outline on phones: each flower is a few millimetres across)
    const im=new THREE.InstancedMesh(fg,new THREE.MeshToonMaterial({color:0xBEBEBE,gradientMap:gradMap,side:THREE.DoubleSide}),nb),m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),c=new THREE.Color();
    const pinks=[0xD89A9F,0xE0A9A8,0xCB8B90,0xE4B6B0,0xD59496];SKU.bl=[]; /* dusty pinks, a little muted so they sit with the room's creams in daylight */
    let kept=0;
    for(let i=0;i<nb;i++){const p=[0,1,2].map(a=>D.mn[a]+bl[i*3+a]/65535*(D.mx[a]-D.mn[a]));SKU.bl.push(p);
-     const s=.05*bs[i]/100*(.75+R()*.5)*(LOW?1.3:1.14);e.set(R()*6.28,R()*6.28,R()*6.28);q.setFromEuler(e);   // phones: every other blossom, each a little bigger
+     const s=.05*bs[i]/100*(.75+R()*.5)*(D.lite?1.55:LOW?1.3:1.14);   // the light version has a quarter of the flowers, each largere.set(R()*6.28,R()*6.28,R()*6.28);q.setFromEuler(e);   // phones: every other blossom, each a little bigger
      m4.compose(new THREE.Vector3(p[0]+(R()-.5)*.04,p[1]+(R()-.5)*.04,p[2]+(R()-.5)*.04),q,new THREE.Vector3(s,s,s));const col=pinks[Math.floor(R()*pinks.length)];
-     if(LOW?i%5>1:i%3===2)continue;   /* desktop keeps two in three, phones two in five: each a little bigger, so the crown stays as full */im.setMatrixAt(kept,m4);im.setColorAt(kept,c.setHex(col));kept++;}
+     if(!D.lite&&(LOW?i%5>1:i%3===2))continue;   /* desktop keeps two in three, phones two in five: each a little bigger, so the crown stays as full */im.setMatrixAt(kept,m4);im.setColorAt(kept,c.setHex(col));kept++;}
    im.count=kept;
-   im.userData.act=act;targets.push(im);T.add(im);SKU.blMat=im.material;}
+   im.userData.act=act;targets.push(im);T.add(im);SKU.blMat=im.material;};
+  buildTree(D0);whenModels(()=>buildTree(SAKURA));
   // sword stuck in the grass, leaning a little; a gourd tied below the guard, its red ribbon streaming out
   {const sw=new THREE.Group();sw.position.set(.055,GY,.03);sw.rotation.set(.05,-.4,-.12);sw.scale.setScalar(.6/1.27);G.add(sw);
    const steel=mat(0xDDE1E4,.3),brass=mat(0xC4A15E,.4),black=mat(0x2A2420,.6);
@@ -990,6 +1002,7 @@ let tvScreen=null;
   // the owner's reclining Buddha model: head to the left, back toward the room, facing the TV
   const HARM=(Cf)=>{for(let i=0;i<Cf.length;i+=3){const r=Cf[i],g=Cf[i+1],b=Cf[i+2],l=.3*r+.55*g+.15*b;   // figurines: less saturated, a touch of warm cream, softer contrast, so they sit in the room
     for(let k=0;k<3;k++){let v=l+(Cf[i+k]-l)*.72;v=v*.86+[.62,.55,.46][k]*.14;Cf[i+k]=Math.pow(Math.max(v,0),.94);}}return Cf;};
+   whenModels(()=>{   // the reclining Buddha waits for the model data
   {const D=MODEL_DATA.buddha,g=new THREE.BufferGeometry();
    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(unb64(D.pos)),3));
    g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(unb64(D.uv)),2));
@@ -1012,6 +1025,7 @@ let tvScreen=null;
      c.save();c.scale(1,h/w);c.fillStyle=gr;c.fillRect(0,0,w,w);c.restore();});
    const cs=new THREE.Mesh(new THREE.PlaneGeometry(.36,.11),new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,fog:false}));
    cs.rotation.x=-Math.PI/2;cs.position.set(0,.0015,0);cs.renderOrder=1;B.add(cs);}
+   });
   // snack table
   const T=new THREE.Group();T.position.set(-.02,.012,-.035);G.add(T);
   const wood=mat(0xD9B78A,.8,{map:woodTex});
@@ -1036,6 +1050,7 @@ let tvScreen=null;
    add(new THREE.CircleGeometry(.0013,12),mat(0xC9866A,.6),-.0105,.00215,0,rm,{rx:-Math.PI/2,act:ra});
    for(let i=0;i<3;i++)for(let j=-1;j<=1;j+=2)add(new THREE.CircleGeometry(.0008,10),mat(0x8C8277,.6),-.002+i*.005,.00215,j*.0018,rm,{rx:-Math.PI/2,act:ra});}
   // Pocky box from the owner's model, simplified to a box wearing its six baked faces
+   whenModels(()=>{   // the Pocky box waits for the model data
   {const D=MODEL_DATA.pocky,k=.17,tl=new THREE.TextureLoader();
    const soften=(src)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
      im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');
@@ -1047,6 +1062,7 @@ let tvScreen=null;
    const mats=D.faces.map(u=>mat(0xffffff,.6,{map:soften(u)}));
    const m=new THREE.Mesh(new THREE.BoxGeometry(D.size[0]*k,D.size[1]*k,D.size[2]*k),mats);
    m.position.set(.045,top+D.size[1]*k/2,.002);m.rotation.y=-.35;m.castShadow=m.receiveShadow=true;m.userData.act=A.pocky;T.add(m);targets.push(m);}
+   });
   // TV stand: light oak, slatted doors left and right, open two-shelf niche in the middle, splayed tapered legs
   const S2=new THREE.Group();S2.position.set(0,.012,-.165);G.add(S2);
   const oak=mat(0xE0BE92,.7,{map:woodTex}),oakIn=mat(0xD2AE82,.8,{map:woodTex});
@@ -1121,6 +1137,7 @@ let tvScreen=null;
        else if(f.k==='pad'){put(mat(0x6E5444,.7),f.p,f.n,s_*.62,s_*.5,s_*.18,0);for(const o of[-.6,-.2,.2,.6])put(mat(0x6E5444,.7),[f.p[0]+o*s_*.9,f.p[1]+s_*.75-Math.abs(o)*s_*.25,f.p[2]],f.n,s_*.2,s_*.22,s_*.12,0);}}   // paw pads on the upturned hind foot
      return g;};
    // beside the TV, on the stand: a ginger cat sitting up straight, turned to look at the Buddha
+   whenModels(()=>{   // the four little clay animals wait for the model data
    sdfAnimal(SDFM.sit,S2,.205,stTop,-.004,Math.atan2(-.25,.284),.079,{type:'cat1',label:'微縮模型・打哈欠的橘貓'});   // the owner's yawning orange tabby model: grey patches toned back to orange, stripes (strength 0.5, density 2.2), light ginger-to-cream palette from the owner's fur photo
    // by the Buddha's head: the owner's sleeping tabby model (grey patches filled from the surrounding fur, toned to the photos), curled with its head toward the Buddha
    sdfAnimal(SDFM.curl,G,-.205,.012,.118,.2,.075,{type:'cat3',label:'微縮模型・蜷著睡的虎斑貓'});
@@ -1128,8 +1145,10 @@ let tvScreen=null;
    sdfAnimal(SDFM.loaf,G,.08,.012,.18,-.7,.08,{type:'cat4',label:'微縮模型・窩在膝後的虎斑貓'});   // the owner's sleeping tabby (soft-blend version): grey patches repainted with tabby rings that follow the body, toned to match the tabby by the Buddha's head, belly filled out a little, face turned toward the room
    // right of the snack table: the owner's sleeping-dog model (grey patches blended into the fur, head 15% smaller, white tail tip), head on its paws
    sdfAnimal(SDFM.dog,G,.2,.012,-.062,.08,.27,{type:'dog1',label:'微縮模型・趴著睡的狗狗'});
+   });
    // 2) on the floor in front of the speaker: a chubby ginger cat flopped on its side, cheek on one paw, the other paw on its pink tummy.
    //    One smooth sculpted body (built offline from blended soft shapes), with its stripes and belly painted into the surface.
+   whenModels(()=>{   // the fat cat waits for the model data (loaded in the background)
    {const D=FATCAT,geo=figGeo(D,'idx'),tex=figTex(D);
     const g=new THREE.Group();g.position.set(-.21,.012,-.075);g.scale.setScalar(.112);G.add(g);const A2={type:'cat2',label:'微縮模型・翻肚的胖橘貓'};
     add(geo,figHarm(mat(0xffffff,.9,{map:tex})),0,0,0,g,{act:A2});
@@ -1140,8 +1159,9 @@ let tvScreen=null;
     {const ns=D.nose,sh=new THREE.Shape();sh.moveTo(-.011,.004);sh.quadraticCurveTo(0,.0062,.011,.004);sh.quadraticCurveTo(.007,-.003,0,-.009);sh.quadraticCurveTo(-.007,-.003,-.011,.004);
      const nm=add(new THREE.ShapeGeometry(sh,8),mat(0xD75F50,.6,{side:THREE.DoubleSide}),...ns.p,g,{act:A2});
      nm.matrixAutoUpdate=true;nm.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(...ns.u),new THREE.Vector3(...ns.v),new THREE.Vector3(...ns.n)));}}
+   });
   }
-  G.traverse(o=>{o.userData.noInk=true;});
+  G.traverse(o=>{o.userData.noInk=true;});whenModels(()=>G.traverse(o=>{o.userData.noInk=true;}));
 })();
 const tblAct={type:'otable',label:'水滴茶几'};
 // clay-style coffee table: a teardrop top (broad round end, softly tapered tip) with fat rounded edges and a gently swelling underside,
@@ -4256,6 +4276,7 @@ function prewarm(){if(warmBusy)return;warmBusy=true;
     const step=()=>{const t0=performance.now();while(todo.length&&performance.now()-t0<8){try{renderer.initTexture(todo.shift());}catch(e){}}   // a few at a time, never more than ~8 ms per go
       if(todo.length)setTimeout(step,30);else warmBusy=false;};step();});}
 [400,4000,10000,20000].forEach(ms=>setTimeout(prewarm,ms));
+setTimeout(loadModels,1500);   // the heavier model data comes once the room is up
 function frame(now){
   frame.n=(frame.n||0)+1;adaptRes(now,now-last);mountainCull(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
@@ -4335,8 +4356,9 @@ window.__roomCatalog=()=>{const hover={};targets.forEach(m=>{const a=m.userData&
 /* ---------- start ---------- */
 if(isTouch){$('#keys').innerHTML='<kbd>左下搖桿</kbd><span>走動</span><kbd>右下「蹲下」</kbd><span>切換蹲下／站起</span><kbd>拖曳畫面</kbd><span>環顧四周</span><kbd>輕點</kbd><span>與物件互動</span>';}
 $('#crouchBtn').addEventListener('click',e=>{touchCrouch=!touchCrouch;e.currentTarget.setAttribute('aria-pressed',touchCrouch);e.currentTarget.textContent=touchCrouch?'站起':'蹲下';});
-$('#enter').addEventListener('click',()=>{prewarm();$('#intro').hidden=true;started=true;startAudio();if(isTouch){$('#joy').hidden=false;$('#crouchBtn').hidden=false;}else tryLock();canvas.focus();updateCursorUI();
+$('#enter').addEventListener('click',()=>{if(!window.__roomReady)return;prewarm();loadModels();$('#intro').hidden=true;started=true;startAudio();if(isTouch){$('#joy').hidden=false;$('#crouchBtn').hidden=false;}else tryLock();canvas.focus();updateCursorUI();
   setTimeout(()=>toast(isTouch?'輕點物件就能互動':'準心對準物件時，點擊就能互動'),600);});
+window.__roomReady=true;if(window.__enterQueued){const b=$('#enter');b.disabled=false;b.textContent='進入房間';b.click();}   // clicked while the room was still being set up: go straight in
 })();
 </script>
 </body>
