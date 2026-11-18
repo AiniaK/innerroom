@@ -1817,8 +1817,9 @@ function captureEnv(w){   // what the room looks like from just in front of the 
  g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});}
 SHIRTS.forEach((st,si)=>{const w=WK['shirtstack'+si],g=shirtStackObj(si);w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the shirt stacks, filled as the shirts load
  g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);});
-Object.keys(WK).forEach(id=>{const w=WK[id],lib=window[w.lib];if(!lib)return;
+function loadWork(id){const w=WK[id],lib=window[w.lib];if(!lib)return;
   lib.load(w.url+'?v=2026-11-17f',{renderer}).then(g=>{
+    clearTimeout(loadWork.pw);loadWork.pw=setTimeout(prewarm,1500);   // once things settle, get its shaders ready before anyone picks it up
     if(id==='brainhorn')g=plushOf(g);
     if(id==='pills')pillsHook(g);
     if(w.fixed&&w.fixed.inStack!==undefined){const S2=WK['shirtstack'+w.fixed.inStack];w.obj=g;w.s=1;w.sBig=w.HB/g.height;S2.obj.put(id,g,w.fixed.level,w.url.split('-')[0]);g.onChange=()=>{if(INSP.cur===w)inspCaption();};
@@ -1830,7 +1831,24 @@ Object.keys(WK).forEach(id=>{const w=WK[id],lib=window[w.lib];if(!lib)return;
     w.obj=g;w.s=w.H?w.H/g.height:1;w.sBig=w.HB/g.height;if(g.setMotion)g.setMotion(w.swimOn);   // H 0: life size
     g.root.position.copy(w.p);g.root.quaternion.copy(w.q);g.root.scale.setScalar(w.s);scene.add(g.root);
     setTimeout(()=>captureEnv(w),1500);
-  }).catch(e=>console.warn('作品載入失敗：'+((WORKS[id]||{}).title||w.label),e));});
+  }).catch(e=>console.warn('作品載入失敗：'+((WORKS[id]||{}).title||w.label),e));}
+// the works and keepsakes load by area: when the visitor walks near, or a little while after the page opens, whichever comes first —
+// one at a time, so the room never stalls. (Nobody opens the cupboard or the memory cabinet in the first seconds.)
+const pendingWorks=Object.keys(WK).filter(id=>window[WK[id].lib]);
+function workZone(id){
+  if(id==='brainhorn')return {after:2500};
+  if(id==='goldfish'||id==='wings'||id==='pills')return {seg:[[1.2,3.2],[4.5,3.2]],r:2,after:12000};   // the memory cabinet: its whole front, not its middle (it is 3.4 m wide, and you start not far from its end)
+  if(id==='cap'||id.startsWith('shirt_'))return {p:[CAB.x,.4],r:4,after:18000};          // the low cupboard
+  if(id.startsWith('kc_')||id==='stickers')return {p:KCBOX?[KCBOX.x,KCBOX.z]:null,r:2.6,after:8000};   // the keychain box on the desk
+  return {after:0};}
+let roomReadyAt=null;   // the clock for "a little while after" starts once the room is up, not when the page started loading
+function tickWorkLoads(now){if(!pendingWorks.length||roomReadyAt===null||now-(tickWorkLoads.t||0)<400)return;tickWorkLoads.t=now;
+  const near=id=>{const z=workZone(id);
+    if(z.seg){const [a,b]=z.seg,dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((player.x-a[0])*dx+(player.z-a[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(player.x-a[0]-dx*t,player.z-a[1]-dz*t)<z.r;}
+    return z.p&&Math.hypot(player.x-z.p[0],player.z-z.p[1])<z.r;};
+  let i=pendingWorks.findIndex(near);   // what the visitor is walking up to comes first
+  if(i<0)i=pendingWorks.findIndex(id=>now-roomReadyAt>=workZone(id).after);
+  if(i>=0)loadWork(pendingWorks.splice(i,1)[0]);}
 function kcBoxObj(){   // a linen-covered box with no lid; its origin in the middle of the box, so it turns about its centre
   const B=KC_BOX,root=new THREE.Group(),meshes=[],linen=mat(0xE6D9C3,.95,{map:fabricTex}),inner=mat(0xC9B497,.95),y0=-B.H/2;
   const part=(g,m,x,y,z,rx)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);if(rx)o.rotation.x=rx;o.castShadow=o.receiveShadow=true;root.add(o);meshes.push(o);return o;};
@@ -4297,7 +4315,7 @@ function prewarm(){if(warmBusy)return;warmBusy=true;
 [400,4000,10000,20000].forEach(ms=>setTimeout(prewarm,ms));
 setTimeout(loadModels,1500);   // the heavier model data comes once the room is up
 function frame(now){
-  frame.n=(frame.n||0)+1;adaptRes(now,now-last);mountainCull(now);
+  frame.n=(frame.n||0)+1;tickWorkLoads(now);adaptRes(now,now-last);mountainCull(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
   // movement
   let speedNow=0;const sprint=!!(keys.ShiftLeft||keys.ShiftRight);
@@ -4377,7 +4395,7 @@ if(isTouch){$('#keys').innerHTML='<kbd>左下搖桿</kbd><span>走動</span><kbd
 $('#crouchBtn').addEventListener('click',e=>{touchCrouch=!touchCrouch;e.currentTarget.setAttribute('aria-pressed',touchCrouch);e.currentTarget.textContent=touchCrouch?'站起':'蹲下';});
 $('#enter').addEventListener('click',()=>{if(!window.__roomReady)return;prewarm();loadModels();$('#intro').hidden=true;started=true;startAudio();if(isTouch){$('#joy').hidden=false;$('#crouchBtn').hidden=false;}else tryLock();canvas.focus();updateCursorUI();
   setTimeout(()=>toast(isTouch?'輕點物件就能互動':'準心對準物件時，點擊就能互動'),600);});
-window.__roomReady=true;if(window.__enterQueued){const b=$('#enter');b.disabled=false;b.textContent='進入房間';b.click();}   // clicked while the room was still being set up: go straight in
+window.__roomReady=true;roomReadyAt=performance.now();if(window.__enterQueued){const b=$('#enter');b.disabled=false;b.textContent='進入房間';b.click();}   // clicked while the room was still being set up: go straight in
 })();
 </script>
 </body>
