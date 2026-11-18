@@ -16,7 +16,8 @@ const MINE_LIMIT = 100;
 
 const publicView = c => ({ id: c.id, nickname: c.nickname, content: c.content, createdAt: c.createdAt, editedAt: c.editedAt || null, method: c.method });
 // 留言者自己看到的樣子：多了狀態（公開／審核中／未公開）和還能不能編輯
-const mineView = c => ({ ...publicView(c), whisper: !!c.whisper, status: c.whisper ? 'whisper' : c.public ? 'public' : c.editedAt ? 'reviewing' : 'hidden',
+// 不公開的留言：房主還沒看過（新留言、或留言者編輯過）是「審核中」；房主看過、決定不公開是「未公開」
+const mineView = (c, reviewed) => ({ ...publicView(c), whisper: !!c.whisper, status: c.whisper ? 'whisper' : c.public ? 'public' : reviewed ? 'hidden' : 'reviewing',
   editableUntil: new Date(Date.parse(c.createdAt) + EDIT_WINDOW).toISOString(), editable: Date.now() - Date.parse(c.createdAt) < EDIT_WINDOW });
 const secret = env => { if (!env.HASH_SECRET || env.HASH_SECRET.length < 16) fail(500, 'not_configured', 'HASH_SECRET'); return env.HASH_SECRET; };
 export const authorId = async (env, sub) => (await hmacHex(secret(env), 'google:' + sub)).slice(0, 32);
@@ -70,7 +71,10 @@ function cleanPost(b) {
 }
 const ipKey = async (env, request) => 'rl:ip:' + (await hmacHex(secret(env), 'ip:' + clientIP(request))).slice(0, 32);
 
-/* ---------- 新增留言（必須用 Google 登入，送出後立即公開） ---------- */
+/* ---------- 新增留言（必須用 Google 登入；送出後先等房主審核，房主公開後才出現在房間） ---------- */
+// 房主審核過的留言記在 KV（rv:<id>），用來分辨「審核中」與「未公開」，不需要在 Notion 多加欄位
+const reviewKey = id => 'rv:' + id;
+const isReviewed = async (env, id) => !!(env.KV && await env.KV.get(reviewKey(id)));
 export async function postComment(env, request) {
   const b = await readJSON(request, 8 * 1024);
   if (b.website) return json({ ok: true, public: false });   // 機器人才會填的隱藏欄位：假裝成功
@@ -82,18 +86,18 @@ export async function postComment(env, request) {
   const record = await checkLimits(env, [{ key: await ipKey(env, request), limits: LIMITS.ip }, { key: 'rl:acct:' + author, limits: LIMITS.account }]);
   const whisper = b.whisper === true;   // 悄悄話：只給房主看
   const saved = await createComment(env, {
-    nickname: nickname || '匿名', content, createdAt: new Date().toISOString(), method: 'google', author, public: !whisper, whisper,
+    nickname: nickname || '匿名', content, createdAt: new Date().toISOString(), method: 'google', author, public: false, whisper,
   });
   await record();
-  if (!whisper) await patchCache(env, list => [publicView(saved)].concat(list.filter(x => x.id !== saved.id)));
-  return json({ ok: true, public: !whisper, comment: mineView(saved) }, 201);
+  return json({ ok: true, public: false, comment: mineView(saved, false) }, 201);
 }
 
 /* ---------- 留言者自己的留言：列出、編輯、刪除 ---------- */
 export async function listMine(env, request) {
   const b = await readJSON(request, 8 * 1024);
   const author = await visitor(env, b.credential);
-  const comments = (await queryComments(env, { author, limit: MINE_LIMIT })).map(mineView);
+  const list = await queryComments(env, { author, limit: MINE_LIMIT });
+  const comments = await Promise.all(list.map(async c => mineView(c, !c.public && !c.whisper ? await isReviewed(env, c.id) : false)));
   return json({ comments });
 }
 
@@ -117,7 +121,8 @@ export async function editMine(env, request, id) {
   const saved = await editOwnComment(env, c.id, { content, nickname: nickname || '匿名', editedAt: new Date().toISOString(), whisper });
   await record();
   await patchCache(env, list => list.filter(x => x.id !== saved.id));   // 編輯後先從房間移除，等房主審核
-  return json({ ok: true, comment: mineView(saved) });
+  if (env.KV) await env.KV.delete(reviewKey(saved.id));   // 改過的內容，房主要重新看
+  return json({ ok: true, comment: mineView(saved, false) });
 }
 
 export async function deleteMine(env, request, id) {
@@ -140,6 +145,7 @@ export async function adminSetPublic(env, request, id) {
   if (typeof b.public !== 'boolean') fail(400, 'bad_request');
   if (b.public) { const cur = await getComment(env, id); if (!cur || cur.trashed) fail(404, 'not_found'); if (cur.whisper) fail(400, 'is_whisper'); }   // 悄悄話不能公開
   const c = await setPublic(env, id, b.public);
+  if (env.KV) await env.KV.put(reviewKey(c.id), '1');   // 房主看過了（公開或不公開都算）
   await patchCache(env, list => {
     const rest = list.filter(x => x.id !== c.id);
     return c.public ? [publicView(c)].concat(rest).sort((a, z) => String(z.createdAt).localeCompare(String(a.createdAt))) : rest;

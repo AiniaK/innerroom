@@ -336,6 +336,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 
 <div class="veil" id="modal" hidden><div class="card" id="modalCard" role="dialog" aria-modal="true"></div></div>
 
+<script>/* the owner's saved content (exhibits, book list snapshot…) starts downloading at once, alongside three.js */window.__contentP=fetch('content.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="config.js"></script>
 <script src="data/sakura-lite.js?v=2026-11-18a"></script>
@@ -710,6 +711,7 @@ const figGeo=(D,idx,big)=>{const pos=new Uint16Array(unb64(D.pos)),n=pos.length/
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('normal',new THREE.BufferAttribute(N,3));g.setAttribute('uv',new THREE.BufferAttribute(U,2));
   g.setIndex(new THREE.BufferAttribute(big?new Uint32Array(unb64(D[idx])):new Uint16Array(unb64(D[idx])),1));return g;};
 const figTex=(D)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
+  {const c0=document.createElement('canvas');c0.width=c0.height=1;const g0=c0.getContext('2d');g0.fillStyle='#8f8178';g0.fillRect(0,0,1,1);t.image=c0;t.needsUpdate=true;}   /* a quiet bark-brown until the picture is decoded, never black */
   im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);
     t.image=c;t.needsUpdate=true;};im.src=D.tex;return t;};
 // the figurines' colour harmony (less saturated, a touch of warm cream, softer contrast), done by the GPU as it draws, not pixel by pixel at load
@@ -1515,7 +1517,7 @@ function buildExhibit(id){const E=EXHIBITS[id],g=new THREE.Group();g.rotation.or
   if(E.video&&!still){const el=document.createElement('video');el.muted=true;el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');el.src=exVideoURL(E);el.play().catch(()=>{});E._el=el;
     ['pointerdown','touchend','keydown'].forEach(ev=>addEventListener(ev,()=>{if(el.paused)el.play().catch(()=>{});},{passive:true}));   // phones may wait for a first touch
     tex=new THREE.VideoTexture(el);tex.colorSpace=THREE.SRGBColorSpace;picM=new THREE.MeshBasicMaterial({map:tex,toneMapped:false,fog:false});exGlowMats.push(picM);}   // a touch brighter than the clip itself, so it glows clear through the paper texture
-  else{tex=new THREE.TextureLoader().load(st0.cover||E.img);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();picM=mat(0xffffff,1,{map:tex});}
+  else{picM=mat(0xD8CBB4,1);tex=new THREE.TextureLoader().load(st0.cover||E.img,t=>{picM.map=t;picM.color.set(0xffffff);picM.needsUpdate=true;});tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();}   // warm paper until the picture has arrived, never black
   add(new THREE.PlaneGeometry(E.W,E.H),picM,0,OH/2,.002,g,{act,cast:false});
   exObj[id]={g,act,OW,OH,key:exKey(id)};}
 // a postcard taped flat to the wall: the card (white paper edge) and four strips of washi tape across its corners
@@ -1524,13 +1526,13 @@ function buildPostcard(id,g,act){const E=EXHIBITS[id],W=E.W,H=E.H,z=-.0125;
   if(!tapeAlpha){const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,256,64);x.fillStyle='#fff';x.beginPath();x.moveTo(6,0);   // torn ends
     for(let y=0;y<=64;y+=4)x.lineTo(4+Math.random()*7,y);for(let y=64;y>=0;y-=4)x.lineTo(250-Math.random()*7,y);x.closePath();x.fill();tapeAlpha=new THREE.CanvasTexture(c);}
   add(new THREE.BoxGeometry(W*1.004,H*1.004,.0016),mat(0xF3EEE4,.9),0,H/2,z,g,{act});   // the card
-  const tex=new THREE.TextureLoader().load(E.img);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
-  add(new THREE.PlaneGeometry(W,H),mat(0xffffff,1,{map:tex,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),0,H/2,z+.0014,g,{act,cast:false});   // clear of the card's face, or the two flicker
+  const pcM=mat(0xEFE9DD,1,{polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});const tex=new THREE.TextureLoader().load(E.img,t=>{pcM.map=t;pcM.color.set(0xffffff);pcM.needsUpdate=true;});tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  add(new THREE.PlaneGeometry(W,H),pcM,0,H/2,z+.0014,g,{act,cast:false});   // clear of the card's face, or the two flicker
   const tm=new THREE.MeshStandardMaterial({color:0xE8DCC2,roughness:.85,transparent:true,opacity:.82,alphaMap:tapeAlpha,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
   const tl=Math.min(W,H)*.26,tw=tl*.3;
   for(const[sx,sy,r]of[[-1,1,.75],[1,1,-.75],[-1,-1,-.75],[1,-1,.75]]){const m=add(new THREE.PlaneGeometry(tl,tw),tm,sx*W/2,H/2+sy*H/2,z+.0024,g,{act,cast:false});m.rotation.z=r+(Math.random()-.5)*.12;m.renderOrder=3;}
   exObj[id]={g,act,OW:W,OH:H,postcard:true,key:exKey(id)};}
-const exKey=id=>{const E=EXHIBITS[id],st=exState[id]||{};return (E.video&&st.wall==='cover'?'c':'p')+'|'+(st.cover||'')+'|'+(st.kind||E.kind);};   // what the frame was built to show
+const exKey=id=>{const E=EXHIBITS[id],st=exState[id]||{};return (E.video&&st.wall==='cover'?'c':'p')+'|'+(st.cover||'')+'|'+((st.kind||E.kind)==='明信片'?'pc':'fr');};   // the category only matters when it turns a frame into a taped postcard or back   // what the frame was built to show
 function rebuildExhibit(id){const o=exObj[id],E=EXHIBITS[id];   // the owner switched a clip between playing and a still cover, or changed its cover
   if(o){o.g.traverse(m=>{const i=targets.indexOf(m);if(i>=0)targets.splice(i,1);if(m.material){const k=exGlowMats.indexOf(m.material);if(k>=0)exGlowMats.splice(k,1);}});scene.remove(o.g);}
   if(E._el){E._el.pause();E._el.removeAttribute('src');E._el.load();E._el=null;}
@@ -3376,7 +3378,7 @@ function openJournal(cat){
     card.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{cur=b.dataset.cat;render();});};
   render();
 }
-/* ---------- guestbook: comments live in Notion behind the Worker. Anyone can read; writing needs a Google sign-in and is shown at once.
+/* ---------- guestbook: comments live in Notion behind the Worker. Anyone can read; writing needs a Google sign-in, and a new comment waits for the owner's review before it is shown.
    Visitors can delete their own comments any time and edit them within 7 days; an edited comment waits for the owner's review,
    and only its author sees it meanwhile. A whisper (悄悄話) is never public: only its author and the owner see it. Only the nickname the visitor types is shown, never the Google name or picture. ---------- */
 const GB_CFG=window.ROOM_CONFIG||{};
@@ -3445,7 +3447,7 @@ function bkEntryHTML(c,size){
     <textarea class="bk-edit" maxlength="500" aria-label="修改留言內容">${esc(c.content)}</textarea>
     <label class="bk-check"><input type="checkbox" class="bk-edit-whisper" ${c.whisper?'checked':''}> 悄悄話（只給房主看）</label>
     <div class="bk-acts"><button class="bk-btn ink" type="button" data-act="save">送出修改</button><button class="bk-btn" type="button" data-act="cancel">取消</button></div>
-    <div class="bk-note">${c.whisper?'悄悄話改完直接生效；取消勾選的話，要等房主看過才會公開。':'改完會先隱藏，房主看過後才重新公開。'}</div></div>`;
+    <div class="bk-note">${c.whisper?'悄悄話改完直接生效；取消勾選的話，要等房主看過才會公開。':'改完會先隱藏，房主看過後才公開。'}</div></div>`;
   const acts=c.own?`<div class="bk-acts">${c.editable?'<button class="bk-btn" type="button" data-act="edit">編輯</button>':''}<button class="bk-btn" type="button" data-act="del">刪除</button></div>`:'';
   return `<div class="bk-entry ${size}${c.own&&c.status!=='public'?' private':''}" data-id="${esc(c.id)}">${meta}<div class="bk-text">${esc(c.content)}</div>${acts}</div>`;}
 // lay the comments out on pages: measure each one at the real page size; half a page at least, a whole page if it needs it
@@ -3486,7 +3488,7 @@ function bkPageHTML(p){
       <label class="bk-check"><input type="checkbox" id="gbWhisper"> 悄悄話：只給房主看</label>
       <div class="bk-acts"><button class="bk-btn ink" type="submit" id="gbSubmit">留下這句話</button><span class="bk-count" id="gbCount">0 / 500</span></div>
     </form>
-    <div class="bk-note">筆記本上只會出現你填的暱稱，不會顯示 Google 名字和大頭貼。<button class="bk-link" type="button" data-act="logout">登出</button>・<a href="privacy.html" target="_blank" rel="noopener">隱私權說明</a></div>`;
+    <div class="bk-note">留言會先由房主看過，再出現在筆記本上。筆記本上只會出現你填的暱稱，不會顯示 Google 名字和大頭貼。<button class="bk-link" type="button" data-act="logout">登出</button>・<a href="privacy.html" target="_blank" rel="noopener">隱私權說明</a></div>`;
   else if(gbInApp){const ext=gbInApp==='LINE'?location.href.replace(/#.*$/,'')+(location.search?'&':'?')+'openExternalBrowser=1':null;
     body=`<div class="bk-write-h">想留言嗎？</div><p class="bk-p">留言需要用 Google 登入，但你正在 ${esc(gbInApp)} 的內建瀏覽器裡，Google 不允許在這裡登入。請改用 Safari 或 Chrome 打開這個房間。</p>
       <div class="bk-acts">${ext?`<a class="bk-btn ink" href="${esc(ext)}">用瀏覽器開啟</a>`:''}<button class="bk-btn" type="button" data-act="copy">複製連結</button><span class="bk-count" id="gbCopied"></span></div>`;}
@@ -3611,7 +3613,7 @@ function bkWire(){
       sub.disabled=true;sub.textContent='送出中…';
       try{const d=await gbPost('/api/comments',{nickname,content,whisper,credential:gb.token,elapsed:Date.now()-gb.openedAt,website:form.querySelector('#gbHp').value});
         if(d.comment){if(d.public)gb.list=[d.comment].concat((gb.list||[]).filter(c=>c.id!==d.comment.id));gb.mine=[d.comment].concat((gb.mine||[]).filter(c=>c.id!==d.comment.id));}
-        toast(whisper?'悄悄話已寫進筆記本，只有房主看得到':'留言已寫進筆記本');bkRebuild();}
+        toast(whisper?'悄悄話已寫進筆記本，只有房主看得到':'留言已送出，房主看過後就會出現在筆記本裡');bkRebuild();}
       catch(err){msg.textContent=gbErr(err&&err.code);sub.disabled=false;sub.textContent='留下這句話';if(!gbSignedIn())bkRebuild(bkGoWrite());}};}
   const gbtn=bk.el.querySelector('#gbBtn');
   if(gbtn&&GB_CFG.googleClientId)gbLoadGsi().then(()=>{if(gbtn.isConnected)google.accounts.id.renderButton(gbtn,{theme:'outline',size:'medium',shape:'pill',text:'signin_with',locale:'zh-TW'});})
@@ -3990,7 +3992,7 @@ function shadowSync(){if(!IOS||!AC)return;
 drawTablet();
 const applyContent=c=>{if(!c)return;try{if(c.journalSnap)jrFromSnap(c.journalSnap);}catch(e){}try{if(c.tv!==undefined)applyTV(c.tv);}catch(e){}try{if(c.music)applyMusic(c.music);}catch(e){}try{if(c.exhibits)applyExhibits(c.exhibits);}catch(e){}try{applyWorks(c.works);}catch(e){}
   if(c.texts){Object.keys(TOVR).forEach(k=>delete TOVR[k]);Object.assign(TOVR,c.texts.items||{});if(typeof c.texts.fire==='number')S.fire=c.texts.fire;}};
-fetch('content.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(applyContent).catch(()=>{});   // the owner's latest saved content, published with the page
+(window.__contentP||fetch('content.json',{cache:'no-store'}).then(r=>r.ok?r.json():null)).then(applyContent).catch(()=>{});   // fetched at the very start of the page (see the head), so it is usually here already   // the owner's latest saved content, published with the page
 function openTablet(){const T=musicTracks(),L=musicLinks();
   openModal(`<div id="tabCard"><div class="eyebrow">沙發邊桌上</div><h2>平板・音樂</h2>
     <div id="tabNow" class="note" style="border:0;padding:0"></div>

@@ -307,20 +307,25 @@ await test('沒有登入不能留言', async () => {
   assert.equal(r.status, 401); assert.equal(r.data.error, 'login_required');
   assert.equal(notion.pages.size, 0);
 });
-await test('登入留言：立即公開、只存雜湊代號、不公開 Google 名字、內容原樣存成純文字', async () => {
+await test('登入留言：先等房主審核（審核中、房間看不到），房主公開後才出現；只存雜湊代號、不公開 Google 名字、內容原樣存成純文字', async () => {
   const r = await call('POST', '/api/comments', { body: { nickname: ' 小樹 ', content: '<script>alert(1)</script>\n\n\n\n謝謝你的房間', credential: visitor, elapsed: 9000 }, ip: '6.6.6.6' });
-  assert.equal(r.status, 201, JSON.stringify(r.data)); assert.equal(r.data.public, true); assert.equal(r.data.comment.status, 'public');
+  assert.equal(r.status, 201, JSON.stringify(r.data)); assert.equal(r.data.public, false); assert.equal(r.data.comment.status, 'reviewing');
   const page = notion.pages.get(r.data.comment.id); googleId = page.id;
   assert.equal(page.properties['暱稱'].title[0].text.content, '小樹');
   assert.equal(page.properties['內容'].rich_text[0].text.content, '<script>alert(1)</script>\n\n謝謝你的房間');
   assert.equal(page.properties['登入方式'].select.name, 'Google 登入');
   const author = page.properties['留言者 Google ID'].rich_text[0].text.content;
   assert.match(author, /^[0-9a-f]{32}$/); assert.ok(!JSON.stringify(page).includes('visitor@gmail.com')); assert.ok(!JSON.stringify(page).includes('2002'));
+  assert.deepEqual((await call('GET', '/api/comments')).data.comments, []);   // 還沒審核：房間看不到
+  const mine0 = await call('POST', '/api/comments/mine', { body: { credential: visitor } });
+  assert.equal(mine0.data.comments.find(c => c.id === googleId).status, 'reviewing');
+  assert.equal((await call('PATCH', '/api/admin/comments/' + googleId, { token: owner, body: { public: true } })).status, 200);   // 房主公開
   const pub = await call('GET', '/api/comments');
   assert.deepEqual(pub.data.comments.map(c => c.nickname), ['小樹']);
   assert.equal(pub.data.comments[0].author, undefined);
   const o = await call('POST', '/api/comments', { body: { nickname: '別人', content: '我也來了', credential: other, elapsed: 9000 }, ip: '6.6.6.9' });
   otherId = o.data.comment.id;
+  await call('PATCH', '/api/admin/comments/' + otherId, { token: owner, body: { public: true } });
 });
 await test('留言檢查：太長、空白、太多連結、太快送出、隱藏欄位、偽造登入', async () => {
   const t = { credential: visitor, elapsed: 9000 };
