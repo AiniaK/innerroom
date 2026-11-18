@@ -450,7 +450,7 @@
   "works": {
     "items": {
       "goldfish": {
-        "title": "如常",
+        "title": "如常1",
         "year": "2013",
         "medium": "複合媒材",
         "size": "高22",
@@ -499,5 +499,45 @@
       }
     ]
   },
-  "savedAt": 1794982284458
+  "savedAt": 1794986385698,
+  "journalSnap": {
+    "at": 1794986385929,
+    "dream": [
+      {
+        "id": "4184acf6-5651-80f1-b5b2-eac095f5ca49",
+        "title": "失聯",
+        "tone": "奇幻",
+        "date": "",
+        "len": 8477
+      },
+      {
+        "id": "4194acf6-5651-8028-b183-c9eeb7cb9464",
+        "title": "夢境相簿",
+        "tone": "",
+        "date": "",
+        "len": 3908
+      },
+      {
+        "id": "4194acf6-5651-8020-b057-c58dd6fdb860",
+        "title": "土下",
+        "tone": "不安",
+        "date": "",
+        "len": 4633
+      },
+      {
+        "id": "4194acf6-5651-80e2-9aad-c646bcf0ef9f",
+        "title": "風仍吹向洛汀",
+        "tone": "溫柔",
+        "date": "",
+        "len": 7638
+      },
+      {
+        "id": "41b4acf6-5651-809a-8b14-d4f8ff44afc7",
+        "title": "熄滅之前",
+        "tone": "",
+        "date": "",
+        "len": 1400
+      }
+    ]
+  }
 }
