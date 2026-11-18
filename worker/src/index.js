@@ -57,6 +57,13 @@ async function route(request, env, ctx) {
     const b = await readJSON(request, 256 * 1024);
     const content = validateContent(b.content);
     if (b.sha !== null && b.sha !== undefined && typeof b.sha !== 'string') fail(400, 'bad_request');
+    // 書單快照：每次存檔順便記下書架上的夢境書（只有標題、色調、日期、篇幅，不含內文），
+    // 讓第一次來的訪客一進房間就看到書；房間之後仍會向 Notion 讀最新的。讀不到就略過，不影響存檔。
+    try {
+      const r = await listJournal(env, ctx, 'dream', request), d = await r.json();
+      const len = e => (e.blocks || []).reduce((a, x) => a + (x.x ? x.x.length : 0) + (x.t === 'img' ? 300 : 0), 0);
+      if (Array.isArray(d.items)) content.journalSnap = { at: Date.now(), dream: d.items.slice(0, 300).map(e => ({ id: String(e.id || '').slice(0, 64), title: String(e.title || '').slice(0, 120), tone: String(e.tone || '').slice(0, 20), date: String(e.date || '').slice(0, 30), len: len(e) })) };
+    } catch {}
     return json(await putContent(env, content, b.sha || null, commitMessage(b.sections)));
   }
 

@@ -2411,10 +2411,11 @@ function plantTaiwanForest(){
     e.set((R()-.5)*.08,R()*Math.PI*2,(R()-.5)*.08);q.setFromEuler(e);ps.set(x,h-.15*s+yOff,z);sc.set(s,s*(.9+R()*.25),s);m4.compose(ps,q,sc);
     meshes[k].setMatrixAt(count[k],m4);const v=.86+R()*.24;tint.setRGB(v*(.96+R()*.08),v,v*(.94+R()*.08));meshes[k].setColorAt(count[k],tint);count[k]++;return true;}
   const pick=(table)=>{let r=R(),acc=0;for(const [k,w] of table){acc+=w;if(r<acc)return k;}return table[table.length-1][0];};
+  // the forest grows in over the first moments instead of all at once: a few milliseconds of planting per frame, so the room never stalls
   let tries=0;
-  while(tries++<60000){
+  const plantOne=()=>{
     const d=6+Math.pow(R(),1.5)*240,x=3.8+(R()-.5)*(50+d*2.4),z=-3.5-d,h=mountainH(x,z);
-    if(h>95)continue;
+    if(h>95)return 0;
     const grow=1+d/110;   // farther trees drawn a little larger so the forest still reads
     let k;
     if(d<12) k='grass';
@@ -2426,9 +2427,16 @@ function plantTaiwanForest(){
     const base={grass:1,broadA:1.1,broadB:1.15,cedar:1.2,fern:1}[k];
     const near=d<45&&count[k+'_hi']<COUNTS[k+'_hi'];   // close to the window: the finer plant
     put(near?k+'_hi':k,x,z,base*(.8+R()*.5)*(k==='grass'?1:grow));
-    if(Object.keys(COUNTS).every(t=>count[t]>=COUNTS[t]||t.endsWith('_hi')))break;
-  }
-  for(const k in meshes){meshes[k].count=count[k];meshes[k].instanceMatrix.needsUpdate=true;if(meshes[k].instanceColor)meshes[k].instanceColor.needsUpdate=true;scene.add(meshes[k]);}
+    if(Object.keys(COUNTS).every(t=>count[t]>=COUNTS[t]||t.endsWith('_hi')))return 2;
+    return 0;
+  };
+  for(const k in meshes){meshes[k].count=0;meshes[k].frustumCulled=false;scene.add(meshes[k]);}   // (its bounds change as it grows; the mountain window decides when it is drawn)
+  const grow=()=>{const t0=performance.now();let done=false;
+    while(performance.now()-t0<6){if(tries++>=60000||plantOne()===2){done=true;break;}}
+    for(const k in meshes){meshes[k].count=count[k];meshes[k].instanceMatrix.needsUpdate=true;if(meshes[k].instanceColor)meshes[k].instanceColor.needsUpdate=true;}
+    if(!done)requestAnimationFrame(grow);};
+  requestAnimationFrame(grow);
+
   /* ---------- just outside the mountain window: a magic tree that is always in flower, wildflowers among the silvergrass,
      and blue tiger butterflies on sunny days ---------- */
   {const NR=rng(5150),nr=(a,b)=>a+(b-a)*NR();
@@ -3962,7 +3970,7 @@ function shadowSync(){if(!IOS||!AC)return;
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)[tvVideo,musicEl].forEach(kick);});
 })();
 drawTablet();
-const applyContent=c=>{if(!c)return;try{if(c.tv!==undefined)applyTV(c.tv);}catch(e){}try{if(c.music)applyMusic(c.music);}catch(e){}try{if(c.exhibits)applyExhibits(c.exhibits);}catch(e){}try{applyWorks(c.works);}catch(e){}
+const applyContent=c=>{if(!c)return;try{if(c.journalSnap)jrFromSnap(c.journalSnap);}catch(e){}try{if(c.tv!==undefined)applyTV(c.tv);}catch(e){}try{if(c.music)applyMusic(c.music);}catch(e){}try{if(c.exhibits)applyExhibits(c.exhibits);}catch(e){}try{applyWorks(c.works);}catch(e){}
   if(c.texts){Object.keys(TOVR).forEach(k=>delete TOVR[k]);Object.assign(TOVR,c.texts.items||{});if(typeof c.texts.fire==='number')S.fire=c.texts.fire;}};
 fetch('content.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(applyContent).catch(()=>{});   // the owner's latest saved content, published with the page
 function openTablet(){const T=musicTracks(),L=musicLinks();
@@ -4169,7 +4177,7 @@ function buildDreamBooks(items){
   let row=0,x=rows[order[0]][1];
   dreams.forEach(e=>{
     const R=rng(e.id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,11));
-    const len=(e.blocks||[]).reduce((a,b)=>a+(b.x?b.x.length:0)+(b.t==='img'?300:0),0);
+    const len=jrLen(e);
     const t=Math.min(.05,.022+len/9000*.02+R()*.006);
     let [y,x0,x1]=rows[order[row]];
     if(x+t>x1){row++;if(row>=order.length)return;[y,x0,x1]=rows[order[row]];x=x0;}
@@ -4179,6 +4187,7 @@ function buildDreamBooks(items){
 // take a book down: tip it out by its top, slide it off the shelf, bring it up in front of you; then the book opens on screen
 const _jq=new THREE.Quaternion(),_jq2=new THREE.Quaternion(),_jv=new THREE.Vector3(),_jy=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-Math.PI/2);
 function openDream(idx){const b=JR.books[idx];if(!b||JR.anim)return;
+  if(b.e.snap){JR.pending=b.e.id;toast('翻開中…');return;}   // a book from the snapshot: its text is still on the way; it opens the moment it arrives
   if(!b.coverMesh){   // the front board carries the same cover as the book that opens on screen (made only when first taken down)
     const tex=new THREE.CanvasTexture(notebookCover(false,dreamSrc(b.e,b).cover).canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
     b.coverMesh=add(new THREE.PlaneGeometry(b.d-.002,b.hh-.002),new THREE.MeshToonMaterial({map:tex,gradientMap:gradMap}),b.t/2+.0007,b.hh/2,-b.d/2,b.g,{ray:false,cast:false});
@@ -4211,7 +4220,17 @@ function jrTick(now){const A=JR.anim;if(!A)return;const b=A.b,g=b.g,t=(now-A.t0)
   else{   // put back: slide in from the edge of the shelf
     const k=easeIO(Math.min(1,t/.4));g.position.copy(A.p0).lerp(b.home,k);if(t>=.4){g.position.copy(b.home);g.quaternion.copy(b.homeQ);JR.anim=null;}}}
 // load both journals in the background once the room is up, so the shelf fills in by itself
-function jrStart(){jrLoad('dream').then(buildDreamBooks).catch(()=>{});jrLoad('mood').catch(()=>{});}
+// the length of a dream's text, which sets how thick its book is (the snapshot carries it, so the snapshot books match the real ones)
+const jrLen=e=>typeof e.len==='number'?e.len:(e.blocks||[]).reduce((a,b)=>a+(b.x?b.x.length:0)+(b.t==='img'?300:0),0);
+const jrSig=items=>items.map(e=>e.id+'|'+e.title+'|'+(e.tone||'')+'|'+jrLen(e)).join('/');
+// the shelf straight away: the book list saved with the owner's last save (content.json), until the live list from Notion arrives
+function jrFromSnap(snap){if(JR.data.dream||JR.snapSig||!Array.isArray(snap.dream)||!snap.dream.length)return;
+  const items=snap.dream.map(e=>Object.assign({},e,{snap:true}));JR.snapSig=jrSig(items);buildDreamBooks(items);}
+function jrStart(){jrLoad('dream').then(items=>{
+    if(JR.snapSig&&jrSig(items)===JR.snapSig){const by={};items.forEach(e=>by[e.id]=e);for(const b of JR.books)if(by[b.e.id])b.e=by[b.e.id];}   // same books: just give them their text
+    else buildDreamBooks(items);
+    JR.snapSig=null;if(JR.pending!=null){const id=JR.pending;JR.pending=null;const i=JR.books.findIndex(b=>b.e.id===id);if(i>=0)openDream(i);}}).catch(()=>{});
+  jrLoad('mood').catch(()=>{});}
 
 // the mood notebook on the desk, beside the cherry dome: a closed dark-red hardback, like the guestbook
 (function moodNotebook(){
