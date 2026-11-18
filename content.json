@@ -352,7 +352,7 @@
         "hover": true,
         "mode": "hang",
         "along": -0.8,
-        "height": 1.35,
+        "height": 1.4,
         "scale": 0.2,
         "custom": true,
         "img": "media/ex-20261118-000959.jpg",
@@ -368,7 +368,7 @@
         "hover": true,
         "mode": "hang",
         "along": -1,
-        "height": 1.35,
+        "height": 1.5,
         "scale": 0.2,
         "custom": true,
         "img": "media/ex-20261118-001054.jpg",
@@ -383,7 +383,7 @@
         "popup": true,
         "hover": true,
         "mode": "hang",
-        "along": -0.79,
+        "along": -0.8,
         "height": 1.6,
         "scale": 0.2,
         "custom": true,
@@ -499,5 +499,5 @@
       }
     ]
   },
-  "savedAt": 1794949535581
+  "savedAt": 1794982284458
 }
