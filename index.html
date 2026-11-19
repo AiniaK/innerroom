@@ -346,6 +346,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/keychains/room.js?v=2026-11-18w"></script>
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
+<script src="models/folder/room.js?v=2026-11-20f"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
 (()=>{
@@ -645,7 +646,7 @@ function buildHutch(){   // (built after the clay materials exist) a clay hutch 
       for(const k of[0,1,2]){const l=put(new THREE.SphereGeometry(.016,10,8),leafM,cx+s*(.08+k*.04),fy-.01+(k%2?.016:-.014)+s*.004*k,fzz);l.scale.set(1.2,.6,.4);l.rotation.z=s*(k%2?.6:-.6);}}}
   // the three upper shelves are kept for the dream books (one book for each dream, filled in from Notion); the ceramic vase stays
   const R=rng(42);
-  HUTCH={zB,rows:[[T1+.0275,inX1+.03,inX2-.03],[shelfY[0]+.019,inX1+.03,inX2-.24],[shelfY[1]+.019,inX1+.03,inX2-.03]],height:[shelfY[0]-.019-(T1+.0275),shelfY[1]-.019-(shelfY[0]+.019),HT-.0225-(shelfY[1]+.019)]};
+  HUTCH={zB,rows:[[T1+.0275,inX1+.03,inX2-.03],[shelfY[0]+.019,inX1+.03,inX2-.24],[shelfY[1]+.019,inX1+.03,inX2-.42]],fx:inX2-.03,height:[shelfY[0]-.019-(T1+.0275),shelfY[1]-.019-(shelfY[0]+.019),HT-.0225-(shelfY[1]+.019)]};
   put(new THREE.CylinderGeometry(.05,.065,.2,24),M.ceramic,inX2-.12,shelfY[0]+.019+.1,zB+.17,{act:{type:'shelf',label:'陶瓶'}});
   // the cubby: an open box (no lid) on the desk, holding three keychains the owner designed (models/keychains); each can be picked up
   KCBOX={x:inX1+dw+.04+(inW-dw)/2,y:HB,z:zB+.14};   // the box itself is picked up as a whole (see kcBoxObj)
@@ -772,7 +773,7 @@ SKU.flowerGeo=(n=14)=>{const parts=[];for(let k=0;k<5;k++){const sh=new THREE.Sh
    const pinks=[0xD89A9F,0xE0A9A8,0xCB8B90,0xE4B6B0,0xD59496];SKU.bl=[]; /* dusty pinks, a little muted so they sit with the room's creams in daylight */
    let kept=0;
    for(let i=0;i<nb;i++){const p=[0,1,2].map(a=>D.mn[a]+bl[i*3+a]/65535*(D.mx[a]-D.mn[a]));SKU.bl.push(p);
-     const s=.05*bs[i]/100*(.75+R()*.5)*(D.lite?1.55:LOW?1.3:1.14);   // the light version has a quarter of the flowers, each largere.set(R()*6.28,R()*6.28,R()*6.28);q.setFromEuler(e);   // phones: every other blossom, each a little bigger
+     const s=.05*bs[i]/100*(.75+R()*.5)*(D.lite?1.55:LOW?1.3:1.14);e.set(R()*6.28,R()*6.28,R()*6.28);q.setFromEuler(e);   /* the light version has a quarter of the flowers, each larger; phones: fewer blossoms, each a little bigger */
      m4.compose(new THREE.Vector3(p[0]+(R()-.5)*.04,p[1]+(R()-.5)*.04,p[2]+(R()-.5)*.04),q,new THREE.Vector3(s,s,s));const col=pinks[Math.floor(R()*pinks.length)];
      if(!D.lite&&(LOW?i%5>1:i%3===2))continue;   /* desktop keeps two in three, phones two in five: each a little bigger, so the crown stays as full */im.setMatrixAt(kept,m4);im.setColorAt(kept,c.setHex(col));kept++;}
    im.count=kept;
@@ -1773,6 +1774,18 @@ const WK={
     fixed:{inStack:si,level:lv},textKey:'shirt_'+m+'_'+c,label,url:m+'-'+c,lib:'Shirts'}]))),
   // the open box on the desk: picked up as a whole, tipped toward you; tap a thing inside to take it out and look at it
   kcbox:{H:0,heldLight:.15,HB:.46,heldTilt:.95,fixed:{desk:true},textKey:'kcbox',label:'鑰匙圈盒',lib:'local'},
+  // 平面設計文件夾: a kraft folder standing on the hutch's top shelf; held, it opens, and the works lie loose inside (built in models/folder/room.js)
+  gfolder:{H:0,HB:.3,heldLight:.2,fixed:{shelf:true},textKey:'gfolder',label:'平面設計文件夾',lib:'local'},
+  gd_woodlife:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[-.075,.004],yaw:.06,layer:0},textKey:'gd_woodlife',label:'海報・木以載生',url:'gd_woodlife',lib:'GraphicFolder'},
+  gd_best:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[.078,.012],yaw:-.08,layer:1},textKey:'gd_best',label:'海報・最佳狀態',url:'gd_best',lib:'GraphicFolder'},
+  gd_lifenum:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[-.005,-.01],yaw:.035,layer:2},textKey:'gd_lifenum',label:'海報・生命數字',url:'gd_lifenum',lib:'GraphicFolder'},
+  gd_sunrise:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[-.098,.018],yaw:-.12,layer:3},textKey:'gd_sunrise',label:'海報・漫漫日出',url:'gd_sunrise',lib:'GraphicFolder'},
+  gd_time:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[.1,-.016],yaw:.1,layer:4},textKey:'gd_time',label:'海報・時光',url:'gd_time',lib:'GraphicFolder'},
+  gd_woodcraft:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[.03,.026],yaw:-.045,layer:5},textKey:'gd_woodcraft',label:'海報・木職人',url:'gd_woodcraft',lib:'GraphicFolder'},
+  gd_puppet:{H:0,HB:.5,heldLight:.3,fixed:{box:'gfolder',at:[.12,-.004],yaw:.05,layer:6},textKey:'gd_puppet',label:'主視覺・台北偶戲館',url:'gd_puppet',lib:'GraphicFolder'},
+  gd_spring:{H:0,HB:.36,heldLight:.3,fixed:{box:'gfolder',at:[.088,.042],yaw:-.18,layer:8},textKey:'gd_spring',label:'春聯',url:'gd_spring',lib:'GraphicFolder'},
+  gd_cogs:{H:0,HB:.3,heldLight:.3,fixed:{box:'gfolder',at:[-.1,.062],yaw:-.2,layer:9},textKey:'gd_cogs',label:'零件設計・齒盤蓋',url:'gd_cogs',lib:'GraphicFolder'},
+  gd_logos:{H:0,HB:.26,heldLight:.3,fixed:{box:'gfolder',at:[.068,-.07],yaw:.25,layer:10},textKey:'gd_logos',label:'logo 設計',url:'gd_logos',lib:'GraphicFolder'},
   kc_acrylic:{H:0,heldLight:.3,HB:.2,fixed:{box:true,at:[.088,.052],yaw:-.25,lift:.0045},textKey:'kc_acrylic',label:'金魚安全帽壓克力鑰匙圈',url:'acrylic',lib:'Keychains'},
   kc_strap:{H:0,heldLight:.3,HB:.44,fixed:{box:true,at:[-.055,.05],yaw:Math.PI/2+.06,lift:.001},textKey:'kc_strap',label:'金魚腦織帶鑰匙圈',url:'strap',lib:'Keychains'},
   // the stickers: a little stack beside the keychains; held, they fan out like a hand of cards and one can be drawn out
@@ -1791,6 +1804,8 @@ function wPlace(id,pod){   // stand work `id` in pod `pod`; that pod's click pla
   if(w.fixed&&w.fixed.inStack!==undefined){w.pod=-2;return;}   // lies in its stack; it moves with the stack (see shirtStackObj)
   if(w.fixed&&w.fixed.stackOf!==undefined){if(w.pod===-2)return;w.pod=-2;const st=SHIRTS[w.fixed.stackOf];   // a stack of folded shirts on the cupboard floor, collars toward the room
     w.q.setFromEuler(new THREE.Euler(-Math.PI/2,Math.PI/2,0,'YXZ'));w.p.set(CAB.x+.005,(st.lvl?CAB_SHELF:CAB.floor)+.002,CAB.secs[st.sec]+st.dz);w.out.set(-1,.4,0).normalize();return;}   // lies in the keychain box; it moves with the box (see kcBoxObj)
+  if(w.fixed&&w.fixed.shelf){if(w.pod===-2||!HUTCH)return;w.pod=-2;const row=HUTCH.rows[2],FH=GraphicFolder.FH,FWd=GraphicFolder.FW,lean=.11;   // standing at the right end of the hutch's top shelf, leaning back a little, its cover to the room
+    w.q.setFromEuler(new THREE.Euler(-lean,-.04,0));w.p.set(HUTCH.fx-FWd/2-.02,row[0]+FH/2*Math.cos(lean)+.001,HUTCH.zB+.04+FH/2*Math.sin(lean)+.008);w.out.set(0,.15,1).normalize();return;}
   if(w.fixed&&w.fixed.desk){if(w.pod===-2||!KCBOX)return;w.pod=-2;   // the box on the desk
     w.q.identity();w.p.set(KCBOX.x,KCBOX.y+KC_BOX.H/2,KCBOX.z);w.out.set(0,1,0);return;}
   if(w.fixed){if(w.pod===-2)return;w.pod=-2;const F=w.fixed;   // not in the cabinet: sitting on the ring sofa
@@ -1815,6 +1830,8 @@ function captureEnv(w){   // what the room looks like from just in front of the 
   if(!w.cube){w.rt=new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType});w.cube=new THREE.CubeCamera(.05,40,w.rt);}
   w.cube.position.copy(w.p).addScaledVector(w.out,.35);w.cube.updateMatrixWorld();
   const vis=w.obj.root.visible;w.obj.root.visible=false;w.cube.update(renderer,scene);w.obj.root.visible=vis;w.obj.setEnvMap(w.rt.texture);}
+{const w=WK.gfolder,g=GraphicFolder.folder();w.obj=g;w.s=1;w.sBig=w.HB/g.height;g.onClosed=()=>{if(INSP.cur===w)inspClose();};   // the graphic design folder, also built here (put back: it tidies and closes in your hands first, then goes home)
+ g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});}
 {const w=WK.kcbox,g=kcBoxObj();w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the keychain box is built here, not loaded
  g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});}
 SHIRTS.forEach((st,si)=>{const w=WK['shirtstack'+si],g=shirtStackObj(si);w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the shirt stacks, filled as the shirts load
@@ -1826,8 +1843,8 @@ function loadWork(id){const w=WK[id],lib=window[w.lib];if(!lib)return;
     if(id==='pills')pillsHook(g);
     if(w.fixed&&w.fixed.inStack!==undefined){const S2=WK['shirtstack'+w.fixed.inStack];w.obj=g;w.s=1;w.sBig=w.HB/g.height;S2.obj.put(id,g,w.fixed.level,w.url.split('-')[0]);g.onChange=()=>{if(INSP.cur===w)inspCaption();};
       g.meshes.forEach(m=>{m.userData.act=S2.act;targets.push(m);if(INSP.on&&INSP.cur===S2)m.layers.set(INSP.LAYER);});return;}   // in a stack: clicking it in the room picks up the stack
-    if(w.fixed&&w.fixed.box){w.obj=g;w.s=1;w.sBig=w.HB/g.height;WK.kcbox.obj.put(id,g,w.fixed);g.onChange=()=>{if(INSP.cur===w)inspCaption();};
-      g.meshes.forEach(m=>{m.userData.act=WK.kcbox.act;targets.push(m);if(INSP.on&&INSP.cur===WK.kcbox)m.layers.set(INSP.LAYER);});return;}   // in the box: clicking it in the room picks up the box
+    if(w.fixed&&w.fixed.box){const Bx=WK[w.fixed.box===true?'kcbox':w.fixed.box];w.obj=g;w.s=1;w.sBig=w.HB/g.height;Bx.obj.put(id,g,w.fixed);g.onChange=()=>{if(INSP.cur===w)inspCaption();};   // the keychain box, or the folder
+      g.meshes.forEach(m=>{m.userData.act=Bx.act;targets.push(m);if(INSP.on&&INSP.cur===Bx)m.layers.set(INSP.LAYER);});return;}   // in the box: clicking it in the room picks up the box
     if(w.fixed)g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});   // not in a pod: click the thing itself
     g.onChange=()=>{if(INSP.cur===w)inspCaption();};
     w.obj=g;w.s=w.H?w.H/g.height:1;w.sBig=w.HB/g.height;if(g.setMotion)g.setMotion(w.swimOn);   // H 0: life size
@@ -1841,9 +1858,10 @@ function workZone(id){
   if(id==='brainhorn')return {after:2500};
   if(id==='goldfish'||id==='wings'||id==='pills')return {seg:[[1.2,3.2],[4.5,3.2]],r:2,after:12000};   // the memory cabinet: its whole front, not its middle (it is 3.4 m wide, and you start not far from its end)
   if(id==='cap'||id.startsWith('shirt_'))return {p:[CAB.x,.4],r:4,after:18000};          // the low cupboard
-  if(id.startsWith('kc_')||id==='stickers')return {p:KCBOX?[KCBOX.x,KCBOX.z]:null,r:2.6,after:8000};   // the keychain box on the desk
+  if(id.startsWith('kc_')||id==='stickers'||id.startsWith('gd_'))return {p:KCBOX?[KCBOX.x,KCBOX.z]:null,r:2.6,after:8000};   // the keychain box and the folder on the hutch   // the keychain box on the desk
   return {after:0};}
 let roomReadyAt=null;   // the clock for "a little while after" starts once the room is up, not when the page started loading
+function loadNowAll(test){for(let i=pendingWorks.length-1;i>=0;i--)if(test(pendingWorks[i]))loadWork(pendingWorks.splice(i,1)[0]);}   // picked up before its contents arrived: fetch them all at once
 function tickWorkLoads(now){if(!pendingWorks.length||roomReadyAt===null||now-(tickWorkLoads.t||0)<400)return;tickWorkLoads.t=now;
   const near=id=>{const z=workZone(id);
     if(z.seg){const [a,b]=z.seg,dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((player.x-a[0])*dx+(player.z-a[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(player.x-a[0]-dx*t,player.z-a[1]-dz*t)<z.r;}
@@ -1910,6 +1928,7 @@ function inspOpen(id){
   if(!w.obj){toast('「'+(work(id).title||WORKS[id].title)+'」還在準備中，等一下再試一次');return;}
   scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held work too
   captureEnv(w);                                                      // its mirrors reflect the room as it is right now
+  if(id==='gfolder')loadNowAll(k=>k.startsWith('gd_'));if(id==='kcbox')loadNowAll(k=>k.startsWith('kc_')||k==='stickers');
   INSP.on=true;INSP.cur=w;INSP.dir=1;document.body.classList.add('holding');INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
   inspCaption();$('#inspSwim').hidden=!w.swim;if(w.swim)setSwim(w,w.swimOn,false);
@@ -1935,31 +1954,34 @@ function inspCaption(){   // name, then year · medium · size · period, then t
     if(sk){const k='sticker_'+sk,v=ovr(k),t=TEXT[k],I=o.info[sk];$('#inspT').textContent=v.t||t[0];
       $('#inspM').textContent=(I.kind==='laser'?'雷射貼紙':'反光貼紙')+'・'+I.w+' × '+I.h+' 公分';$('#inspM').hidden=false;$('#inspB').textContent=v.b||t[1];$('#inspB').hidden=popOff(k);return;}}
   if(INSP.cur.textKey){const k=INSP.cur.textKey,v=ovr(k),t=TEXT[k];   // an object of the room (物件說明): its popup title and words
-    $('#inspTip').textContent=INSP.cur.id==='kcbox'?'點盒子裡的東西拿出來看・拖曳翻轉':INSP.cur.id.startsWith('shirtstack')?'點一件衣服拿出來攤開・拖曳翻轉':INSP.parent?(isTouch?'拖曳翻轉・點旁邊放回盒子':'拖曳翻轉・按 Esc 放回盒子'):(isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去');
+    $('#inspTip').textContent=INSP.cur.id==='kcbox'?'點盒子裡的東西拿出來看・拖曳翻轉':INSP.cur.id==='gfolder'?'點一件作品拿出來看・拖曳翻轉':(INSP.cur.id==='gd_cogs'||INSP.cur.id==='gd_logos')?(isTouch?'點一下翻到下一張・點旁邊放回文件夾':'點一下翻到下一張・按 Esc 放回文件夾'):INSP.cur.id.startsWith('gd_')?(isTouch?'拖曳翻轉・點旁邊放回文件夾':'拖曳翻轉・按 Esc 放回文件夾'):INSP.cur.id.startsWith('shirtstack')?'點一件衣服拿出來攤開・拖曳翻轉':INSP.parent?(isTouch?'拖曳翻轉・點旁邊放回盒子':'拖曳翻轉・按 Esc 放回盒子'):(isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去');
     $('#inspT').textContent=v.t||t[0];$('#inspM').hidden=true;$('#inspB').textContent=v.b||t[1];$('#inspB').hidden=popOff(k);return;}
   const id=INSP.cur.id,v=work(id),meta=[v.year,v.medium,v.size,v.period].map(x=>String(x||'').trim()).filter(Boolean);
   $('#inspT').textContent=v.title||WORKS[id].title;$('#inspM').textContent=meta.join('・');$('#inspM').hidden=!meta.length;
   $('#inspB').textContent=v.desc||'';$('#inspB').hidden=!v.desc;}
 function inspChild(id){   // take a thing out of the box in your hands: it lifts out and comes up to you, the box waits behind it
   const it=WK[id],box=INSP.cur;if(!it||!it.obj||INSP.dir<0)return;
-  const R=it.obj.root,sv=new THREE.Vector3();R.updateWorldMatrix(true,false);R.matrixWorld.decompose(it.p,it.q,sv);it.s=sv.x;it.slot=R.matrix.clone();   // its place in the box
+  const R=it.obj.root,sv=new THREE.Vector3();R.updateWorldMatrix(true,false);R.matrixWorld.decompose(it.p,it.q,sv);it.s=sv.x;box.obj.root.updateWorldMatrix(true,false);it.slot=box.obj.root.matrixWorld.clone().invert().multiply(R.matrixWorld);   // its place in the box (relative to the box itself, wherever inside it lies)
   it.out.copy(camera.position).sub(it.p).normalize().multiplyScalar(.45);scene.attach(R);
   INSP.parent=box;INSP.pUser=INSP.user.clone();INSP.pDist=INSP.dist;
-  INSP.cur=it;INSP.k=0;INSP.dir=1;INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;
+  INSP.cur=it;INSP.k=0;INSP.dir=1;INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=box.id==='gfolder'?.5:.62;   // a work out of the folder comes up close to your eyes
   $('#inspSwim').hidden=true;inspCaption();}
 function inspClose(){if(!INSP.on||INSP.dir<0)return;
   if(INSP.cur.obj&&INSP.cur.obj.back&&INSP.cur.obj.back())return;   // a drawn-out sticker goes back into the fan first
   INSP.dir=-1;INSP.drag=null;INSP.pts.clear();$('#insp').classList.remove('on','grab');}
 {const el=$('#insp');
  el.addEventListener('pointerdown',e=>{if(e.target.closest('button')||INSP.dir<0)return;el.setPointerCapture(e.pointerId);INSP.pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-   if(INSP.pts.size===1){INSP.drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:0,t:performance.now()};INSP.vx=INSP.vy=0;INSP.face=false;el.classList.add('grab');}
+   if(INSP.pts.size===1){INSP.drag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:0,t:performance.now()};INSP.vx=INSP.vy=0;INSP.face=false;el.classList.add('grab');
+     const o=INSP.cur.obj;if(!INSP.parent&&o&&o.dragStart&&o.dragStart(new THREE.Vector2(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1),camera,INSP.LAYER))INSP.drag.item=true;}   // pressed on a work in the open folder: dragging moves that work, not the folder
    else{INSP.drag=null;const [a,b]=[...INSP.pts.values()];INSP.pinch=Math.hypot(a.x-b.x,a.y-b.y);}});
  el.addEventListener('pointermove',e=>{const pt=INSP.pts.get(e.pointerId);if(!pt)return;pt.x=e.clientX;pt.y=e.clientY;
-   if(INSP.pts.size>=2){const [a,b]=[...INSP.pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(INSP.pinch>0)INSP.dist=clamp(INSP.dist*INSP.pinch/d,.34,.95);INSP.pinch=d;return;}
+   if(INSP.pts.size>=2){const [a,b]=[...INSP.pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(INSP.pinch>0)INSP.dist=clamp(INSP.dist*INSP.pinch/d,.34,INSP.parent?.7:.95);INSP.pinch=d;return;}
    const d=INSP.drag;if(!d||d.id!==e.pointerId)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;d.x=e.clientX;d.y=e.clientY;d.moved+=Math.abs(dx)+Math.abs(dy);
+   if(d.item){if(d.moved>6)INSP.cur.obj.dragMove(new THREE.Vector2(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1),camera);return;}
    inspTurn(dx*.009,dy*.009);INSP.vx=dx*.009;INSP.vy=dy*.009;d.t=performance.now();});
  const up=e=>{if(!INSP.pts.delete(e.pointerId))return;el.classList.remove('grab');const d=INSP.drag;INSP.drag=null;INSP.pinch=0;
    if(!d||d.id!==e.pointerId)return;
+   if(d.item){INSP.cur.obj.dragEnd();INSP.vx=INSP.vy=0;if(d.moved>=6)return;}   // a work moved inside the folder; a press without moving still takes it out (below)
    if(performance.now()-d.t>90)INSP.vx=INSP.vy=0;   // let go after holding still: no spin
    if(d.moved<6&&e.type==='pointerup'){   // a tap well away from the work puts it back
      const o=INSP.cur.obj,pk=o&&o.pick&&o.pick(new THREE.Vector2(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1),camera,INSP.LAYER);
@@ -1967,7 +1989,7 @@ function inspClose(){if(!INSP.on||INSP.dir<0)return;
      const s=INSP.cur.obj.root.position.clone().project(camera),px=(s.x+1)/2*innerWidth,py=(1-s.y)/2*innerHeight;
      if(Math.hypot(e.clientX-px,e.clientY-py)>Math.min(innerWidth,innerHeight)*.36)inspClose();}};
  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
- el.addEventListener('wheel',e=>{e.preventDefault();INSP.dist=clamp(INSP.dist*Math.exp(e.deltaY*.0012),.34,.95);},{passive:false});
+ el.addEventListener('wheel',e=>{e.preventDefault();INSP.dist=clamp(INSP.dist*Math.exp(e.deltaY*.0012),.34,INSP.parent?.7:.95);},{passive:false});   // a thing out of its box can't be pushed back into the box behind it
  $('#inspBack').addEventListener('click',inspClose);
  $('#inspTake').addEventListener('click',()=>{const o=WK.pills.obj;if(o&&o.take()){pillAsk(false);$('#inspFace').hidden=$('#inspBack').hidden=false;$('#inspTip').textContent='';}});
  $('#inspPut').addEventListener('click',()=>{const o=WK.pills.obj;if(o&&o.putBack())pillAsk(false);});
@@ -1987,8 +2009,8 @@ function inspTick(dt){
   if(INSP.face)INSP.user.slerp(_q0.identity(),1-Math.pow(.004,dt));
   const k=INSP.k,e=k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
   if(INSP.parent){   // a thing out of the box: the box steps back and down, out of the way; the thing's way home follows its place in the box
-    const P=INSP.parent.obj.root,f=1-Math.exp(-dt*5);
-    _v.set(0,-.13,-(INSP.pDist+.3)).applyQuaternion(camera.quaternion).add(camera.position);P.position.lerp(_v,f);
+    const P=INSP.parent.obj.root,f=1-Math.exp(-dt*14);   // the box steps back quickly: even if you had zoomed it right up to your eyes, it is behind the thing before the thing arrives
+    _v.set(0,-.12,-(INSP.pDist+.3)).applyQuaternion(camera.quaternion).add(camera.position);P.position.lerp(_v,f);   /* far enough back that a big work turning in front never reaches into it */
     P.updateMatrixWorld(true);_m4.multiplyMatrices(P.matrixWorld,w.slot);_m4.decompose(w.p,w.q,_v);w.s=_v.x;}
   // where it is held: straight ahead, a little above centre so the caption stays clear of it
   _end.set(0,.035,-INSP.dist).applyQuaternion(camera.quaternion).add(camera.position);
@@ -2007,7 +2029,7 @@ function inspTick(dt){
   const M2=w.obj.materials;if(M2&&M2.mirror){M2.mirror.envMapIntensity=1+e*.4;if(M2.edge)M2.edge.envMapIntensity=.9+e*.3;}   // the mirrors catch more light in your hands
   inspLayer(w,k>.14||!!INSP.parent);   // drawn over the room only once it is clear of the cabinet (or of the box in your hands)
   if(INSP.dir<0&&k===0&&INSP.parent){   // back into the box you are holding: the box is in your hands again
-    const box=INSP.parent;R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);box.obj.root.attach(R);
+    const box=INSP.parent;R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);if(box.obj.adopt)box.obj.adopt(w.id,R);else box.obj.root.attach(R);   // the folder puts it back on the side it came from
     INSP.cur=box;INSP.parent=null;INSP.user.copy(INSP.pUser);INSP.dist=INSP.pDist;INSP.k=1;INSP.dir=1;INSP.ease=1;$('#insp').classList.add('on');inspCaption();return;}
   if(INSP.dir<0&&k===0){   // back on its shelf
     INSP.on=false;INSP.dir=0;INSP.cur=null;document.body.classList.remove('holding');R.position.copy(w.p);R.quaternion.copy(w.q);R.scale.setScalar(w.s);inspLayer(w,false);
@@ -3301,6 +3323,13 @@ const TEXT={
   sweets:['點心碟','兩個瑪德蓮、兩個可麗露。配一杯茶剛剛好。'],
   mug:['馬克杯','還溫溫的。坐下來，慢慢喝。'],
   shelf:['書桌櫃','上面幾層收著房主的紀錄：夢境紀錄、覺察筆記、心情日記，點一本書打開來看。下面是一張小書桌。'],
+  gfolder:['平面設計文件夾','一個牛皮紙文件夾，裡面隨意夾著房主的平面設計：海報、主視覺、logo，還有一張春聯。拿下來翻開看看吧。'],
+  gd_woodlife:['海報・木以載生','海報設計。'],gd_best:['海報・最佳狀態','海報設計。'],gd_lifenum:['海報・生命數字','海報設計。'],
+  gd_sunrise:['海報・漫漫日出','海報設計。'],gd_time:['海報・時光','海報設計。'],gd_woodcraft:['海報・木職人','海報設計。'],
+  gd_puppet:['主視覺・台北偶戲館','台北偶戲館的主視覺提案，折成兩折夾在文件夾裡，拿出來就攤開。'],
+  gd_spring:['春聯','一隻蜷著身子的老虎，抱著一個「福」字。'],
+  gd_cogs:['零件設計・齒盤蓋','當時幫朋友發想的齒盤蓋設計，兩張圖用迴紋針夾在一起。點一下翻到下一張。'],
+  gd_logos:['logo 設計','Gotham、羅曼尼、人生解放學、日日花園、Medify 的 logo，用迴紋針夾成一疊。點一下翻到下一張。'],
   kcbox:['鑰匙圈盒','一個沒有蓋子的盒子，裡面放著三個房主設計的鑰匙圈。拿起來看看吧。'],
   kc_acrylic:['金魚安全帽壓克力鑰匙圈','三層壓克力疊成的安全帽。中間那層的金魚是活動的，搖一搖鑰匙圈，金魚就在安全帽裡晃來晃去。'],
   kc_strap:['金魚腦織帶鑰匙圈','雙面織帶，一面橘色、一面粉色。戴著安全帽的騎士，面罩裡是一條金魚。'],
