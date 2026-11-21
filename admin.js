@@ -278,6 +278,7 @@ async function start() {
   status('已載入網站目前的內容');
   refreshFiles();
   loadComments();
+  shrinkJournalImages();
 }
 
 function setupTabs() {
@@ -968,6 +969,44 @@ function renderComments() {
     };
     r.append(n, u); bl.appendChild(r);
   });
+}
+
+/* ======================= 夢境紀錄、心情筆記的圖片壓縮 ======================= */
+// Notion 裡的圖片常是 2 MB 上下的 PNG，房間裡一張要等一兩秒。房主登入後台時，在這裡（房主的瀏覽器）把還沒壓過、
+// 或換過的圖縮到長邊 1600、轉成 WebP（不支援就用 JPEG），存回 Worker；訪客之後拿到的就是小檔。背景慢慢做，不擋其他操作
+const SHRINK_MAX = 1600;
+async function shrinkOne(id) {
+  const r = await fetch(apiBase() + '/api/journal/img/' + encodeURIComponent(id) + '?orig=1');
+  if (!r.ok) throw err('http_' + r.status);
+  const orig = await r.blob();
+  const bmp = await createImageBitmap(orig);
+  const k = Math.min(1, SHRINK_MAX / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);   // 透明的地方鋪白（JPEG 沒有透明）
+  g.drawImage(bmp, 0, 0, c.width, c.height); bmp.close && bmp.close();
+  const enc = (type, q) => new Promise(ok => c.toBlob(b => ok(b), type, q));
+  let out = await enc('image/webp', .82);
+  if (!out || out.type !== 'image/webp') out = await enc('image/jpeg', .85);   // Safari 不會輸出 WebP
+  if (!out) throw err('encode');
+  await api('/api/admin/journal-img/' + encodeURIComponent(id), { method: 'PUT', headers: { 'Content-Type': out.type }, body: out });
+  return [orig.size, out.size];
+}
+async function shrinkJournalImages() {
+  try {
+    const lists = await Promise.all(['dream', 'mood'].map(k => fetch(apiBase() + '/api/journal/' + k, { cache: 'no-store' }).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] }))));
+    const { done } = await api('/api/admin/journal-img');
+    const norm = id => String(id).replace(/-/g, '').toLowerCase();
+    const todo = [];
+    for (const l of lists) for (const e of l.items || []) for (const b of e.blocks || [])
+      if (b.t === 'img' && (!(norm(b.id) in done) || (b.v && done[norm(b.id)] !== b.v))) todo.push(b.id);
+    if (!todo.length) return;
+    let n = 0, before = 0, after = 0;
+    for (const id of todo) {
+      try { const [a, z] = await shrinkOne(id); n++; before += a; after += z; }
+      catch (e) { if (e.code === 'expired') return; }
+    }
+    if (n) toast(`夢境與心情的圖片：壓縮了 ${n} 張（${(before / 1048576).toFixed(1)} MB → ${(after / 1048576).toFixed(1)} MB）`);
+  } catch {}
 }
 
 /* ======================= 開始 ======================= */

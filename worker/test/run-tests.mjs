@@ -131,15 +131,17 @@ const journalBlocks = {
   m1: [{ id: 'm1b', type: 'quote', quote: { rich_text: rt('慢慢來。') } }],
 };
 const journalImageBlocks = {
-  '11111111111111111111111111111111': { id: '1111', type: 'image', parent: { type: 'page_id', page_id: 'd1' }, image: { type: 'file', file: { url: 'https://files.notion.test/a.png' } } },
+  '11111111111111111111111111111111': { id: '1111', type: 'image', last_edited_time: '2026-11-03T00:00:00.000Z', parent: { type: 'page_id', page_id: 'd1' }, image: { type: 'file', file: { url: 'https://files.notion.test/a.png' } } },
   '22222222222222222222222222222222': { id: '2222', type: 'image', parent: { type: 'page_id', page_id: 'g1' }, image: { type: 'file', file: { url: 'https://files.notion.test/b.png' } } },
 };
 
 /* ---------- 假的 KV ---------- */
-const kvStore = new Map(); let kvWrites = 0;
+const kvStore = new Map(), kvMeta = new Map(); let kvWrites = 0;
 const KV = {
   async get(k, type) { const v = kvStore.get(k); return v === undefined ? null : type === 'json' ? JSON.parse(v) : v; },
-  async put(k, v) { kvWrites++; kvStore.set(k, v); },
+  async put(k, v, o) { kvWrites++; kvStore.set(k, v); if (o && o.metadata) kvMeta.set(k, o.metadata); else kvMeta.delete(k); },
+  async getWithMetadata(k, type) { const v = kvStore.get(k); return { value: v === undefined ? null : v, metadata: kvMeta.get(k) || null }; },
+  async list({ prefix = '' } = {}) { return { keys: [...kvStore.keys()].filter(k => k.startsWith(prefix)).map(name => ({ name, metadata: kvMeta.get(name) })), list_complete: true }; },
   async delete(k) { kvStore.delete(k); },
 };
 
@@ -275,6 +277,25 @@ await test('夢境圖片：只轉送這兩個資料庫裡的圖片', async () =>
   assert.equal(other.status, 404);
   const bad = await worker.fetch(new Request('https://api.example/api/journal/img/..%2Fpages'), env, { waitUntil() {} });
   assert.equal(bad.status, 404);
+});
+await test('夢境圖片壓縮版：房主存上來後訪客拿到小檔，換過圖就改回原始檔', async () => {
+  const ID = '11111111111111111111111111111111', get = (q = '', origin) => worker.fetch(new Request('https://api.example/api/journal/img/' + ID + q, { headers: origin ? { Origin: origin } : {} }), env, { waitUntil() {} });
+  const jpg = new Uint8Array([0xff, 0xd8, 1, 2, 3]);
+  assert.equal((await call('PUT', '/api/admin/journal-img/' + ID, { raw: jpg, headers: { 'Content-Type': 'image/jpeg' } })).status, 401);   // 要房主
+  assert.equal((await call('PUT', '/api/admin/journal-img/' + ID, { token: owner, raw: jpg, headers: { 'Content-Type': 'text/html' } })).status, 400);
+  assert.equal((await call('PUT', '/api/admin/journal-img/22222222222222222222222222222222', { token: owner, raw: jpg, headers: { 'Content-Type': 'image/jpeg' } })).status, 404);   // 別的資料庫的圖
+  const big = await call('PUT', '/api/admin/journal-img/' + ID, { token: owner, raw: jpg, headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(3 * 1048576) } });
+  assert.equal(big.status, 413);
+  const ok = await call('PUT', '/api/admin/journal-img/' + ID, { token: owner, raw: jpg, headers: { 'Content-Type': 'image/jpeg' } });
+  assert.equal(ok.status, 200, JSON.stringify(ok.data)); assert.equal(ok.data.v, '2026-11-03T00:00:00.000Z');
+  const list = await call('GET', '/api/admin/journal-img', { token: owner });
+  assert.equal(list.data.done[ID], '2026-11-03T00:00:00.000Z');
+  let r = await get('?v=2026-11-03T00:00:00.000Z');
+  assert.equal(r.headers.get('Content-Type'), 'image/jpeg'); assert.deepEqual(new Uint8Array(await r.arrayBuffer()), jpg);
+  r = await get();   assert.equal(r.headers.get('Content-Type'), 'image/jpeg');   // 舊的清單沒有版本：也給小檔
+  r = await get('?v=2026-12-01T00:00:00.000Z');   assert.equal(await r.text(), 'PNGDATA');   // 換過圖：給原始檔
+  r = await get('?orig=1', ORIGIN);   assert.equal(await r.text(), 'PNGDATA'); assert.equal(r.headers.get('Access-Control-Allow-Origin'), ORIGIN);   // 後台拿原始檔
+  r = await get('?orig=1', 'https://evil.example');   assert.equal(r.headers.get('Access-Control-Allow-Origin'), null);
 });
 await test('上傳：串流轉交給 GitHub、內容不變、檔名和大小有限制', async () => {
   const bytes = Buffer.from(Array.from({ length: 3000 }, (_, i) => i % 256));

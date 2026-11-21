@@ -3,7 +3,7 @@ import { HttpError, fail, json, corsHeaders, allowedOrigins, readJSON } from './
 import { requireOwner } from './google.js';
 import { getContent, putContent, listMedia, createBlobFromStream, commitFiles, refsInContent, UPLOAD_PATH, isMediaRef } from './github.js';
 import { validateContent, commitMessage } from './content.js';
-import { listJournal, journalImage } from './journals.js';
+import { listJournal, journalImage, adminImageList, adminImagePut } from './journals.js';
 import { listPublic, postComment, listMine, editMine, deleteMine, adminList, adminSetPublic, adminDelete, adminBlocks, adminBlock, adminUnblock } from './comments.js';
 
 async function route(request, env, ctx) {
@@ -28,7 +28,7 @@ async function route(request, env, ctx) {
 
   // 夢境紀錄與心情筆記裡的圖片：由 <img> 直接載入（不帶 Origin），只轉送這兩個資料庫裡的圖片
   { const im = /^\/api\/journal\/img\/([^/]+)$/.exec(path);
-    if (im && m === 'GET') return journalImage(env, ctx, decodeURIComponent(im[1])); }
+    if (im && m === 'GET') return journalImage(env, ctx, decodeURIComponent(im[1]), request); }
 
   // 只接受來自網站網域的請求（瀏覽器一定會帶 Origin）
   const origin = request.headers.get('Origin');
@@ -51,6 +51,11 @@ async function route(request, env, ctx) {
   const owner = await requireOwner(env, request);
 
   if (path === '/api/me' && m === 'GET') return json({ email: owner.email });
+
+  // 夢境紀錄與心情筆記的圖片壓縮版（後台在房主的瀏覽器裡壓好再存上來）
+  if (path === '/api/admin/journal-img' && m === 'GET') return adminImageList(env);
+  { const jm = /^\/api\/admin\/journal-img\/([^/]+)$/.exec(path);
+    if (jm && m === 'PUT') return adminImagePut(env, request, decodeURIComponent(jm[1])); }
 
   if (path === '/api/content' && m === 'GET') return json(await getContent(env));
   if (path === '/api/content' && m === 'PUT') {

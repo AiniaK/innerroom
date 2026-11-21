@@ -1,6 +1,6 @@
 // 房主的夢境紀錄與心情筆記：從 Notion 讀出，給房間的書架與桌上的筆記本
 // 每一篇是資料庫裡的一頁：欄位放標題、日期（夢境另有「夢的色調」），內容直接寫在頁面裡（文字段落與圖片）
-import { fail, json } from './util.js';
+import { fail, json, allowedOrigins } from './util.js';
 import { notion, dataSourceOf } from './notion.js';
 
 export const JOURNALS = {
@@ -24,7 +24,7 @@ async function readBlocks(env, pageId) {
     for (const b of r.results || []) {
       const t = TEXT_TYPES[b.type];
       if (t) { const x = plain(b[b.type].rich_text); out.push({ t, x }); continue; }
-      if (b.type === 'image') out.push({ t: 'img', id: b.id, cap: plain(b.image.caption) });
+      if (b.type === 'image') out.push({ t: 'img', id: b.id, v: b.last_edited_time, cap: plain(b.image.caption) });   // v：換過圖片就會變，用來判斷壓縮版是否過期
       else if (b.type === 'divider') out.push({ t: 'hr' });
     }
     cursor = r.has_more ? r.next_cursor : null;
@@ -80,13 +80,9 @@ export async function listJournal(env, ctx, kind, request) {
   return out;
 }
 
-// 頁面裡的圖片：Notion 給的檔案網址一小時就失效，所以由這裡轉送，並在邊緣快取一天。
-// 只轉送這兩個資料庫裡的圖片
-export async function journalImage(env, ctx, blockId) {
+// 圖片區塊 → Notion 的原始檔網址；只接受這兩個資料庫裡的頁面上的圖片
+async function imageSource(env, blockId) {
   if (!/^[0-9a-f-]{32,36}$/i.test(blockId)) fail(404, 'not_found');
-  const cache = caches.default, key = new Request('https://cache.innerroom/journal-img/' + blockId);
-  const hit = await cache.match(key);
-  if (hit) return hit;
   const b = await notion(env, '/blocks/' + blockId, { notFoundOK: true });
   if (!b || b.type !== 'image' || !b.parent || b.parent.type !== 'page_id') fail(404, 'not_found');
   const page = await notion(env, '/pages/' + b.parent.page_id, { notFoundOK: true });
@@ -96,10 +92,62 @@ export async function journalImage(env, ctx, blockId) {
   if (!parentDs || !allowed.map(x => x.replace(/-/g, '')).includes(String(parentDs).replace(/-/g, ''))) fail(404, 'not_found');
   const src = b.image.type === 'file' ? b.image.file.url : b.image.external && b.image.external.url;
   if (!src || !/^https:\/\//.test(src)) fail(404, 'not_found');
-  const r = await fetch(src);
-  const type = r.headers.get('Content-Type') || '';
-  if (!r.ok || !/^image\//.test(type)) fail(502, 'image_error');
-  const out = new Response(r.body, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' } });
-  ctx.waitUntil(cache.put(key, out.clone()));
+  return { src, v: b.last_edited_time };
+}
+
+const IMG_KEY = id => 'jimg:' + String(id).replace(/-/g, '').toLowerCase();
+const IMG_MAX = 2 * 1024 * 1024;   // 壓縮版的上限
+
+// 頁面裡的圖片。房主在後台把圖片壓成小檔存進 KV（jimg:<區塊 id>）：有壓縮版、而且沒有過期就直接給，
+// 否則照舊轉送 Notion 的原始檔（Notion 給的檔案網址一小時就失效，所以由這裡轉送，並在邊緣快取一天）。
+// ?orig=1 一律給原始檔（後台壓縮時用）；?v= 是圖片的版本，和壓縮版記下的版本不同就表示換過圖了
+export async function journalImage(env, ctx, blockId, request) {
+  if (!/^[0-9a-f-]{32,36}$/i.test(blockId)) fail(404, 'not_found');
+  const url = new URL(request.url), want = url.searchParams.get('v') || '', orig = url.searchParams.get('orig') === '1';
+  const origin = request.headers.get('Origin');
+  const cors = origin && allowedOrigins(env).includes(origin) ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
+  if (!orig && env.KV) {
+    const r = await env.KV.getWithMetadata(IMG_KEY(blockId), 'arrayBuffer');
+    if (r.value && r.metadata && (!want || !r.metadata.v || r.metadata.v === want))
+      return new Response(r.value, { headers: { 'Content-Type': r.metadata.type || 'image/jpeg', 'Cache-Control': 'public, max-age=2592000', 'X-Content-Type-Options': 'nosniff', ...cors } });
+  }
+  const cache = caches.default, key = new Request('https://cache.innerroom/journal-img/' + blockId);
+  let hit = await cache.match(key);
+  if (!hit) {
+    const { src } = await imageSource(env, blockId);
+    const r = await fetch(src);
+    const type = r.headers.get('Content-Type') || '';
+    if (!r.ok || !/^image\//.test(type)) fail(502, 'image_error');
+    hit = new Response(r.body, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' } });
+    ctx.waitUntil(cache.put(key, hit.clone()));
+  }
+  const out = new Response(hit.body, hit);
+  for (const [k, v] of Object.entries(cors)) out.headers.set(k, v);
+  if (!orig && want) out.headers.set('Cache-Control', 'public, max-age=3600');   // 還沒壓縮：瀏覽器別存太久，壓好後才換得到小檔
   return out;
+}
+
+// 後台：已經壓好的圖片 { 區塊 id: 版本 }
+export async function adminImageList(env) {
+  const done = {};
+  let cursor, guard = 0;
+  do {
+    const r = await env.KV.list({ prefix: 'jimg:', cursor });
+    for (const k of r.keys) done[k.name.slice(5)] = (k.metadata && k.metadata.v) || '';
+    cursor = r.list_complete ? null : r.cursor;
+  } while (cursor && ++guard < 20);
+  return json({ done });
+}
+
+// 後台：存一張壓縮版（內容是圖片本身，Content-Type 為 image/webp 或 image/jpeg）
+export async function adminImagePut(env, request, blockId) {
+  const type = (request.headers.get('Content-Type') || '').split(';')[0].trim();
+  if (!['image/webp', 'image/jpeg'].includes(type)) fail(400, 'bad_type');
+  const len = +(request.headers.get('content-length') || 0);
+  if (len > IMG_MAX) fail(413, 'too_large');
+  const buf = await request.arrayBuffer();
+  if (!buf.byteLength || buf.byteLength > IMG_MAX) fail(413, 'too_large');
+  const { v } = await imageSource(env, blockId);   // 確認是夢境紀錄或心情筆記裡的圖，順便記下目前的版本
+  await env.KV.put(IMG_KEY(blockId), buf, { metadata: { type, v, size: buf.byteLength } });
+  return json({ ok: true, v, size: buf.byteLength });
 }
