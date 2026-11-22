@@ -21,6 +21,189 @@
       "cabdoor": {
         "pop": false
       },
+      "sidetable": {
+        "pop": false,
+        "hov": false
+      },
+      "tvstand": {
+        "pop": false,
+        "hov": false
+      },
+      "minitable": {
+        "pop": false,
+        "hov": false
+      },
+      "door": {
+        "pop": false,
+        "hov": false
+      },
+      "curtain": {
+        "pop": false,
+        "hov": false
+      },
+      "eastwindow": {
+        "pop": false,
+        "hov": false
+      },
+      "bed": {
+        "h": "躺躺看",
+        "pop": false
+      },
+      "hchair": {
+        "pop": false,
+        "hov": false
+      },
+      "beanbag": {
+        "pop": false
+      },
+      "sofa": {
+        "pop": false
+      },
+      "armchair": {
+        "pop": false
+      },
+      "rug": {
+        "pop": false,
+        "hov": false
+      },
+      "mugtable": {
+        "pop": false,
+        "hov": false
+      },
+      "shelf": {
+        "pop": false,
+        "hov": false
+      },
+      "swcab": {
+        "pop": false,
+        "hov": false
+      },
+      "memcab": {
+        "pop": false
+      },
+      "btable": {
+        "pop": false,
+        "hov": false
+      },
+      "chair": {
+        "pop": false
+      },
+      "otable": {
+        "pop": false,
+        "hov": false
+      },
+      "tv": {
+        "h": "電視",
+        "pop": false
+      },
+      "speaker": {
+        "pop": false,
+        "hov": false
+      },
+      "console": {
+        "pop": false,
+        "hov": false
+      },
+      "gamepad": {
+        "pop": false,
+        "hov": false
+      },
+      "remote": {
+        "h": "遙控器",
+        "pop": false
+      },
+      "cocoa": {
+        "h": "熱可可",
+        "pop": false
+      },
+      "pudding": {
+        "h": "布丁",
+        "pop": false
+      },
+      "pocky": {
+        "h": "Pocky",
+        "pop": false
+      },
+      "water": {
+        "pop": false
+      },
+      "sweets": {
+        "h": "我喜歡的點心",
+        "pop": false
+      },
+      "mug": {
+        "h": "還溫溫的。",
+        "pop": false
+      },
+      "drink:0": {
+        "h": "柚子氣泡",
+        "pop": false
+      },
+      "drink:1": {
+        "h": "百香果冰茶",
+        "pop": false
+      },
+      "plant": {
+        "pop": false
+      },
+      "pothos": {
+        "h": "黃金葛",
+        "pop": false
+      },
+      "succulent": {
+        "pop": false
+      },
+      "dog1": {
+        "t": "Middle",
+        "h": "Middle",
+        "pop": false
+      },
+      "cat1": {
+        "h": "漫漫",
+        "pop": false
+      },
+      "cat2": {
+        "h": "娜娜",
+        "pop": false
+      },
+      "cat3": {
+        "h": "小羽",
+        "pop": false
+      },
+      "cat4": {
+        "h": "大頭",
+        "pop": false
+      },
+      "buddha": {
+        "h": "臥佛",
+        "pop": false
+      },
+      "sakura": {
+        "h": "曾經的夢境場景",
+        "pop": false
+      },
+      "gacha_eye": {
+        "b": "Medify第一隻吉祥物，為眼科科設計的吉祥物。",
+        "h": "眼寶"
+      },
+      "gacha_scale": {
+        "b": "為減重科設計的吉祥物。",
+        "h": "秤秤"
+      },
+      "gacha_bear": {
+        "b": "為整形外科設計的吉祥物。",
+        "h": "泰迪"
+      },
+      "gacha_monkey": {
+        "b": "為耳鼻喉科設計的吉祥物。",
+        "h": "耳鼻猴"
+      },
+      "brainhorn": {
+        "b": "為腦神經外科設計的吉祥物。"
+      },
+      "fire": {
+        "pop": false
+      },
       "shirtstack0": {
         "t": "RIDE",
         "b": "為車隊設計的第一款團服（2024）",
@@ -107,165 +290,6 @@
         "pop": false,
         "hov": false
       },
-      "buddha": {
-        "h": "臥佛",
-        "pop": false
-      },
-      "sidetable": {
-        "pop": false,
-        "hov": false
-      },
-      "tv": {
-        "h": "電視",
-        "pop": false
-      },
-      "tvstand": {
-        "pop": false,
-        "hov": false
-      },
-      "speaker": {
-        "pop": false,
-        "hov": false
-      },
-      "console": {
-        "pop": false,
-        "hov": false
-      },
-      "gamepad": {
-        "pop": false,
-        "hov": false
-      },
-      "minitable": {
-        "pop": false,
-        "hov": false
-      },
-      "cocoa": {
-        "h": "熱可可",
-        "pop": false
-      },
-      "pudding": {
-        "h": "布丁",
-        "pop": false
-      },
-      "remote": {
-        "h": "遙控器",
-        "pop": false
-      },
-      "pocky": {
-        "h": "Pocky",
-        "pop": false
-      },
-      "door": {
-        "pop": false,
-        "hov": false
-      },
-      "plant": {
-        "pop": false
-      },
-      "pothos": {
-        "h": "黃金葛",
-        "pop": false
-      },
-      "succulent": {
-        "pop": false
-      },
-      "water": {
-        "pop": false
-      },
-      "curtain": {
-        "pop": false,
-        "hov": false
-      },
-      "eastwindow": {
-        "pop": false,
-        "hov": false
-      },
-      "dog1": {
-        "t": "Middle",
-        "h": "Middle",
-        "pop": false
-      },
-      "cat1": {
-        "h": "漫漫",
-        "pop": false
-      },
-      "cat2": {
-        "h": "娜娜",
-        "pop": false
-      },
-      "cat3": {
-        "h": "小羽",
-        "pop": false
-      },
-      "cat4": {
-        "h": "大頭",
-        "pop": false
-      },
-      "bed": {
-        "h": "躺躺看",
-        "pop": false
-      },
-      "sakura": {
-        "h": "曾經的夢境場景",
-        "pop": false
-      },
-      "hchair": {
-        "pop": false,
-        "hov": false
-      },
-      "beanbag": {
-        "pop": false
-      },
-      "sofa": {
-        "pop": false
-      },
-      "armchair": {
-        "pop": false
-      },
-      "rug": {
-        "pop": false,
-        "hov": false
-      },
-      "mugtable": {
-        "pop": false,
-        "hov": false
-      },
-      "pills_ask": {
-        "pop": false,
-        "hov": false
-      },
-      "pills_more": {
-        "pop": false,
-        "hov": false
-      },
-      "sweets": {
-        "h": "我喜歡的點心",
-        "pop": false
-      },
-      "mug": {
-        "h": "還溫溫的。",
-        "pop": false
-      },
-      "shelf": {
-        "pop": false,
-        "hov": false
-      },
-      "gacha_eye": {
-        "b": "Medify第一隻吉祥物，為眼科科設計的吉祥物。",
-        "h": "眼寶"
-      },
-      "gacha_scale": {
-        "b": "為減重科設計的吉祥物。",
-        "h": "秤秤"
-      },
-      "gacha_bear": {
-        "b": "為整形外科設計的吉祥物。",
-        "h": "泰迪"
-      },
-      "gacha_monkey": {
-        "b": "為耳鼻喉科設計的吉祥物。",
-        "h": "耳鼻猴"
-      },
       "gfolder": {
         "t": "過去平面設計的作品",
         "b": "有些作品集原檔已經不見了，只好請AI將解析度提升，可能出現奇怪的文字以及不精緻的排版，請別介意。\n對我來說只是想留下以前的作品和思緒。"
@@ -307,39 +331,19 @@
         "t": "蛇年織帶鑰匙圈",
         "b": "雙面織帶，一面纏著白蛇，一面纏著黑蛇。\n團長開玩笑說隔年也要，我好擔心馬年到底要做什麼，結果後來我離開車隊就沒有這個煩惱了，哈。"
       },
-      "swcab": {
+      "photobox": {
+        "t": "一些照片",
+        "h": "一些照片"
+      },
+      "pills_ask": {
         "pop": false,
         "hov": false
       },
-      "brainhorn": {
-        "b": "為腦神經外科設計的吉祥物。"
-      },
-      "memcab": {
-        "pop": false
-      },
-      "btable": {
-        "pop": false,
-        "hov": false
-      },
-      "chair": {
-        "pop": false
-      },
-      "otable": {
+      "pills_more": {
         "pop": false,
         "hov": false
       },
       "flyer": {
-        "pop": false
-      },
-      "fire": {
-        "pop": false
-      },
-      "drink:0": {
-        "h": "柚子氣泡",
-        "pop": false
-      },
-      "drink:1": {
-        "h": "百香果冰茶",
         "pop": false
       }
     },
@@ -556,9 +560,9 @@
       }
     ]
   },
-  "savedAt": 1795366478179,
+  "savedAt": 1795366684375,
   "journalSnap": {
-    "at": 1795366478422,
+    "at": 1795366684569,
     "dream": [
       {
         "id": "4184acf6-5651-80f1-b5b2-eac095f5ca49",
