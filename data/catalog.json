@@ -859,6 +859,20 @@
     "hover": true
    },
    "big": false
+  },
+  "spotlight": {
+   "def": {
+    "title": "照片",
+    "year": "",
+    "medium": "攝影",
+    "size": "",
+    "period": "",
+    "desc": "黑暗裡，一道光從上方落下，在地上照出一圈亮。",
+    "pod": 7,
+    "motion": false,
+    "hover": true
+   },
+   "big": false
   }
  },
  "pods": 12,

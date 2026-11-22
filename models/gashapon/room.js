@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const T = () => window.THREE;
-  const V = '2026-11-23w';
+  const V = '2026-11-23x';
   function parseGlb(buf) {
     const THREE = T();
     const dv = new DataView(buf);
@@ -144,7 +144,7 @@
     Monkey: () => ({ Skin: felt(0xffffff, { map: tex('monkey_tex.jpg', true), normalMap: tex('monkey_nrm.jpg', false) }), Cloth: matte(0xffffff, { map: tex('monkey_tex.jpg', true), normalMap: tex('monkey_nrm.jpg', false) }), Cream: vinyl(0xffffff, { map: tex('monkey_tex.jpg', true), normalMap: tex('monkey_nrm.jpg', false), roughness: 0.45 }), Head: matte(0xC98A4E), Body: matte(0xC98A4E), Tail: matte(0xC98A4E), Face: matte(0xF8DDB8), Belly: matte(0xF8DDB8), EarIn: matte(0xF8DDB8),
       EarPink: matte(0xF59A82), Eyes: vinyl(0xffffff, Object.assign({ map: tex('monkey_tex.jpg', true) }, { roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.5 })), Cheeks: matte(0xF6A0A0), Nose: vinyl(0x7A3E2A), Mouth: vinyl(0x9E2230), Tongue: vinyl(0xF08A8A),
       Band: matte(0xFBFBFB), Bow: matte(0xFBFBFB), Fists: matte(0xF8DDB8), Tail2: matte(0xC98A4E), Orn: vinyl(0xF8A51E, { roughness: 0.4 }), Cape: matte(0x3D7FD6, { side: T().DoubleSide }) }),
-    Eye: () => ({ Body: vinyl(0xF4EEE2, { roughness: 0.45 }), Iris: vinyl(0x2F72E8, { roughness: 0.45 }),
+    Eye: () => ({ Body: vinyl(0xF4EEE2, { roughness: 0.45 }), Iris: vinyl(0x4D9AFF, { roughness: 0.45 }),
       Pupil: vinyl(0x1E3566, { roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.5 }), Shine: vinyl(0xFFFFFF, { roughness: 0.4, clearcoat: 0.3, emissive: 0xFFFFFF, emissiveIntensity: 0.25 }),
       Smile: vinyl(0x1E3566, { roughness: 0.5 }), Limbs: vinyl(0x4A6FB3, { roughness: 0.55, clearcoat: 0.15 }), Lens: lensMat(),
       Rim: new (T().MeshPhysicalMaterial)({ color: 0x8FD0F5, roughness: 0.1, clearcoat: 1, transparent: true, opacity: 0.75, depthWrite: false }) }),

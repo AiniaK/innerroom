@@ -38,6 +38,7 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 .gear:focus-visible,.snd:focus-visible,.btn:focus-visible,button:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
 #cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,252,245,.9);box-shadow:0 0 0 1px rgba(58,48,41,.35);z-index:4;pointer-events:none;transition:transform .15s}
 #cross.on{transform:scale(1.8);background:#fff}
+body.inspace #cross,body.inspace #sky,body.inspace #paper,body.inspace #vignette,body.inspace #hover{display:none!important}
 #hover{position:fixed;left:50%;top:calc(50% + 20px);transform:translateX(-50%);z-index:4;pointer-events:none;text-align:center}
 #hover .n{font-family:var(--f-display);font-size:15px;color:#fffaf0;text-shadow:0 1px 6px rgba(40,30,20,.65)}
 #hover .h{font-size:11.5px;color:rgba(255,250,240,.85);text-shadow:0 1px 4px rgba(40,30,20,.6);margin-top:2px;letter-spacing:.06em}
@@ -312,9 +313,12 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <div id="topNote" role="status" aria-live="polite"></div>
 <div id="insp" hidden role="dialog" aria-modal="true" aria-labelledby="inspT">
   <div class="cap"><h2 id="inspT"></h2><div class="meta" id="inspM"></div><p id="inspB"></p><div class="tip" id="inspTip"></div></div>
-  <div class="row"><button class="btn" type="button" id="inspSwim" aria-pressed="false">讓牠游動</button><button class="btn" type="button" id="inspTake" hidden>服用</button><button class="btn" type="button" id="inspPut" hidden>放回去</button><button class="btn" type="button" id="inspFace">轉回正面</button><button class="btn" type="button" id="inspBack">放回去</button></div>
+  <div class="row"><button class="btn" type="button" id="inspSwim" aria-pressed="false">讓牠游動</button><button class="btn" type="button" id="inspTake" hidden>服用</button><button class="btn" type="button" id="inspPut" hidden>放回去</button><button class="btn" type="button" id="inspEnter" hidden>進入作品</button><button class="btn" type="button" id="inspFace">轉回正面</button><button class="btn" type="button" id="inspBack">放回去</button></div>
 </div>
 <div id="joy" hidden><i></i></div>
+<button class="chip" id="spaceExit" type="button" hidden style="position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:31">離開作品</button>
+<div id="spaceNote" aria-live="polite" style="position:fixed;left:50%;top:26%;transform:translateX(-50%);z-index:31;pointer-events:none;color:rgba(255,246,232,.95);font-size:16px;letter-spacing:.14em;text-align:center;line-height:1.9;opacity:0;transition:opacity 1.6s ease;background:rgba(10,9,8,.72);padding:12px 22px;border-radius:14px;white-space:nowrap;box-shadow:0 0 30px 10px rgba(10,9,8,.5)">🎧 建議戴耳機<br><span style="font-size:13px;letter-spacing:.08em;opacity:.75">空間裡有低頻的聲音，喇叭可能聽不到</span></div>
+<div id="spaceFade" style="position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .7s ease;z-index:30"></div>
 <button class="chip" id="crouchBtn" type="button" aria-pressed="false" hidden>蹲下</button>
 
 <div class="veil" id="intro">
@@ -346,7 +350,8 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/keychains/room.js?v=2026-11-18w"></script>
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
-<script src="models/gashapon/room.js?v=2026-11-23w"></script>
+<script src="spaces/spotlight.js?v=2026-11-22b"></script>
+<script src="models/gashapon/room.js?v=2026-11-23x"></script>
 <script src="models/folder/room.js?v=2026-11-20f"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
@@ -1752,7 +1757,22 @@ const WORKS={
   goldfish:{title:'金魚酒杯',year:'',medium:'',size:'',period:'大學時期',desc:'倒放的高腳杯裡裝著半杯淡金色的水。一條紅色的金魚貼著水面停著，一片鰭伸出了水面。',pod:0,motion:false,hover:true},
   wings:{title:'以碎為翼',year:'2013',medium:'複合媒材',size:'寬 40 公分',period:'大學時期',desc:'碎掉的鏡子，一片一片拼成一對翅膀，襯在深色的絨布上。',pod:BIGPOD,motion:false,hover:true},
   pills:{title:'羽毛膠囊',year:'',medium:'複合媒材',size:'',period:'大學時期',desc:'一個玻璃藥罐，裝著許多透明膠囊，每顆膠囊裡是一根小羽毛。吞下裝著羽毛的膠囊，就能獲得自由。',pod:3,motion:false,hover:true},
+  spotlight:{title:'照片',year:'',medium:'攝影',size:'',period:'',desc:'黑暗裡，一道光從上方落下，在地上照出一圈亮。',pod:7,motion:false,hover:true},
 };
+// a photo in a standing wooden frame (white mat, an easel strut at the back), for photos kept in the cabinet
+window.PhotoFrame={load(url){
+  const g=new THREE.Group(),meshes=[],PW=.15,PH=.2,MB=.022,FW=.016,FD=.018,OW=PW+2*(MB+FW),OH=PH+2*(MB+FW);
+  const wood=mat(0xD9B98E,.8,{map:woodTex}),mt=mat(0xF3EFE6,1),pic=mat(0x2a2622,1);
+  const put=(geo,m,x,y,z)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);meshes.push(o);return o;};
+  put(rbox(OW,FW,FD,.005),wood,0,OH/2-FW/2,0);put(rbox(OW,FW,FD,.005),wood,0,-OH/2+FW/2,0);
+  put(rbox(FW,OH,FD,.005),wood,-OW/2+FW/2,0,0);put(rbox(FW,OH,FD,.005),wood,OW/2-FW/2,0,0);
+  put(new THREE.BoxGeometry(OW-2*FW,OH-2*FW,.004),mt,0,0,-.002);                       // the white mat, set a little back from the frame's face
+  put(new THREE.PlaneGeometry(PW,PH),pic,0,0,.0012);                                   // the photo
+  put(new THREE.BoxGeometry(OW-.01,OH-.01,.004),wood,0,0,-FD/2+.002);                  // the backboard
+  const st=put(new THREE.BoxGeometry(.04,OH*.62,.006),wood,0,-OH*.2,-FD/2-.03);st.rotation.x=.32;   // the easel strut
+  new THREE.TextureLoader().load(url,t=>{t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;pic.map=t;pic.color.set(0xffffff);pic.needsUpdate=true;});
+  return Promise.resolve({root:g,meshes,height:OH,width:OW,tick(){}});
+}};
 const WOVR={};
 const work=id=>Object.assign({},WORKS[id],WOVR[id]||{});
 // how each work sits and is held: H its height on the shelf, HB its height in your hands, z how far into the pod (pod-local), lift above the
@@ -1762,6 +1782,8 @@ const WK={
   goldfish:{H:.18,HB:.5,z:.19,lift:.003,tilt:0,swim:true,url:'models/goldfish-glass/goldfish_glass.glb?v=2026-11-18q',lib:'GoldfishGlass'},
   // 羽毛膠囊: a glass pill jar full of clear capsules, a little feather in each (built in models/pill-jar/room.js, life size 8.6 cm, shown a bit larger)
   pills:{H:.17,HB:.4,z:.19,lift:.002,tilt:0,heldLight:.3,url:'models/pill-jar',lib:'PillJar'},
+  // a photo in a standing frame (built just above, PhotoFrame), leaning back a little on its strut
+  spotlight:{H:.2,HB:.42,z:.15,lift:.002,tilt:.1,heldLight:.5,enter:'SpotlightSpace',url:'media/work-spotlight.jpg',lib:'PhotoFrame'},
   // 腦角獸: a plush on the ring sofa (not in the cabinet), leaning on the backrest beside the beige cushion, looking out into the room;
   // its name and words come from 物件說明 (TEXT.brainhorn), not from 創作
   brainhorn:{H:.24,HB:.36,fixed:{dz:-.82,lean:.14,yaw:Math.PI/2-.3},textKey:'brainhorn',label:'腦角獸',url:'models/brainhorn/brainhorn.glb?v=2026-11-18q',lib:'Brainhorn'},
@@ -1942,8 +1964,8 @@ function inspOpen(id){
   if(id.startsWith('gacha_'))Gashapon.upgrade();if(id==='gfolder')loadNowAll(k=>k.startsWith('gd_'));if(id==='kcbox')loadNowAll(k=>k.startsWith('kc_')||k==='stickers');
   INSP.on=true;INSP.cur=w;INSP.dir=1;document.body.classList.add('holding');INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
-  inspCaption();$('#inspSwim').hidden=!w.swim;if(w.swim)setSwim(w,w.swimOn,false);
-  $('#inspTip').textContent=isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去';if(w.textKey)inspCaption();if(id==='pills')$('#inspTip').textContent=pillTip();   // the box, the sticker stack: their own hints
+  inspCaption();$('#inspSwim').hidden=!w.swim;if(w.swim)setSwim(w,w.swimOn,false);$('#inspEnter').hidden=!w.enter;
+  $('#inspTip').textContent=isTouch?'拖曳翻轉・雙指縮放':'拖曳翻轉・滾輪縮放・按 Esc 放回去';if(w.textKey)inspCaption();if(id==='pills')$('#inspTip').textContent=pillTip();if(w.enter)$('#inspTip').textContent='這件作品有低頻聲音，建議戴耳機・按「進入作品」走進去';   // the box, the sticker stack: their own hints
   const el=$('#insp');el.hidden=false;requestAnimationFrame(()=>el.classList.add('on'));setTimeout(()=>$('#inspBack').focus({preventScroll:true}),30);}
 // 羽毛膠囊: tap the lid while holding the jar: the lid lifts, a capsule floats up before your eyes and asks whether to take it.
 // Taken: its shell scatters into specks of light and the feather drifts up and away. Remembered for this visit only; after that the lid stays shut: 多食無益。
@@ -2002,6 +2024,7 @@ function inspClose(){if(!INSP.on||INSP.dir<0)return;
  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
  el.addEventListener('wheel',e=>{e.preventDefault();INSP.dist=clamp(INSP.dist*Math.exp(e.deltaY*.0012),.34,INSP.parent?.7:.95);},{passive:false});   // a thing out of its box can't be pushed back into the box behind it
  $('#inspBack').addEventListener('click',inspClose);
+ $('#inspEnter').addEventListener('click',()=>{const w=INSP.cur;if(w&&w.enter)enterSpace(w.enter);});
  $('#inspTake').addEventListener('click',()=>{const o=WK.pills.obj;if(o&&o.take()){pillAsk(false);$('#inspFace').hidden=$('#inspBack').hidden=false;$('#inspTip').textContent='';}});
  $('#inspPut').addEventListener('click',()=>{const o=WK.pills.obj;if(o&&o.putBack())pillAsk(false);});
  $('#inspSwim').addEventListener('click',()=>{const w=INSP.cur;if(w&&w.swim)setSwim(w,!w.swimOn,true);});
@@ -3195,8 +3218,10 @@ function walkable(x,z){const r=.24;
 const keys={};const isTouch=matchMedia('(pointer:coarse)').matches;
 const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);   // iPhone/iPad: play the TV and tablet straight, not through Web Audio
 let started=false,locked=false,noLock=isTouch,modalOpen=false;
+let inSpace=false,spaceKey=null,spaceSave=null,spaceOut=null,spaceBusy=false;   // walking inside a work's own space (see enterSpace)
 const joy={x:0,y:0,id:null};
 addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea,select'))return;keys[e.code]=true;
+  if(e.code==='Escape'&&inSpace){exitSpace();return;}
   if(e.code==='KeyE'&&started&&!modalOpen)interact(hovered);if(e.code==='Escape'&&INSP.on){inspClose();return;}if(e.code==='Escape'&&jrLB){jrUnzoom();return;}if(e.code==='Escape'&&modalOpen){if(gbBookCloser)gbBookCloser();else closeModal();}});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
@@ -3378,7 +3403,7 @@ modal.addEventListener('click',e=>{if(e.target===modal||e.target===card&&card.cl
 let toastT=0;function toast(s){const t=$('#toast');t.querySelector('span').textContent=s;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200);}
 const simple=(eyebrow,title,body,note)=>`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>${body}</p>${note?`<div class="note">${note}</div>`:''}`;
 
-function interact(a){
+function interact(a){if(inSpace)return;
   if(!a)return;startAudio();
   switch(a.type){
     case 'glassdoor':doorTarget=doorTarget?0:1;toast(doorTarget?'落地窗推開了，海的聲音靠近一些':'落地窗關上了');return;
@@ -3789,7 +3814,8 @@ let AC=null;const au={};let lampOn=false;
 // sound on/off button, top right (left of the owner's button): mutes everything — music, TV and the room's ambience
 let soundOn=(()=>{try{return localStorage.getItem('room.sound')!=='off';}catch(e){return true;}})();
 function applySound(){const b=$('#sndBtn');b.classList.toggle('off',!soundOn);b.setAttribute('aria-pressed',soundOn);b.setAttribute('aria-label',soundOn?'關閉聲音':'開啟聲音');b.title=soundOn?'關閉聲音':'開啟聲音';
-  if(AC&&au.master){au.master.gain.cancelScheduledValues(AC.currentTime);au.master.gain.setTargetAtTime(soundOn?.7:0,AC.currentTime,.08);}}
+  if(AC&&au.master){au.master.gain.cancelScheduledValues(AC.currentTime);au.master.gain.setTargetAtTime(soundOn&&!inSpace?.7:0,AC.currentTime,.08);}
+  if(spaceOut)spaceOut.gain.value=soundOn?1:0;}
 function placeSound(){$('#sndBtn').style.right='';}
 ['pointerdown','mousedown','touchstart'].forEach(t=>$('#sndBtn').addEventListener(t,e=>e.stopPropagation(),{passive:true}));
 $('#sndBtn').addEventListener('click',e=>{e.stopPropagation();soundOn=!soundOn;try{localStorage.setItem('room.sound',soundOn?'on':'off');}catch(_){}startAudio();applySound();toast(soundOn?'聲音開啟':'聲音關閉');});
@@ -4373,9 +4399,35 @@ function prewarm(){if(warmBusy)return;warmBusy=true;
       if(todo.length)setTimeout(step,30);else warmBusy=false;};step();});}
 [400,4000,10000,20000].forEach(ms=>setTimeout(prewarm,ms));
 setTimeout(loadModels,1500);   // the heavier model data comes once the room is up
+/* ---------- a work you can walk into (收藏格 8 的聚光燈裝置): the room is set aside and only that space is drawn ---------- */
+function enterSpace(key){const SP=window[key];if(inSpace||spaceBusy||!SP)return;spaceBusy=true;
+  startAudio();
+  $('#spaceFade').style.opacity=1;
+  setTimeout(()=>{inspClose();
+    spaceSave={yaw:player.yaw,pitch:player.pitch};player.yaw=0;player.pitch=0;
+    if(AC&&au.master){au.master.gain.cancelScheduledValues(AC.currentTime);au.master.gain.setTargetAtTime(0,AC.currentTime,.3);}   // the room's own sounds fall away
+    if(AC&&!spaceOut){spaceOut=AC.createGain();spaceOut.connect(AC.destination);}
+    if(spaceOut)spaceOut.gain.value=soundOn?1:0;
+    SP.enter({THREE,ac:AC,out:spaceOut});spaceKey=key;inSpace=true;document.body.classList.add('inspace');
+    $('#spaceExit').hidden=false;$('#hover').hidden=true;
+    setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;tryLock();toast(isTouch?'走回門口，或點「離開作品」回到房間':'走回門口，或按 Esc 回到房間');
+      const n=$('#spaceNote');n.style.opacity=1;clearTimeout(n.t);n.t=setTimeout(()=>n.style.opacity=0,5000);},250);},750);}
+function exitSpace(){if(!inSpace||spaceBusy)return;spaceBusy=true;$('#spaceFade').style.opacity=1;
+  setTimeout(()=>{window[spaceKey].exit();inSpace=false;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
+    player.yaw=spaceSave.yaw;player.pitch=spaceSave.pitch;applySound();
+    setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;},150);},750);}
+$('#spaceExit').addEventListener('click',e=>{e.stopPropagation();exitSpace();});
+function spaceFrame(dt){const SP=window[spaceKey];
+  let mx=0,mz=0;if(!spaceBusy){mx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+joy.x;mz=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y;const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l;}}
+  crouch=lerp(crouch,(keys.KeyC||touchCrouch)?1:0,1-Math.pow(.006,dt));
+  const inp={mx,mz,yaw:player.yaw,pitch:player.pitch,crouch},pose=SP.tick(dt,inp);
+  if(pose&&pose.leave)exitSpace();
+  inspTick(dt);   // the frame you were holding finishes going back to its pod
+  SP.render(renderer,camera,pose,inp);}
 function frame(now){
   frame.n=(frame.n||0)+1;tickWorkLoads(now);adaptRes(now,now-last);mountainCull(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(inSpace){spaceFrame(dt);requestAnimationFrame(frame);return;}   // inside a work's own space (see enterSpace): only that space is drawn
   // movement
   let speedNow=0;const sprint=!!(keys.ShiftLeft||keys.ShiftRight);
   if(started&&!modalOpen){
