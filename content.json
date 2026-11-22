@@ -230,6 +230,14 @@
         "pop": false,
         "hov": false
       },
+      "pills_ask": {
+        "pop": false,
+        "hov": false
+      },
+      "pills_more": {
+        "pop": false,
+        "hov": false
+      },
       "sweets": {
         "h": "我喜歡的點心",
         "pop": false
@@ -380,7 +388,7 @@
         "kind": "明信片",
         "title": "Medify端午節賀卡",
         "desc": "",
-        "hidden": false,
+        "hidden": true,
         "popup": true,
         "hover": true,
         "mode": "hang",
@@ -396,7 +404,7 @@
         "kind": "明信片",
         "title": "Medify中秋節賀卡",
         "desc": "",
-        "hidden": false,
+        "hidden": true,
         "popup": true,
         "hover": true,
         "mode": "hang",
@@ -412,7 +420,7 @@
         "kind": "明信片",
         "title": "Medify新年賀卡",
         "desc": "",
-        "hidden": false,
+        "hidden": true,
         "popup": true,
         "hover": true,
         "mode": "hang",
@@ -548,9 +556,9 @@
       }
     ]
   },
-  "savedAt": 1795360858333,
+  "savedAt": 1795366478179,
   "journalSnap": {
-    "at": 1795360862733,
+    "at": 1795366478422,
     "dream": [
       {
         "id": "4184acf6-5651-80f1-b5b2-eac095f5ca49",
