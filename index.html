@@ -354,7 +354,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
 <script src="spaces/spotlight.js?v=2026-11-23a"></script>
-<script src="models/gashapon/room.js?v=2026-11-23x"></script>
+<script src="models/gashapon/room.js?v=2026-11-23y"></script>
 <script src="models/folder/room.js?v=2026-11-23d"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
@@ -1966,7 +1966,7 @@ function photoStackObj(){
 setTimeout(loadPhotos,2500);
 function loadNowAll(test){for(let i=pendingWorks.length-1;i>=0;i--)if(test(pendingWorks[i]))loadWork(pendingWorks.splice(i,1)[0]);}   // picked up before its contents arrived: fetch them all at once
 function tickWorkLoads(now){
-  if(!tickWorkLoads.gh&&roomReadyAt!==null&&window.Gashapon&&(now-roomReadyAt>6000||(KCBOX&&Math.hypot(player.x-KCBOX.x,player.z-KCBOX.z)<2.6))){tickWorkLoads.gh=1;Gashapon.upgrade();}
+  if(!tickWorkLoads.gh&&roomReadyAt!==null&&window.Gashapon&&KCBOX&&Math.hypot(player.x-KCBOX.x,player.z-KCBOX.z)<2.6){tickWorkLoads.gh=1;Gashapon.upgrade();}   // the fine figures (4.5 MB) only once you come near the hutch (or pick one up); until then the rough ones stand there
   if(!pendingWorks.length||roomReadyAt===null||now-(tickWorkLoads.t||0)<400)return;tickWorkLoads.t=now;
   const near=id=>{const z=workZone(id);
     if(z.seg){const [a,b]=z.seg,dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((player.x-a[0])*dx+(player.z-a[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(player.x-a[0]-dx*t,player.z-a[1]-dz*t)<z.r;}
@@ -2866,7 +2866,7 @@ function plantTaiwanForest(){
            out.push({p:p.addScaledVector(f,.03),q:new THREE.Quaternion().setFromUnitVectors(UPV,f).multiply(q5.setFromAxisAngle(UPV,R()*6.28)),s:.062+R()*.016,v:.85+R()*.25});}
          return out;},boughs:.4}});
    // petals and flowers drifting down from whichever tree is in bloom
-   const PET=50,petM=new THREE.InstancedMesh(SPECIES[0].fallGeo,new THREE.MeshToonMaterial(Object.assign({vertexColors:true,gradientMap:gradMap,side:THREE.DoubleSide},ONLY_MOUNTAIN)),PET);
+   const PET=17,petM=new THREE.InstancedMesh(SPECIES[0].fallGeo,new THREE.MeshToonMaterial(Object.assign({vertexColors:true,gradientMap:gradMap,side:THREE.DoubleSide},ONLY_MOUNTAIN)),PET);
    const petals=[];for(let i=0;i<PET;i++)petals.push({t:Math.random()*8,x:0,y:-99,z:0,vx:0,vz:0,spin:Math.random()*6});petM.count=0;scene.add(petM);
    // wildflowers among the grass: 咸豐草 (white petals, yellow eye), 紫花藿香薊 (lavender puffs), 台灣百合 (white trumpets, spring only)
    const FLOWER={
@@ -3899,7 +3899,8 @@ let AC=null;const au={};let lampOn=false;
 let soundOn=(()=>{try{return localStorage.getItem('room.sound')!=='off';}catch(e){return true;}})();
 function applySound(){const b=$('#sndBtn');b.classList.toggle('off',!soundOn);b.setAttribute('aria-pressed',soundOn);b.setAttribute('aria-label',soundOn?'關閉聲音':'開啟聲音');b.title=soundOn?'關閉聲音':'開啟聲音';
   if(AC&&au.master){au.master.gain.cancelScheduledValues(AC.currentTime);au.master.gain.setTargetAtTime(soundOn&&!inSpace?.7:0,AC.currentTime,.08);}
-  if(spaceOut)spaceOut.gain.value=soundOn?1:0;}
+  if(spaceOut)spaceOut.gain.value=soundOn?1:0;
+  try{if((musicSrc||musicGain)&&musicTracks().length){if(soundOn&&!musicPaused&&!inSpace&&musicEl.paused)musicEl.play().catch(()=>{});else if(!soundOn&&!musicEl.paused)musicEl.pause();}}catch(e){}}   // (called once before the music player exists)
 function placeSound(){$('#sndBtn').style.right='';}
 ['pointerdown','mousedown','touchstart'].forEach(t=>$('#sndBtn').addEventListener(t,e=>e.stopPropagation(),{passive:true}));
 $('#sndBtn').addEventListener('click',e=>{e.stopPropagation();soundOn=!soundOn;try{localStorage.setItem('room.sound',soundOn?'on':'off');}catch(_){}startAudio();applySound();toast(soundOn?'聲音開啟':'聲音關閉');});
@@ -4057,21 +4058,22 @@ tvVideo.addEventListener('error',()=>{if(tvScreen&&tvIdleTex){tvScreen.material.
 tvVideo.addEventListener('playing',()=>{if(tvScreen&&tvDoc){tvScreen.material.map=tvTex;tvScreen.material.needsUpdate=true;}});
 
 /* ---------- tablet music: owner uploads tracks (stored as assets) and lists YouTube / Spotify links; all in db doc room/music ---------- */
-const musicEl=document.createElement('video');musicEl.preload='auto';musicEl.muted=true;musicEl.playsInline=true;musicEl.setAttribute('playsinline','');   // plays songs and videos alike
+const musicEl=document.createElement('video');musicEl.preload='none';   // nothing is fetched until it actually plays (after 進入房間, with the sound on); then it streams
+musicEl.muted=true;musicEl.playsInline=true;musicEl.setAttribute('playsinline','');   // plays songs and videos alike
 let musicDoc={tracks:[],links:[]},musicIdx=0,musicSrc=null,musicGain=null,musicPaused=false,musicBusy=false;
 const SAFE_LINK=/^https:\/\/(www\.|music\.|m\.)?(youtube\.com|youtu\.be|open\.spotify\.com|spotify\.link)\//i;
 function musicTracks(){return Array.isArray(musicDoc.tracks)?musicDoc.tracks.filter(t=>t&&t.src):[];}
 function musicLinks(){return Array.isArray(musicDoc.links)?musicDoc.links.filter(l=>l&&SAFE_LINK.test(l.url||'')):[];}
 function musicLoad(i,play){const T=musicTracks();if(!T.length){musicEl.pause();musicEl.removeAttribute('src');musicEl.load();drawTablet();return;}
-  musicIdx=((i%T.length)+T.length)%T.length;musicEl.src=T[musicIdx].src;if(play&&!musicPaused)musicEl.play().catch(()=>{});drawTablet();}
+  musicIdx=((i%T.length)+T.length)%T.length;musicEl.src=T[musicIdx].src;if(play&&!musicPaused&&soundOn&&(musicSrc||musicGain))musicEl.play().catch(()=>{});drawTablet();}   // (before 進入房間 nothing plays, so nothing is fetched)
 musicEl.addEventListener('ended',()=>musicLoad(musicIdx+1,true));
 musicEl.addEventListener('loadeddata',()=>drawTablet());
 musicEl.addEventListener('error',()=>{const T=musicTracks();if(T.length>1)setTimeout(()=>musicLoad(musicIdx+1,true),800);});
 function musicHookAudio(){if(IOS){if(!AC||musicGain)return;musicGain=AC.createGain();musicGain.gain.value=0;const hp=AC.createBiquadFilter();hp.type='highpass';hp.frequency.value=120;
-    musicGain.connect(hp).connect(au.master);shadowFor(musicEl).out=musicGain;if(musicTracks().length&&!musicPaused)musicEl.play().catch(()=>{});return;}if(!AC||musicSrc)return;try{musicSrc=AC.createMediaElementSource(musicEl);musicGain=AC.createGain();musicGain.gain.value=0;
+    musicGain.connect(hp).connect(au.master);shadowFor(musicEl).out=musicGain;if(musicTracks().length&&!musicPaused&&soundOn)musicEl.play().catch(()=>{});return;}if(!AC||musicSrc)return;try{musicSrc=AC.createMediaElementSource(musicEl);musicGain=AC.createGain();musicGain.gain.value=0;
   const lp=AC.createBiquadFilter();lp.type='highpass';lp.frequency.value=120;   // a tablet speaker: light on bass
   musicSrc.connect(lp).connect(musicGain).connect(au.master);musicEl.muted=false;}catch(e){musicSrc=null;}
-  if(musicTracks().length&&!musicPaused)musicEl.play().catch(()=>{});}
+  if(musicTracks().length&&!musicPaused&&soundOn)musicEl.play().catch(()=>{});}
 function applyMusic(d){const prevId=(musicTracks()[musicIdx]||{}).src;musicDoc={tracks:(d&&d.tracks)||[],links:(d&&d.links)||[]};
   const T=musicTracks();const keep=T.findIndex(t=>t.src===prevId);
   if(keep>=0){musicIdx=keep;drawTablet();}else musicLoad(0,true);
@@ -4476,7 +4478,12 @@ function adaptRes(now,dtMs){if(dtMs>0&&dtMs<200)ftAvg+=(dtMs-ftAvg)*.05;
 // warm up the GPU ahead of time: compile every shader and upload every texture in the background (while the visitor is still reading
 // the intro), so turning round or picking something up the first time does not stall. Done again as late arrivals (works, shirts) load.
 const _warmTex=new Set();let warmBusy=false;
-function prewarm(){if(warmBusy)return;warmBusy=true;
+const _shSp=new THREE.Sphere();
+function trimShadows(){   // things smaller than a cup (under 5 cm across the middle) cast no shadow: you could hardly see it, and each one costs a pass in the shadow map
+  scene.traverse(o=>{if(!o.isMesh||!o.castShadow||o.isInstancedMesh||o.userData.keepShadow)return;const g=o.geometry;if(!g||!g.attributes.position)return;if(!g.boundingSphere)g.computeBoundingSphere();
+    _shSp.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);if(_shSp.radius<.05)o.castShadow=false;});
+  renderer.shadowMap.needsUpdate=true;}
+function prewarm(){trimShadows();if(warmBusy)return;warmBusy=true;
   const par=renderer.compileAsync&&renderer.extensions.has('KHR_parallel_shader_compile'),p=par?renderer.compileAsync(scene,camera):new Promise(res=>{renderer.compile(scene,camera);res();});   // in parallel where the GPU driver allows it
   p.catch(()=>{}).then(()=>{const todo=[];scene.traverse(o=>{const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
       for(const m of ms)for(const k of ['map','alphaMap','bumpMap','normalMap','emissiveMap','gradientMap'])if(m[k]&&m[k].isTexture&&!_warmTex.has(m[k])&&m[k].image&&!m[k].isVideoTexture){_warmTex.add(m[k]);todo.push(m[k]);}});

@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const T = () => window.THREE;
-  const V = '2026-11-23x';
+  const V = '2026-11-23y';
   function parseGlb(buf) {
     const THREE = T();
     const dv = new DataView(buf);
@@ -72,6 +72,7 @@
     meshes.forEach((m) => { const g = by[m.name]; if (g && m.geometry !== g) { m.geometry.dispose(); m.geometry = g; } });
   }
   function upgrade() {
+    if (!fullNow) { fullNow = true; Object.values(texReg).forEach((R) => R.full && R.full()); }
     return upP || (upP = glb(false).then((all) => { made.forEach((f) => swap(all, f)); return all; })
       .catch((e) => { upP = null; console.warn('扭蛋公仔精細版載入失敗', e); }));
   }
@@ -106,6 +107,7 @@
   // 三段式載入，才不會在貼圖下載完之前黑黑的：先用一個平均色 → 縮小版（xxx_s.jpg，幾 KB）→ 完整貼圖
   const TEXFILL = { 'bear_tex.jpg': '#e8a55a', 'monkey_tex.jpg': '#c98a4e' };
   const texReg = {};
+  let fullNow = false;
   function texObj(src, srgb) {
     const THREE = T(), t = new THREE.Texture(src);
     t.flipY = false; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = 4; t.needsUpdate = true;
@@ -128,7 +130,8 @@
       img.src = url;
     };
     put(1, `models/gashapon/${file.replace('.jpg', '_s.jpg')}?v=${V}`);
-    put(2, `models/gashapon/${file}?v=${V}`);
+    R.full = () => put(2, `models/gashapon/${file}?v=${V}`);   // the full texture comes with the fine figures (upgrade), when you come near
+    if (fullNow) R.full();
     return R.cur;
   }
   function useTex(m) {   // 材質用到的貼圖登記起來，換成更清楚的版本時一起換
