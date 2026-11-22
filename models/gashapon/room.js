@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const T = () => window.THREE;
-  const V = '2026-11-23v';
+  const V = '2026-11-23w';
   function parseGlb(buf) {
     const THREE = T();
     const dv = new DataView(buf);
@@ -102,14 +102,37 @@
   }
   function matte(color, o = {}) { return vinyl(color, Object.assign({ roughness: 0.62, clearcoat: 0.1, clearcoatRoughness: 0.6 }, o)); }
   function metal(color) { const THREE = T(); return new THREE.MeshPhysicalMaterial({ color, roughness: 0.32, metalness: 0.55, clearcoat: 0.6, clearcoatRoughness: 0.2 }); }
-  // 貼圖（泰迪熊 v2 用模型原本的貼圖）：glTF 的 UV 不用上下翻
-  const texCache = {};
+  // 貼圖（泰迪熊、耳鼻猴用模型的貼圖）：glTF 的 UV 不用上下翻。
+  // 三段式載入，才不會在貼圖下載完之前黑黑的：先用一個平均色 → 縮小版（xxx_s.jpg，幾 KB）→ 完整貼圖
+  const TEXFILL = { 'bear_tex.jpg': '#e8a55a', 'monkey_tex.jpg': '#c98a4e' };
+  const texReg = {};
+  function texObj(src, srgb) {
+    const THREE = T(), t = new THREE.Texture(src);
+    t.flipY = false; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = 4; t.needsUpdate = true;
+    return t;
+  }
   function tex(file, srgb) {
-    const THREE = T();
-    if (texCache[file]) return texCache[file];
-    const t = new THREE.TextureLoader().load(`models/gashapon/${file}?v=${V}`);
-    t.flipY = false; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = 4;
-    return (texCache[file] = t);
+    if (texReg[file]) return texReg[file].cur;
+    const c = document.createElement('canvas'); c.width = c.height = 1;
+    const g = c.getContext('2d'); g.fillStyle = srgb ? (TEXFILL[file] || '#bbbbbb') : '#8080ff'; g.fillRect(0, 0, 1, 1);
+    const R = texReg[file] = { cur: texObj(c, srgb), users: [], level: 0 };
+    R.cur.userData.gfile = file;
+    const put = (lvl, url) => {
+      const img = new Image();
+      img.onload = () => {
+        if (R.level >= lvl) return;
+        const old = R.cur; R.level = lvl; R.cur = texObj(img, srgb); R.cur.userData.gfile = file;
+        R.users.forEach(([m, k]) => { m[k] = R.cur; m.needsUpdate = true; });
+        old.dispose();
+      };
+      img.src = url;
+    };
+    put(1, `models/gashapon/${file.replace('.jpg', '_s.jpg')}?v=${V}`);
+    put(2, `models/gashapon/${file}?v=${V}`);
+    return R.cur;
+  }
+  function useTex(m) {   // 材質用到的貼圖登記起來，換成更清楚的版本時一起換
+    ['map', 'normalMap'].forEach((k) => { const f = m[k] && m[k].userData && m[k].userData.gfile; if (f && texReg[f]) { m[k] = texReg[f].cur; texReg[f].users.push([m, k]); } });
   }
   const MATS = {
     Scale: () => ({ Body: vinyl(0xF4B3C2, { roughness: 0.5, clearcoat: 0.25, clearcoatRoughness: 0.5 }), Frame: vinyl(0xF4B3C2, { roughness: 0.5, clearcoat: 0.25, clearcoatRoughness: 0.5 }), Panel: vinyl(0xFBF0E6, { roughness: 0.5 }), Dial: vinyl(0x8FDCEB, { roughness: 0.25, clearcoat: 0.8 }),
@@ -132,6 +155,7 @@
     const THREE = T(), lo = !upP, all = await glb(lo), src = all.getObjectByName('Fig_' + name);
     if (!src) throw new Error('沒有這個公仔：' + name);
     const fig = src.clone(true), mats = MATS[name](), meshes = [];
+    Object.values(mats).forEach(useTex);
     fig.position.set(0, 0, 0);
     fig.traverse((o) => { if (!o.isMesh) return; const part = o.name.split('_').pop(); o.material = mats[part] || vinyl(0xffffff); const glass = part === 'Lens' || part === 'Rim'; o.castShadow = !glass; o.receiveShadow = true; if (glass) o.renderOrder = 4; meshes.push(o); });
     // 原點移到公仔正中間（拿起來時繞著中心轉）

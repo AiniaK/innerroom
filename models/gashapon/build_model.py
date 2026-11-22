@@ -1824,6 +1824,13 @@ bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'gashapon.blend'))
 bpy.ops.export_scene.gltf(filepath=os.path.join(HERE, OUTNAME + '.glb'), export_format='GLB', use_selection=True,
                           export_apply=True, export_materials='NONE', export_normals=True, export_texcoords=True)
 print('glb', os.path.getsize(os.path.join(HERE, OUTNAME + '.glb')))
+if OUTNAME == 'gashapon':                                          # 網站先載入的縮小版貼圖（xxx_s.jpg），完整貼圖下載完之前用
+    import subprocess
+    for f_ in ('bear_tex', 'bear_nrm', 'monkey_tex', 'monkey_nrm'):
+        src_ = os.path.join(HERE, f_ + '.jpg')
+        if os.path.exists(src_):
+            subprocess.run(['sips', '-Z', '256', '-s', 'format', 'jpeg', '-s', 'formatOptions', '80', src_, '--out', os.path.join(HERE, f_ + '_s.jpg')], capture_output=True)
+    print('small textures done')
 
 # ---------------- 預覽（workbench，只看造型） ----------------
 COL = {'Body': (0.95, 0.92, 0.85), 'Iris': (0.12, 0.37, 0.88), 'Pupil': (0.08, 0.14, 0.31), 'Shine': (1, 1, 1), 'Smile': (0.08, 0.14, 0.31),
