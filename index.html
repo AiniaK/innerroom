@@ -346,6 +346,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/keychains/room.js?v=2026-11-18w"></script>
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
+<script src="models/gashapon/room.js?v=2026-11-23v"></script>
 <script src="models/folder/room.js?v=2026-11-20f"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
@@ -646,7 +647,7 @@ function buildHutch(){   // (built after the clay materials exist) a clay hutch 
       for(const k of[0,1,2]){const l=put(new THREE.SphereGeometry(.016,10,8),leafM,cx+s*(.08+k*.04),fy-.01+(k%2?.016:-.014)+s*.004*k,fzz);l.scale.set(1.2,.6,.4);l.rotation.z=s*(k%2?.6:-.6);}}}
   // the three upper shelves are kept for the dream books (one book for each dream, filled in from Notion); the ceramic vase stays
   const R=rng(42);
-  HUTCH={zB,rows:[[T1+.0275,inX1+.03,inX2-.03],[shelfY[0]+.019,inX1+.03,inX2-.24],[shelfY[1]+.019,inX1+.03,inX2-.42]],fx:inX2-.03,height:[shelfY[0]-.019-(T1+.0275),shelfY[1]-.019-(shelfY[0]+.019),HT-.0225-(shelfY[1]+.019)]};
+  HUTCH={zB,rows:[[T1+.0275,inX1+.03,inX2-.03],[shelfY[0]+.019,inX1+.03,inX2-.24],[shelfY[1]+.019,inX1+.42,inX2-.42]],fx:inX2-.03,gx:inX1+.03,height:[shelfY[0]-.019-(T1+.0275),shelfY[1]-.019-(shelfY[0]+.019),HT-.0225-(shelfY[1]+.019)]};
   put(new THREE.CylinderGeometry(.05,.065,.2,24),M.ceramic,inX2-.12,shelfY[0]+.019+.1,zB+.17,{act:{type:'shelf',label:'陶瓶'}});
   // the cubby: an open box (no lid) on the desk, holding three keychains the owner designed (models/keychains); each can be picked up
   KCBOX={x:inX1+dw+.04+(inW-dw)/2,y:HB,z:zB+.14};   // the box itself is picked up as a whole (see kcBoxObj)
@@ -1775,6 +1776,11 @@ const WK={
   // the open box on the desk: picked up as a whole, tipped toward you; tap a thing inside to take it out and look at it
   kcbox:{H:0,heldLight:.15,HB:.46,heldTilt:.95,fixed:{desk:true},textKey:'kcbox',label:'鑰匙圈盒',lib:'local'},
   // 平面設計文件夾: a kraft folder standing on the hutch's top shelf; held, it opens, and the works lie loose inside (built in models/folder/room.js)
+  // 扭蛋公仔: little figures at the other end of the hutch's top shelf (models/gashapon)
+  gacha_eye:{H:.08,HB:.3,heldLight:.3,fixed:{gacha:0},textKey:'gacha_eye',label:'扭蛋公仔・眼寶',url:'Eye',lib:'Gashapon'},
+  gacha_scale:{H:.08,HB:.3,heldLight:.3,fixed:{gacha:1},textKey:'gacha_scale',label:'扭蛋公仔・秤秤',url:'Scale',lib:'Gashapon'},
+  gacha_bear:{H:.08,HB:.3,heldLight:.3,fixed:{gacha:2},textKey:'gacha_bear',label:'扭蛋公仔・泰迪熊',url:'Bear',lib:'Gashapon'},
+  gacha_monkey:{H:.08,HB:.3,heldLight:.3,fixed:{gacha:3},textKey:'gacha_monkey',label:'扭蛋公仔・耳鼻猴',url:'Monkey',lib:'Gashapon'},
   gfolder:{H:0,HB:.3,heldLight:.2,fixed:{shelf:true},textKey:'gfolder',label:'平面設計文件夾',lib:'local'},
   gd_woodlife:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[-.075,.004],yaw:.06,layer:0},textKey:'gd_woodlife',label:'海報・木以載生',url:'gd_woodlife',lib:'GraphicFolder'},
   gd_best:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[.078,.012],yaw:-.08,layer:1},textKey:'gd_best',label:'海報・最佳狀態',url:'gd_best',lib:'GraphicFolder'},
@@ -1804,6 +1810,8 @@ function wPlace(id,pod){   // stand work `id` in pod `pod`; that pod's click pla
   if(w.fixed&&w.fixed.inStack!==undefined){w.pod=-2;return;}   // lies in its stack; it moves with the stack (see shirtStackObj)
   if(w.fixed&&w.fixed.stackOf!==undefined){if(w.pod===-2)return;w.pod=-2;const st=SHIRTS[w.fixed.stackOf];   // a stack of folded shirts on the cupboard floor, collars toward the room
     w.q.setFromEuler(new THREE.Euler(-Math.PI/2,Math.PI/2,0,'YXZ'));w.p.set(CAB.x+.005,(st.lvl?CAB_SHELF:CAB.floor)+.002,CAB.secs[st.sec]+st.dz);w.out.set(-1,.4,0).normalize();return;}   // lies in the keychain box; it moves with the box (see kcBoxObj)
+  if(w.fixed&&w.fixed.gacha!==undefined){if(w.pod===-2||!HUTCH)return;w.pod=-2;const i=w.fixed.gacha,row=HUTCH.rows[2];   // standing in a row along the front edge of the hutch's top shelf (seen from the desk), each turned a little
+    w.q.setFromEuler(new THREE.Euler(0,[.12,-.1,.08,-.14][i]||0,0));w.p.set(HUTCH.gx+.045+i*.092,row[0]+w.H/2+.001,HUTCH.zB+.25-(i%2)*.012);w.out.set(0,.2,1).normalize();return;}
   if(w.fixed&&w.fixed.shelf){if(w.pod===-2||!HUTCH)return;w.pod=-2;const row=HUTCH.rows[2],FH=GraphicFolder.FH,FWd=GraphicFolder.FW,lean=.11;   // standing at the right end of the hutch's top shelf, leaning back a little, its cover to the room
     w.q.setFromEuler(new THREE.Euler(-lean,-.04,0));w.p.set(HUTCH.fx-FWd/2-.02,row[0]+FH/2*Math.cos(lean)+.001,HUTCH.zB+.04+FH/2*Math.sin(lean)+.008);w.out.set(0,.15,1).normalize();return;}
   if(w.fixed&&w.fixed.desk){if(w.pod===-2||!KCBOX)return;w.pod=-2;   // the box on the desk
@@ -1853,16 +1861,19 @@ function loadWork(id){const w=WK[id],lib=window[w.lib];if(!lib)return;
   }).catch(e=>console.warn('作品載入失敗：'+((WORKS[id]||{}).title||w.label),e));}
 // the works and keepsakes load by area: when the visitor walks near, or a little while after the page opens, whichever comes first —
 // one at a time, so the room never stalls. (Nobody opens the cupboard or the memory cabinet in the first seconds.)
-const pendingWorks=Object.keys(WK).filter(id=>window[WK[id].lib]);
+const pendingWorks=Object.keys(WK).filter(id=>window[WK[id].lib]&&!id.startsWith('gacha_'));
+Object.keys(WK).filter(id=>id.startsWith('gacha_')).forEach(loadWork);   // the gashapon figures are there from the start, as rough shapes; the fine ones swap in when you come near (tickWorkLoads)
 function workZone(id){
   if(id==='brainhorn')return {after:2500};
   if(id==='goldfish'||id==='wings'||id==='pills')return {seg:[[1.2,3.2],[4.5,3.2]],r:2,after:12000};   // the memory cabinet: its whole front, not its middle (it is 3.4 m wide, and you start not far from its end)
   if(id==='cap'||id.startsWith('shirt_'))return {p:[CAB.x,.4],r:4,after:18000};          // the low cupboard
-  if(id.startsWith('kc_')||id==='stickers'||id.startsWith('gd_'))return {p:KCBOX?[KCBOX.x,KCBOX.z]:null,r:2.6,after:8000};   // the keychain box and the folder on the hutch   // the keychain box on the desk
+  if(id.startsWith('kc_')||id==='stickers'||id.startsWith('gd_')||id.startsWith('gacha_'))return {p:KCBOX?[KCBOX.x,KCBOX.z]:null,r:2.6,after:8000};   // the keychain box and the folder on the hutch   // the keychain box on the desk
   return {after:0};}
 let roomReadyAt=null;   // the clock for "a little while after" starts once the room is up, not when the page started loading
 function loadNowAll(test){for(let i=pendingWorks.length-1;i>=0;i--)if(test(pendingWorks[i]))loadWork(pendingWorks.splice(i,1)[0]);}   // picked up before its contents arrived: fetch them all at once
-function tickWorkLoads(now){if(!pendingWorks.length||roomReadyAt===null||now-(tickWorkLoads.t||0)<400)return;tickWorkLoads.t=now;
+function tickWorkLoads(now){
+  if(!tickWorkLoads.gh&&roomReadyAt!==null&&window.Gashapon&&(now-roomReadyAt>6000||(KCBOX&&Math.hypot(player.x-KCBOX.x,player.z-KCBOX.z)<2.6))){tickWorkLoads.gh=1;Gashapon.upgrade();}
+  if(!pendingWorks.length||roomReadyAt===null||now-(tickWorkLoads.t||0)<400)return;tickWorkLoads.t=now;
   const near=id=>{const z=workZone(id);
     if(z.seg){const [a,b]=z.seg,dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((player.x-a[0])*dx+(player.z-a[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(player.x-a[0]-dx*t,player.z-a[1]-dz*t)<z.r;}
     return z.p&&Math.hypot(player.x-z.p[0],player.z-z.p[1])<z.r;};
@@ -1928,7 +1939,7 @@ function inspOpen(id){
   if(!w.obj){toast('「'+(work(id).title||WORKS[id].title)+'」還在準備中，等一下再試一次');return;}
   scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held work too
   captureEnv(w);                                                      // its mirrors reflect the room as it is right now
-  if(id==='gfolder')loadNowAll(k=>k.startsWith('gd_'));if(id==='kcbox')loadNowAll(k=>k.startsWith('kc_')||k==='stickers');
+  if(id.startsWith('gacha_'))Gashapon.upgrade();if(id==='gfolder')loadNowAll(k=>k.startsWith('gd_'));if(id==='kcbox')loadNowAll(k=>k.startsWith('kc_')||k==='stickers');
   INSP.on=true;INSP.cur=w;INSP.dir=1;document.body.classList.add('holding');INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
   inspCaption();$('#inspSwim').hidden=!w.swim;if(w.swim)setSwim(w,w.swimOn,false);
@@ -3323,6 +3334,10 @@ const TEXT={
   sweets:['點心碟','兩個瑪德蓮、兩個可麗露。配一杯茶剛剛好。'],
   mug:['馬克杯','還溫溫的。坐下來，慢慢喝。'],
   shelf:['書桌櫃','上面幾層收著房主的紀錄：夢境紀錄、覺察筆記、心情日記，點一本書打開來看。下面是一張小書桌。'],
+  gacha_eye:['眼寶','扭蛋公仔。一顆眼球舉著一片比自己還大的隱形眼鏡。'],
+  gacha_scale:['秤秤','扭蛋公仔。圍著捲尺、一手拿叉一手拿刀的體重計。'],
+  gacha_bear:['泰迪熊','扭蛋公仔。舉著星星魔杖的毛氈小熊。'],
+  gacha_monkey:['耳鼻猴','扭蛋公仔。戴著鼻子頭帶、披著藍色披風的大耳朵猴子。'],
   gfolder:['平面設計文件夾','一個牛皮紙文件夾，裡面隨意夾著房主的平面設計：海報、主視覺、logo，還有一張春聯。拿下來翻開看看吧。'],
   gd_woodlife:['海報・木以載生','海報設計。'],gd_best:['海報・最佳狀態','海報設計。'],gd_lifenum:['海報・生命數字','海報設計。'],
   gd_sunrise:['海報・漫漫日出','海報設計。'],gd_time:['海報・時光','海報設計。'],gd_woodcraft:['海報・木職人','海報設計。'],
