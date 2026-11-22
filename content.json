@@ -532,9 +532,9 @@
   "music": {
     "tracks": [
       {
-        "src": "media/music-Blue_720p.mp4",
-        "kind": "video",
-        "name": "Blue_720p"
+        "src": "media/music-clavier-music-aesthetic-sunset-20261122-231948.mp3",
+        "kind": "audio",
+        "name": "clavier-music-aesthetic-sunset"
       }
     ],
     "links": [
@@ -548,9 +548,9 @@
       }
     ]
   },
-  "savedAt": 1795334474943,
+  "savedAt": 1795360858333,
   "journalSnap": {
-    "at": 1795334477002,
+    "at": 1795360862733,
     "dream": [
       {
         "id": "4184acf6-5651-80f1-b5b2-eac095f5ca49",
