@@ -3,7 +3,7 @@ import { HttpError, fail, json, corsHeaders, allowedOrigins, readJSON } from './
 import { requireOwner } from './google.js';
 import { getContent, putContent, listMedia, createBlobFromStream, commitFiles, refsInContent, UPLOAD_PATH, isMediaRef } from './github.js';
 import { validateContent, commitMessage } from './content.js';
-import { listJournal, journalImage, adminImageList, adminImagePut } from './journals.js';
+import { listJournal, journalImage, adminImageList, adminImagePut, listPhotos, photoVideo } from './journals.js';
 import { listPublic, postComment, listMine, editMine, deleteMine, adminList, adminSetPublic, adminDelete, adminBlocks, adminBlock, adminUnblock } from './comments.js';
 
 async function route(request, env, ctx) {
@@ -29,6 +29,9 @@ async function route(request, env, ctx) {
   // 夢境紀錄與心情筆記裡的圖片：由 <img> 直接載入（不帶 Origin），只轉送這兩個資料庫裡的圖片
   { const im = /^\/api\/journal\/img\/([^/]+)$/.exec(path);
     if (im && m === 'GET') return journalImage(env, ctx, decodeURIComponent(im[1]), request); }
+  // 攝影作品裡的短片：由 <video> 直接載入（不一定帶 Origin），只轉送攝影作品資料庫裡、公開的影片
+  { const vm = /^\/api\/photos\/video\/([^/]+)$/.exec(path);
+    if (vm && m === 'GET') return photoVideo(env, ctx, decodeURIComponent(vm[1]), request); }
 
   // 只接受來自網站網域的請求（瀏覽器一定會帶 Origin）
   const origin = request.headers.get('Origin');
@@ -37,6 +40,7 @@ async function route(request, env, ctx) {
   /* ---------- 公開：夢境紀錄、心情筆記 ---------- */
   { const jm = /^\/api\/journal\/(dream|mood)$/.exec(path);
     if (jm && m === 'GET') return listJournal(env, ctx, jm[1], request); }
+  if (path === '/api/photos' && m === 'GET') return listPhotos(env, ctx);   // 攝影作品（盒子裡的照片）
 
   /* ---------- 公開：留言 ---------- */
   if (path === '/api/comments' && m === 'GET') return listPublic(env, ctx);

@@ -1,11 +1,11 @@
 /* 聚光燈裝置（房主大學時的空間作品）：從記憶收藏櫃第 8 格的相框走進來的另一個空間。
- * 5 × 5 公尺、高 3 公尺的全黑空間（黑地毯、黑牆、黑天花板），正上方一盞暖白聚光燈，地上光圈直徑 80 公分；
+ * 6 × 6 公尺、高 3 公尺的全黑空間（黑地毯、黑牆、黑天花板），正上方一盞暖白聚光燈，地上光圈直徑 80 公分；
  * 空間裡有霧（光像一團柔軟的空間）和在光下反光的灰塵。
  * 聲音：像心跳但不寫實的低頻脈動。越靠近角落越大聲、越壓迫、越快；越靠近光越散；
  * 站進光下（頭在平均身高的位置）聲音削弱、變得遙遠——當年用抗噪技術在那個高度做到的小範圍安靜。
  * 介面：init(THREE) 建好場景；enter({ac, out}) 進入（聲音接到 out）；tick(dt, input) 每格更新；render(renderer, camera)；exit()。 */
 (function () {
-  const HALF = 2.5, CEIL = 3.0, POOL_R = 0.4, LAMP_Y = 2.92;
+  const HALF = 3.0, CEIL = 3.0, POOL_R = 0.4, LAMP_Y = 2.92;   // 6 × 6 公尺（2026-11-23 從 5 × 5 加大）
   const S = { on: false, x: 0, z: 2.05, t: 0 };
   let THREE, scene, beamMat, hazeMat, dustMat, glow, lampGlow;
 
@@ -187,9 +187,9 @@
   // 你在空間裡的位置 → 聲音和光的感受
   function feel(eyeY) {
     const corner = Math.min(...[[-HALF, -HALF], [HALF, -HALF], [-HALF, HALF], [HALF, HALF]].map(([cx, cz]) => Math.hypot(S.x - cx, S.z - cz)));
-    const toCorner = sstep(2.2, .35, corner);                  // 越靠近角落越接近 1
+    const toCorner = sstep(2.7, .4, corner);                   // 越靠近角落越接近 1
     const dl = Math.hypot(S.x, S.z);
-    const nearLight = sstep(1.6, .45, dl);                      // 越靠近光越接近 1
+    const nearLight = sstep(1.9, .45, dl);                      // 越靠近光越接近 1
     const under = sstep(.5, .3, dl);                            // 站進光圈
     const head = sstep(1.2, 1.5, eyeY);                         // 頭在平均身高（蹲下就出了抗噪的範圍）
     const quiet = under * head;

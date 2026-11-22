@@ -19,6 +19,8 @@ NOTION_VERSION = "2025-09-03"
 # 夢境紀錄、心情筆記兩個 Notion 資料庫的 ID（不是秘密；要分享給「內在房間留言」這個連接）
 NOTION_DREAM_DB = "4184acf6565180eeafead792fe198fd6"
 NOTION_MOOD_DB = "4184acf656518046b80cfd332f24adb2"
+# 攝影作品（書桌櫃最下層的盒子）：一列一張照片；欄位「標題」「照片」（檔案）「說明」「公開」
+NOTION_PHOTO_DB = "4204acf65651808cbcc3f745b3fbc160"
 
 # 留言快取、頻率限制、封鎖名單。id 由 `npx wrangler kv namespace create KV` 產生
 [[kv_namespaces]]

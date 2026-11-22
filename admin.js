@@ -296,23 +296,50 @@ function setupTabs() {
 }
 
 /* ======================= 物件說明 ======================= */
+// 分類：依房間裡的位置和類型。新的物件沒列在這裡的，會依名稱開頭歸類，都不符合就放「其他」
+const OBJ_CATS = [
+  ['space', '家具與空間', k => ['storebox', 'whitewall', 'emptycab', 'cabdoor', 'door', 'curtain', 'eastwindow', 'bed', 'hchair', 'beanbag', 'sofa', 'armchair', 'rug', 'mugtable', 'shelf', 'swcab', 'memcab', 'btable', 'chair', 'otable', 'sidetable', 'tvstand', 'minitable'].includes(k)],
+  ['tv', '電視區', k => ['tv', 'speaker', 'console', 'gamepad', 'remote'].includes(k)],
+  ['food', '吃的喝的', k => ['cocoa', 'pudding', 'pocky', 'water', 'sweets', 'mug'].includes(k) || k.startsWith('drink:')],
+  ['life', '植物與動物', k => ['plant', 'pothos', 'succulent'].includes(k) || /^(dog|cat)\d/.test(k)],
+  ['deco', '擺飾與收藏', k => ['buddha', 'sakura', 'brainhorn', 'fire'].includes(k) || k.startsWith('gacha_')],
+  ['shirt', '團服與帽子', k => k.startsWith('shirt') || k === 'cap'],
+  ['graphic', '平面設計', k => k === 'gfolder' || k.startsWith('gd_')],
+  ['kc', '鑰匙圈與貼紙', k => k === 'kcbox' || k.startsWith('kc_') || k === 'stickers' || k.startsWith('sticker_')],
+  ['photo', '攝影作品', k => k === 'photobox' || k.startsWith('ph_')],
+  ['other', '其他文字', () => true],
+];
+const objCat = k => OBJ_CATS.find(c => c[2](k))[0];
+let objCatOn = 'all';
+function filterTexts() {
+  const s = $('#objQ').value.trim();
+  document.querySelectorAll('#objList .adm-row').forEach(r => {
+    const inCat = objCatOn === 'all' || r.dataset.cat === objCatOn;
+    const hit = !s || r.textContent.includes(s) || [...r.querySelectorAll('input[type=text],textarea')].some(i => i.value.includes(s));
+    r.hidden = !(inCat && hit);
+  });
+  document.querySelectorAll('#objList .cat-h').forEach(h => { h.hidden = ![...document.querySelectorAll(`#objList .adm-row[data-cat="${h.dataset.cat}"]`)].some(r => !r.hidden); });
+}
 function renderTexts() {
   const ov = k => items[k] || {};
-  $('#objList').innerHTML = catalog.texts.map(([k, label, t, b]) => {
+  const byCat = {}; catalog.texts.forEach(row => { (byCat[objCat(row[0])] = byCat[objCat(row[0])] || []).push(row); });
+  $('#objCats').innerHTML = [['all', '全部', catalog.texts.length], ...OBJ_CATS.filter(c => byCat[c[0]]).map(c => [c[0], c[1], byCat[c[0]].length])]
+    .map(([id, name, n]) => `<button type="button" data-cat="${id}" aria-pressed="${id === objCatOn}">${esc(name)}<span>${n}</span></button>`).join('');
+  $('#objCats').onclick = e => { const b = e.target.closest('button[data-cat]'); if (!b) return; objCatOn = b.dataset.cat;
+    document.querySelectorAll('#objCats button').forEach(x => x.setAttribute('aria-pressed', x === b)); filterTexts(); };
+  $('#objList').innerHTML = OBJ_CATS.filter(c => byCat[c[0]]).map(c => `<h4 class="cat-h" data-cat="${c[0]}">${esc(c[1])}</h4>` + byCat[c[0]].map(([k, label, t, b]) => {
     const v = ov(k), pop = v.pop !== false;
-    return `<div class="adm-row${pop ? '' : ' off'}" data-k="${esc(k)}"><div class="k">${esc(label)}<br>${esc(k)}</div><div class="f">
+    return `<div class="adm-row${pop ? '' : ' off'}" data-k="${esc(k)}" data-cat="${c[0]}"><div class="k">${esc(label)}<br>${esc(k)}</div><div class="f">
       <div class="hov"><span title="游標移上去時顯示的名稱"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="6"/><line x1="12" y1="7" x2="12" y2="10"/></svg></span>
         <input type="text" data-f="h" maxlength="40" value="${esc(v.h || catalog.hover[k] || '')}" placeholder="游標移上去時顯示的名稱" aria-label="${esc(label)}：游標移上去時顯示的名稱"></div>
       <input type="text" data-f="t" maxlength="40" value="${esc(v.t || t)}" placeholder="彈窗標題" aria-label="${esc(label)}：彈窗標題">
       <textarea data-f="b" maxlength="800" rows="2" placeholder="說明文字" aria-label="${esc(label)}：說明文字">${esc(v.b || b)}</textarea>
       <div class="opts"><label><input type="checkbox" data-f="pop" ${pop ? 'checked' : ''}> 點擊時顯示彈窗</label><label><input type="checkbox" data-f="hov" ${v.hov === false ? '' : 'checked'}> 游標移上去時顯示名稱</label></div></div></div>`;
-  }).join('');
+  }).join('')).join('');
   $('#objList').addEventListener('input', markDirty);
   $('#objList').addEventListener('change', e => { if (e.target.dataset.f === 'pop') e.target.closest('.adm-row').classList.toggle('off', !e.target.checked); markDirty(); });
-  $('#objQ').oninput = e => {
-    const s = e.target.value.trim();
-    document.querySelectorAll('#objList .adm-row').forEach(r => { r.hidden = !!s && !r.textContent.includes(s) && ![...r.querySelectorAll('input[type=text],textarea')].some(i => i.value.includes(s)); });
-  };
+  $('#objQ').oninput = filterTexts;
+  filterTexts();
 }
 
 /* ======================= 創作 =======================
@@ -999,6 +1026,9 @@ async function shrinkJournalImages() {
     const todo = [];
     for (const l of lists) for (const e of l.items || []) for (const b of e.blocks || [])
       if (b.t === 'img' && (!(norm(b.id) in done) || (b.v && done[norm(b.id)] !== b.v))) todo.push(b.id);
+    // 攝影作品（書桌櫃盒子裡的照片）：一列一張，id 就是那一列
+    const photos = await fetch(apiBase() + '/api/photos', { cache: 'no-store' }).then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] }));
+    for (const p of photos.items || []) if (p.kind !== 'video' && !(norm(p.id) in done) || (p.v && done[norm(p.id)] !== p.v)) todo.push(p.id);
     if (!todo.length) return;
     let n = 0, before = 0, after = 0;
     for (const id of todo) {

@@ -57,6 +57,11 @@ main h3{font-size:17px;margin:0 0 4px}
 main h4{font-family:var(--f-display);font-size:15.5px;margin:22px 0 6px}
 .block{border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:16px 0;background:#fffdf8}
 
+.cats{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 10px}
+.cats button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--paper-2);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.cats button[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.cats button span{opacity:.6;margin-left:4px;font-size:12px}
+.cat-h{margin:22px 0 2px;font-size:14px;letter-spacing:.08em;color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:6px}
 .adm-row{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;padding:12px 0;border-bottom:1px dashed var(--line)}
 .adm-row .k{font-size:12px;color:var(--muted);padding-top:9px;word-break:break-all}
 .adm-row .f{display:grid;gap:6px}
@@ -135,7 +140,8 @@ table.files th{color:var(--muted);font-weight:400}
     <section id="tab-obj" role="tabpanel">
       <h3>物件說明與彈窗</h3>
       <p class="note">每一列三個欄位：有滑鼠圖示的是游標移上去時顯示的名稱，第二個是彈窗標題，第三個是彈窗裡的說明文字。取消勾選「點擊時顯示彈窗」，點這個物件就不會跳出視窗（坐下、開關燈這類動作不受影響）。</p>
-      <input type="search" id="objQ" placeholder="搜尋物件名稱…" aria-label="搜尋物件名稱">
+      <div class="cats" id="objCats" role="group" aria-label="依分類篩選"></div>
+      <input type="search" id="objQ" placeholder="搜尋物件名稱、標題或說明…" aria-label="搜尋物件名稱、標題或說明">
       <div id="objList"></div>
     </section>
 

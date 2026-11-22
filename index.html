@@ -38,6 +38,9 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 .gear:focus-visible,.snd:focus-visible,.btn:focus-visible,button:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
 #cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,252,245,.9);box-shadow:0 0 0 1px rgba(58,48,41,.35);z-index:4;pointer-events:none;transition:transform .15s}
 #cross.on{transform:scale(1.8);background:#fff}
+#insp .pager{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 2px;font-size:13px;letter-spacing:.08em;opacity:.85}
+#insp .pager button{width:30px;height:30px;border-radius:50%;border:1px solid currentColor;background:transparent;color:inherit;font-size:18px;line-height:1;cursor:pointer;opacity:.75}
+#insp .pager button:hover{opacity:1}
 body.inspace #cross,body.inspace #sky,body.inspace #paper,body.inspace #vignette,body.inspace #hover{display:none!important}
 #hover{position:fixed;left:50%;top:calc(50% + 20px);transform:translateX(-50%);z-index:4;pointer-events:none;text-align:center}
 #hover .n{font-family:var(--f-display);font-size:15px;color:#fffaf0;text-shadow:0 1px 6px rgba(40,30,20,.65)}
@@ -312,7 +315,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <div id="toast"><span></span></div>
 <div id="topNote" role="status" aria-live="polite"></div>
 <div id="insp" hidden role="dialog" aria-modal="true" aria-labelledby="inspT">
-  <div class="cap"><h2 id="inspT"></h2><div class="meta" id="inspM"></div><p id="inspB"></p><div class="tip" id="inspTip"></div></div>
+  <div class="cap"><h2 id="inspT"></h2><div class="meta" id="inspM"></div><p id="inspB"></p><div class="pager" id="inspPager" hidden><button type="button" id="inspPrev" aria-label="上一張">‹</button><span id="inspPageN"></span><button type="button" id="inspNext" aria-label="下一張">›</button></div><div class="tip" id="inspTip"></div></div>
   <div class="row"><button class="btn" type="button" id="inspSwim" aria-pressed="false">讓牠游動</button><button class="btn" type="button" id="inspTake" hidden>服用</button><button class="btn" type="button" id="inspPut" hidden>放回去</button><button class="btn" type="button" id="inspEnter" hidden>進入作品</button><button class="btn" type="button" id="inspFace">轉回正面</button><button class="btn" type="button" id="inspBack">放回去</button></div>
 </div>
 <div id="joy" hidden><i></i></div>
@@ -350,9 +353,9 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/keychains/room.js?v=2026-11-18w"></script>
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
-<script src="spaces/spotlight.js?v=2026-11-22b"></script>
+<script src="spaces/spotlight.js?v=2026-11-23a"></script>
 <script src="models/gashapon/room.js?v=2026-11-23x"></script>
-<script src="models/folder/room.js?v=2026-11-20f"></script>
+<script src="models/folder/room.js?v=2026-11-23d"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
 (()=>{
@@ -600,7 +603,8 @@ const JOURNAL_CATS=[
   {key:'mood',name:'心情日記',colors:[0xE8D7BF,0xD9B99B,0xC9A27E,0xF0E4D0,0xBFA48A]},
   {key:'mood',name:'心情日記',colors:[0xE8D7BF,0xD9B99B,0xC9A27E,0xF0E4D0,0xBFA48A]},
 ];
-const KC_BOX={W:.27,D:.2,H:.045,T:.008,FLOOR:.0085};   // the keychain box: width, depth, height, wall, floor thickness
+const KC_BOX={W:.27,D:.2,H:.045,T:.008,FLOOR:.0085};
+const PH_BOX={W:.25,D:.185,H:.055,T:.006,FLOOR:.006};   // 攝影作品的盒子（書桌櫃最下層最右邊）：寬、深、高、壁、底的厚度   // the keychain box: width, depth, height, wall, floor thickness
 let KCBOX=null;   // where the open box of keychains stands on the desk: {x, y (desk top), z}
 let HUTCH=null;   // the hutch's shelves, for the dream books: {zB, rows:[[y, xFrom, xTo]], height:[clear height per row]}
 function buildHutch(){   // (built after the clay materials exist) a clay hutch desk: turned legs and two drawers below, a wavy-sided hutch of shelves above, a little flower on the crest
@@ -1757,7 +1761,7 @@ const WORKS={
   goldfish:{title:'金魚酒杯',year:'',medium:'',size:'',period:'大學時期',desc:'倒放的高腳杯裡裝著半杯淡金色的水。一條紅色的金魚貼著水面停著，一片鰭伸出了水面。',pod:0,motion:false,hover:true},
   wings:{title:'以碎為翼',year:'2013',medium:'複合媒材',size:'寬 40 公分',period:'大學時期',desc:'碎掉的鏡子，一片一片拼成一對翅膀，襯在深色的絨布上。',pod:BIGPOD,motion:false,hover:true},
   pills:{title:'羽毛膠囊',year:'',medium:'複合媒材',size:'',period:'大學時期',desc:'一個玻璃藥罐，裝著許多透明膠囊，每顆膠囊裡是一根小羽毛。吞下裝著羽毛的膠囊，就能獲得自由。',pod:3,motion:false,hover:true},
-  spotlight:{title:'照片',year:'',medium:'攝影',size:'',period:'',desc:'黑暗裡，一道光從上方落下，在地上照出一圈亮。',pod:7,motion:false,hover:true},
+  spotlight:{title:'聚光燈裝置',year:'',medium:'攝影',size:'',period:'',desc:'黑暗裡，一道光從上方落下，在地上照出一圈亮。',pod:7,motion:false,hover:true},
 };
 // a photo in a standing wooden frame (white mat, an easel strut at the back), for photos kept in the cabinet
 window.PhotoFrame={load(url){
@@ -1804,6 +1808,8 @@ const WK={
   gacha_bear:{H:.08,HB:.3,heldLight:.3,fixed:{gacha:2},textKey:'gacha_bear',label:'扭蛋公仔・泰迪熊',url:'Bear',lib:'Gashapon'},
   gacha_monkey:{H:.08,HB:.3,heldLight:.3,fixed:{gacha:3},textKey:'gacha_monkey',label:'扭蛋公仔・耳鼻猴',url:'Monkey',lib:'Gashapon'},
   gfolder:{H:0,HB:.3,heldLight:.2,fixed:{shelf:true},textKey:'gfolder',label:'平面設計文件夾',lib:'local'},
+  // 攝影作品: a kraft box at the right end of the hutch's lowest shelf; the photos (from Notion) lie loose inside, added as they arrive (see loadPhotos)
+  photobox:{H:0,HB:.3,heldLight:.3,fixed:{photobox:true},textKey:'photobox',label:'攝影作品',lib:'local'},   // what you pick up is the stack of photos; the box stays on the shelf
   gd_woodlife:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[-.075,.004],yaw:.06,layer:0},textKey:'gd_woodlife',label:'海報・木以載生',url:'gd_woodlife',lib:'GraphicFolder'},
   gd_best:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[.078,.012],yaw:-.08,layer:1},textKey:'gd_best',label:'海報・最佳狀態',url:'gd_best',lib:'GraphicFolder'},
   gd_lifenum:{H:0,HB:.42,heldLight:.3,fixed:{box:'gfolder',at:[-.005,-.01],yaw:.035,layer:2},textKey:'gd_lifenum',label:'海報・生命數字',url:'gd_lifenum',lib:'GraphicFolder'},
@@ -1813,6 +1819,9 @@ const WK={
   gd_puppet:{H:0,HB:.5,heldLight:.3,fixed:{box:'gfolder',at:[.12,-.004],yaw:.05,layer:6},textKey:'gd_puppet',label:'主視覺・台北偶戲館',url:'gd_puppet',lib:'GraphicFolder'},
   gd_spring:{H:0,HB:.36,heldLight:.3,fixed:{box:'gfolder',at:[.088,.042],yaw:-.18,layer:8},textKey:'gd_spring',label:'春聯',url:'gd_spring',lib:'GraphicFolder'},
   gd_cogs:{H:0,HB:.3,heldLight:.3,fixed:{box:'gfolder',at:[-.1,.062],yaw:-.2,layer:9},textKey:'gd_cogs',label:'零件設計・齒盤蓋',url:'gd_cogs',lib:'GraphicFolder'},
+  gd_pc_newyear:{H:0,HB:.36,heldLight:.3,fixed:{box:'gfolder',at:[-.092,-.022],yaw:.07,layer:11},textKey:'gd_pc_newyear',label:'明信片・Medify 新年',url:'gd_pc_newyear',lib:'GraphicFolder'},
+  gd_pc_midautumn:{H:0,HB:.36,heldLight:.3,fixed:{box:'gfolder',at:[.018,.028],yaw:-.05,layer:12},textKey:'gd_pc_midautumn',label:'明信片・Medify 中秋',url:'gd_pc_midautumn',lib:'GraphicFolder'},
+  gd_pc_dragonboat:{H:0,HB:.36,heldLight:.3,fixed:{box:'gfolder',at:[.108,-.012],yaw:.11,layer:13},textKey:'gd_pc_dragonboat',label:'明信片・Medify 端午',url:'gd_pc_dragonboat',lib:'GraphicFolder'},
   gd_logos:{H:0,HB:.26,heldLight:.3,fixed:{box:'gfolder',at:[.068,-.07],yaw:.25,layer:10},textKey:'gd_logos',label:'logo 設計',url:'gd_logos',lib:'GraphicFolder'},
   kc_acrylic:{H:0,heldLight:.3,HB:.2,fixed:{box:true,at:[.088,.052],yaw:-.25,lift:.0045},textKey:'kc_acrylic',label:'金魚安全帽壓克力鑰匙圈',url:'acrylic',lib:'Keychains'},
   kc_strap:{H:0,heldLight:.3,HB:.44,fixed:{box:true,at:[-.055,.05],yaw:Math.PI/2+.06,lift:.001},textKey:'kc_strap',label:'金魚腦織帶鑰匙圈',url:'strap',lib:'Keychains'},
@@ -1834,6 +1843,9 @@ function wPlace(id,pod){   // stand work `id` in pod `pod`; that pod's click pla
     w.q.setFromEuler(new THREE.Euler(-Math.PI/2,Math.PI/2,0,'YXZ'));w.p.set(CAB.x+.005,(st.lvl?CAB_SHELF:CAB.floor)+.002,CAB.secs[st.sec]+st.dz);w.out.set(-1,.4,0).normalize();return;}   // lies in the keychain box; it moves with the box (see kcBoxObj)
   if(w.fixed&&w.fixed.gacha!==undefined){if(w.pod===-2||!HUTCH)return;w.pod=-2;const i=w.fixed.gacha,row=HUTCH.rows[2];   // standing in a row along the front edge of the hutch's top shelf (seen from the desk), each turned a little
     w.q.setFromEuler(new THREE.Euler(0,[.12,-.1,.08,-.14][i]||0,0));w.p.set(HUTCH.gx+.045+i*.092,row[0]+w.H/2+.001,HUTCH.zB+.25-(i%2)*.012);w.out.set(0,.2,1).normalize();return;}
+  if(w.fixed&&w.fixed.photobox){if(w.pod===-2||!HUTCH)return;w.pod=-2;const row=HUTCH.rows[0];   // standing on the lowest shelf, at its right end
+    PH_BOX.at=new THREE.Vector3(row[2]-PH_BOX.W/2-.006,row[0]+PH_BOX.H/2,HUTCH.zB+.03+PH_BOX.D/2+.012);   // the box's centre
+    w.q.setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);w.p.copy(PH_BOX.at);w.p.y+=-PH_BOX.H/2+PH_BOX.FLOOR+.0015;w.out.set(0,1,.4).normalize();return;}
   if(w.fixed&&w.fixed.shelf){if(w.pod===-2||!HUTCH)return;w.pod=-2;const row=HUTCH.rows[2],FH=GraphicFolder.FH,FWd=GraphicFolder.FW,lean=.11;   // standing at the right end of the hutch's top shelf, leaning back a little, its cover to the room
     w.q.setFromEuler(new THREE.Euler(-lean,-.04,0));w.p.set(HUTCH.fx-FWd/2-.02,row[0]+FH/2*Math.cos(lean)+.001,HUTCH.zB+.04+FH/2*Math.sin(lean)+.008);w.out.set(0,.15,1).normalize();return;}
   if(w.fixed&&w.fixed.desk){if(w.pod===-2||!KCBOX)return;w.pod=-2;   // the box on the desk
@@ -1864,6 +1876,9 @@ function captureEnv(w){   // what the room looks like from just in front of the 
  g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});}
 {const w=WK.kcbox,g=kcBoxObj();w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the keychain box is built here, not loaded
  g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});}
+{const w=WK.photobox,box=kcBoxObj(PH_BOX,{outer:mat(0xC9A97E,.95),inner:mat(0xB8966B,.95)});   // the photo box: the same open box, in kraft board; it stays on the shelf
+ box.root.position.copy(PH_BOX.at);scene.add(box.root);box.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});
+ const g=photoStackObj();w.obj=g;w.s=1;w.sBig=w.HB/g.height;g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);}
 SHIRTS.forEach((st,si)=>{const w=WK['shirtstack'+si],g=shirtStackObj(si);w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the shirt stacks, filled as the shirts load
  g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);});
 function loadWork(id){const w=WK[id],lib=window[w.lib];if(!lib)return;
@@ -1892,6 +1907,63 @@ function workZone(id){
   if(id.startsWith('kc_')||id==='stickers'||id.startsWith('gd_')||id.startsWith('gacha_'))return {p:KCBOX?[KCBOX.x,KCBOX.z]:null,r:2.6,after:8000};   // the keychain box and the folder on the hutch   // the keychain box on the desk
   return {after:0};}
 let roomReadyAt=null;   // the clock for "a little while after" starts once the room is up, not when the page started loading
+/* ---------- 攝影作品: the owner's photos, kept in Notion (資料庫「攝影作品」, only the ones marked 公開). Each becomes a print lying
+   loose in the photo box, a little askew; take one out to see it close, with its words below. ---------- */
+const PHOTO={};   // ph_<id> → { id, v, title, cap }
+const printOf=(tex,a,extra={})=>{   // a print: photo paper with a thin white border; tex is the picture (a photo, or a moving one)
+  const L=.12,PW=a>=1?L:L*a,PH=a>=1?L/a:L,B=.005,root=new THREE.Group(),meshes=[];
+  const paper=new THREE.Mesh(new THREE.BoxGeometry(PW+2*B,PH+2*B,.0007),mat(0xF7F3EA,.9));paper.castShadow=paper.receiveShadow=true;root.add(paper);meshes.push(paper);
+  const pic=new THREE.Mesh(new THREE.PlaneGeometry(PW,PH),mat(0xffffff,.6,{map:tex}));pic.position.z=.00036;pic.receiveShadow=true;root.add(pic);meshes.push(pic);
+  if(extra.video){const m=new THREE.Mesh(new THREE.PlaneGeometry(.014,.014),new THREE.MeshBasicMaterial({map:playMarkTex(),transparent:true,depthWrite:false}));   // a small play mark in the corner: this one moves
+    m.position.set(PW/2-.011,-PH/2+.011,.0006);root.add(m);}
+  return Object.assign({root,meshes,height:Math.max(PW,PH)+2*B,tick(){}},extra);};
+const playMarkTex=()=>playMarkTex.t||(playMarkTex.t=ctex(64,64,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='rgba(20,18,16,.45)';g.beginPath();g.arc(32,32,28,0,7);g.fill();
+  g.fillStyle='rgba(255,252,245,.92)';g.beginPath();g.moveTo(25,19);g.lineTo(46,32);g.lineTo(25,45);g.closePath();g.fill();}));
+window.PhotoPrint={load(url){const id=url.split('?')[0],P=PHOTO[id];if(!P)return Promise.reject(new Error('no photo'));
+  if(P.kind==='video')return new Promise((ok,no)=>{   // a short clip: a moving photo, silent, looping; it plays only while you hold the box or the clip itself
+    const v=document.createElement('video');v.crossOrigin='anonymous';v.muted=true;v.loop=true;v.playsInline=true;v.setAttribute('playsinline','');v.preload='auto';
+    let done=false;v.addEventListener('loadeddata',()=>{if(done)return;done=true;
+      const t=new THREE.VideoTexture(v);t.colorSpace=THREE.SRGBColorSpace;
+      ok(printOf(t,v.videoWidth/Math.max(1,v.videoHeight),{video:v}));});   // the stack plays it only while it is the top photo in your hands
+    v.addEventListener('error',()=>{if(!done){done=true;no(new Error('clip failed'));}});
+    v.src=GB_API+'/api/photos/video/'+encodeURIComponent(P.id);v.load();});
+  return new Promise((ok,no)=>{const im=new Image();im.crossOrigin='anonymous';im.decoding='async';
+    im.onload=()=>{const t=new THREE.Texture(im);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=renderer.capabilities.getMaxAnisotropy();t.needsUpdate=true;
+      ok(printOf(t,im.naturalWidth/im.naturalHeight));};
+    im.onerror=()=>no(new Error('photo failed'));im.src=jrImg(P.id,P.v);});}};
+function loadPhotos(){if(!GB_API||loadPhotos.busy)return;loadPhotos.busy=true;
+  fetch(GB_API+'/api/photos',{cache:'no-store'}).then(r=>r.ok?r.json():{items:[]}).then(d=>{
+    (d.items||[]).slice(0,60).forEach((P,i)=>{const id='ph_'+String(P.id).replace(/-/g,'');if(PHOTO[id])return;PHOTO[id]=P;
+      setTimeout(()=>PhotoPrint.load(id).then(g=>WK.photobox.obj.add(id,P,g,i)).catch(()=>{}),i*120);});
+  }).catch(()=>{}).finally(()=>{loadPhotos.busy=false;});}
+// the stack of photos in the box. Stack-local: the photos face +z (toward you once held; up while it lies in the box), +y is each photo's up.
+// Every photo sits upright in the stack, so in your hands each one is the right way round, tall ones tall and wide ones wide.
+// Tap (or 下一張, →, space): the top photo slides up and goes to the back; 上一張 or ←: the last one comes back to the top.
+function photoStackObj(){
+  const root=new THREE.Group(),meshes=[],cards=[],SPC=.0009,HT=.13;
+  const layout=dt=>{cards.forEach(c=>{
+      c.flip=Math.max(0,c.flip-(dt||0)/.8);
+      const f=c.flip,e=f*f*(3-2*f),lift=Math.sin(Math.PI*e)*HT*.75*(c.dir||1);   // out over the top, then in at the back (or the other way, going back)
+      c.g.root.position.set(c.off.x,c.off.y+lift,-SPC*c.order);c.g.root.rotation.set(0,0,c.off.a);});};
+  const top=()=>cards.find(c=>c.order===0);
+  const o={root,meshes,height:HT,cards,tick(dt){if(cards.some(c=>c.flip>0))layout(dt);
+      const held=INSP.on&&INSP.cur===WK.photobox&&INSP.dir>0;
+      cards.forEach(c=>{const v=c.g.video;if(!v)return;const on=held&&c.order===0;if(on&&v.paused)v.play().catch(()=>{});else if(!on&&!v.paused)v.pause();});},
+    add(id,P,g,i){   // a photo arrives: it goes in at its own place in the pile (Notion's order: the first one on top)
+      const R=rng(id.split('').reduce((a,ch)=>a*31+ch.charCodeAt(0)|0,5));
+      const c={id,P,g,flip:0,dir:1,rank:i,off:{x:(R()-.5)*.04,y:(R()-.5)*.03,a:(R()-.5)*.2}};   // a little askew, never past the box's walls
+      c.order=cards.length;cards.push(c);   // a late arrival goes in at the bottom: the photo you are looking at stays on top
+      root.add(g.root);g.meshes.forEach(m=>{meshes.push(m);m.userData.act=WK.photobox.act;targets.push(m);if(INSP.on&&INSP.cur===WK.photobox)m.layers.set(INSP.LAYER);});
+      layout(0);if(INSP.cur===WK.photobox)inspCaption();},
+    turn(d){if(cards.length<2)return false;if(cards.some(c=>c.flip>.4))return true;const n=cards.length;   // d 1: next, -1: back (a tap while one is still moving does nothing)
+      if(d>0){const t=top();cards.forEach(c=>{c.order=c.order===0?n-1:c.order-1;});t.flip=1;t.dir=1;}
+      else{cards.forEach(c=>{c.order=c.order===n-1?0:c.order+1;});const t=top();t.flip=1;t.dir=-1;}
+      layout(0);inspCaption();return true;},
+    current(){const t=top();return t&&{P:t.P,i:[...cards].sort((a,z)=>a.rank-z.rank).indexOf(t)+1,n:cards.length};},   // which photo (in Notion's order) is on top
+    pick(ndc,cam,layer){const rc=new THREE.Raycaster();rc.setFromCamera(ndc,cam);rc.layers.set(layer);
+      if(!rc.intersectObjects(meshes,false).length)return false;return this.turn(1);}};
+  return o;}
+setTimeout(loadPhotos,2500);
 function loadNowAll(test){for(let i=pendingWorks.length-1;i>=0;i--)if(test(pendingWorks[i]))loadWork(pendingWorks.splice(i,1)[0]);}   // picked up before its contents arrived: fetch them all at once
 function tickWorkLoads(now){
   if(!tickWorkLoads.gh&&roomReadyAt!==null&&window.Gashapon&&(now-roomReadyAt>6000||(KCBOX&&Math.hypot(player.x-KCBOX.x,player.z-KCBOX.z)<2.6))){tickWorkLoads.gh=1;Gashapon.upgrade();}
@@ -1902,8 +1974,8 @@ function tickWorkLoads(now){
   let i=pendingWorks.findIndex(near);   // what the visitor is walking up to comes first
   if(i<0)i=pendingWorks.findIndex(id=>now-roomReadyAt>=workZone(id).after);
   if(i>=0)loadWork(pendingWorks.splice(i,1)[0]);}
-function kcBoxObj(){   // a linen-covered box with no lid; its origin in the middle of the box, so it turns about its centre
-  const B=KC_BOX,root=new THREE.Group(),meshes=[],linen=mat(0xE6D9C3,.95,{map:fabricTex}),inner=mat(0xC9B497,.95),y0=-B.H/2;
+function kcBoxObj(B=KC_BOX,M={}){   // a linen-covered box with no lid; its origin in the middle of the box, so it turns about its centre
+  const root=new THREE.Group(),meshes=[],linen=M.outer||mat(0xE6D9C3,.95,{map:fabricTex}),inner=M.inner||mat(0xC9B497,.95),y0=-B.H/2;
   const part=(g,m,x,y,z,rx)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);if(rx)o.rotation.x=rx;o.castShadow=o.receiveShadow=true;root.add(o);meshes.push(o);return o;};
   part(rbox(B.W,B.FLOOR,B.D,.003),linen,0,y0+B.FLOOR/2,0);
   part(new THREE.PlaneGeometry(B.W-2*B.T,B.D-2*B.T),inner,0,y0+B.FLOOR+.0004,0,-Math.PI/2).castShadow=false;
@@ -1982,6 +2054,11 @@ function setSwim(w,on,byVisitor){w.swimOn=!!on;if(byVisitor)w.swimSet=true;if(w.
   if(INSP.cur===w){const b=$('#inspSwim');b.textContent=w.swimOn?'停下來':'讓牠游動';b.setAttribute('aria-pressed',w.swimOn);}}
 function inspCaption(){   // name, then year · medium · size · period, then the owner's words about the work
   const o=INSP.cur.obj;
+  if(INSP.cur===WK.photobox&&o&&o.cards.length){const c=o.current();   // the photos in your hands: the top one's title and words (from Notion), and which one of how many
+    $('#inspPager').hidden=c.n<2;$('#inspPageN').textContent=c.i+' / '+c.n;
+    $('#inspTip').textContent=c.n<2?(isTouch?'點旁邊放回盒子':'按 Esc 放回盒子'):(isTouch?'點照片翻到下一張・點旁邊放回盒子':'點照片或按 → 翻到下一張・← 回上一張・Esc 放回盒子');
+    $('#inspT').textContent=c.P.title||'攝影作品';$('#inspM').hidden=true;$('#inspB').textContent=c.P.cap||'';$('#inspB').hidden=!c.P.cap;return;}
+  $('#inspPager').hidden=true;
   if(o&&o.info){   // the sticker stack: the drawn-out sticker's own name, or the stack's
     const sk=o.selectedKey;$('#inspTip').textContent=sk?(isTouch?'拖曳翻轉・點旁邊放回扇形':'拖曳翻轉・點旁邊或按 Esc 放回扇形'):(isTouch?'點一張貼紙抽出來看':'點一張貼紙抽出來看・按 Esc 放回去');
     if(sk){const k='sticker_'+sk,v=ovr(k),t=TEXT[k],I=o.info[sk];$('#inspT').textContent=v.t||t[0];
@@ -2024,6 +2101,8 @@ function inspClose(){if(!INSP.on||INSP.dir<0)return;
  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
  el.addEventListener('wheel',e=>{e.preventDefault();INSP.dist=clamp(INSP.dist*Math.exp(e.deltaY*.0012),.34,INSP.parent?.7:.95);},{passive:false});   // a thing out of its box can't be pushed back into the box behind it
  $('#inspBack').addEventListener('click',inspClose);
+ $('#inspPrev').addEventListener('click',e=>{e.stopPropagation();if(INSP.cur===WK.photobox)WK.photobox.obj.turn(-1);});
+ $('#inspNext').addEventListener('click',e=>{e.stopPropagation();if(INSP.cur===WK.photobox)WK.photobox.obj.turn(1);});
  $('#inspEnter').addEventListener('click',()=>{const w=INSP.cur;if(w&&w.enter)enterSpace(w.enter);});
  $('#inspTake').addEventListener('click',()=>{const o=WK.pills.obj;if(o&&o.take()){pillAsk(false);$('#inspFace').hidden=$('#inspBack').hidden=false;$('#inspTip').textContent='';}});
  $('#inspPut').addEventListener('click',()=>{const o=WK.pills.obj;if(o&&o.putBack())pillAsk(false);});
@@ -3222,6 +3301,7 @@ let inSpace=false,spaceKey=null,spaceSave=null,spaceOut=null,spaceBusy=false;   
 const joy={x:0,y:0,id:null};
 addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea,select'))return;keys[e.code]=true;
   if(e.code==='Escape'&&inSpace){exitSpace();return;}
+  if(INSP.on&&INSP.cur===WK.photobox&&INSP.dir>0&&['ArrowRight','ArrowLeft','Space'].includes(e.code)){e.preventDefault();WK.photobox.obj.turn(e.code==='ArrowLeft'?-1:1);return;}
   if(e.code==='KeyE'&&started&&!modalOpen)interact(hovered);if(e.code==='Escape'&&INSP.on){inspClose();return;}if(e.code==='Escape'&&jrLB){jrUnzoom();return;}if(e.code==='Escape'&&modalOpen){if(gbBookCloser)gbBookCloser();else closeModal();}});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
@@ -3363,6 +3443,10 @@ const TEXT={
   gacha_scale:['秤秤','扭蛋公仔。圍著捲尺、一手拿叉一手拿刀的體重計。'],
   gacha_bear:['泰迪熊','扭蛋公仔。舉著星星魔杖的毛氈小熊。'],
   gacha_monkey:['耳鼻猴','扭蛋公仔。戴著鼻子頭帶、披著藍色披風的大耳朵猴子。'],
+  photobox:['攝影作品','一個牛皮紙盒，裡面隨意放著房主拍的照片。拿下來，點一張拿出來看看吧。'],
+  gd_pc_newyear:['明信片・Medify 新年','為 Medify 設計的新年明信片。瑞雪留痕，步步生春。'],
+  gd_pc_midautumn:['明信片・Medify 中秋','為 Medify 設計的中秋明信片。月滿安康。'],
+  gd_pc_dragonboat:['明信片・Medify 端午','為 Medify 設計的端午明信片。端午安康。'],
   gfolder:['平面設計文件夾','一個牛皮紙文件夾，裡面隨意夾著房主的平面設計：海報、主視覺、logo，還有一張春聯。拿下來翻開看看吧。'],
   gd_woodlife:['海報・木以載生','海報設計。'],gd_best:['海報・最佳狀態','海報設計。'],gd_lifenum:['海報・生命數字','海報設計。'],
   gd_sunrise:['海報・漫漫日出','海報設計。'],gd_time:['海報・時光','海報設計。'],gd_woodcraft:['海報・木職人','海報設計。'],
@@ -4252,6 +4336,7 @@ function buildDreamBooks(items){
   JR.books=[];if(!HUTCH)return;
   const order=[0,1,2];   // fill from the lowest shelf up
   const rows=HUTCH.rows.map(r=>r.slice());
+  rows[0][2]-=PH_BOX.W+.03;   // the photo box stands at the right end of the lowest shelf
   // albums stand at the right end of the middle shelf, right beside the ceramic vase; the other dreams fill the rest
   const albums=items.filter(isAlbum),dreams=items.filter(e=>!isAlbum(e));
   let ax=rows[1][2]+.045;

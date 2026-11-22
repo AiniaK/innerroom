@@ -73,6 +73,9 @@ async function notionFetch(url, init) {
   // 夢境紀錄、心情筆記
   if (p === '/databases/dreamdb') return J(200, { data_sources: [{ id: 'ds-dream' }] });
   if (p === '/databases/mooddb') return J(200, { data_sources: [{ id: 'ds-mood' }] });
+  if (p === '/databases/photodb') return J(200, { data_sources: [{ id: 'ds-photo' }] });
+  if (p === '/data_sources/ds-photo/query') { const b = JSON.parse(init.body); assert.equal(b.filter.property, '公開'); return J(200, { results: photoPages.filter(x => x.properties['公開'].checkbox), has_more: false }); }
+  { const pp = /^\/pages\/([0-9a-f]{32})$/.exec(p); if (pp) { const pg = photoPages.find(x => x.id === pp[1]); if (pg) return J(200, pg); } }
   { const q = /^\/data_sources\/(ds-dream|ds-mood)\/query$/.exec(p);
     if (q) { journalQueries++; return J(200, { results: journal[q[1]], has_more: false }); } }
   { const c = /^\/blocks\/([^/]+)\/children$/.exec(p); if (c) { journalBlockReads++; return J(200, { results: journalBlocks[c[1]] || [], has_more: false }); } }
@@ -112,6 +115,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (s.startsWith('https://www.googleapis.com/oauth2/v3/certs')) return new Response(JSON.stringify({ keys: [pubJwk] }), { headers: { 'cache-control': 'public, max-age=20000' } });
   if (s.startsWith('https://api.github.com/')) return githubFetch(s, init);
   if (s.startsWith('https://api.notion.com/')) return notionFetch(s, init);
+  if (s === 'https://files.notion.test/v.mp4') return new Response('VIDEODATA12', { headers: { 'Content-Type': 'video/mp4' } });
   if (s.startsWith('https://files.notion.test/')) return new Response('PNGDATA', { headers: { 'Content-Type': 'image/png' } });
   throw new Error('unexpected fetch ' + s);
 };
@@ -135,6 +139,13 @@ const journalImageBlocks = {
   '22222222222222222222222222222222': { id: '2222', type: 'image', parent: { type: 'page_id', page_id: 'g1' }, image: { type: 'file', file: { url: 'https://files.notion.test/b.png' } } },
 };
 
+const ppage = (id, title, cap, pub, url, name) => ({ id, created_time: '2026-11-05T00:00:00.000Z', last_edited_time: '2026-11-06T00:00:00.000Z', parent: { type: 'data_source_id', data_source_id: 'ds-photo' },
+  properties: { '標題': { title: rt(title) }, '說明': { rich_text: rt(cap) }, '公開': { checkbox: pub }, '照片': { files: url ? [{ type: 'file', name: name || 'a.png', file: { url } }] : [] } } });
+const photoPages = [ppage('33333333333333333333333333333333', '海邊', '傍晚的光', true, 'https://files.notion.test/a.png'),
+  ppage('44444444444444444444444444444444', '私人', '', false, 'https://files.notion.test/b.png'),
+  ppage('55555555555555555555555555555555', '還沒放照片', '', true, null),
+  ppage('66666666666666666666666666666666', '浪', '', true, 'https://files.notion.test/v.mp4', 'wave.mp4')];
+
 /* ---------- 假的 KV ---------- */
 const kvStore = new Map(), kvMeta = new Map(); let kvWrites = 0;
 const KV = {
@@ -148,7 +159,7 @@ const KV = {
 const env = {
   GITHUB_REPO: 'me/innerroom', GITHUB_BRANCH: 'main', GITHUB_TOKEN: 'gh-token', GOOGLE_CLIENT_ID: CLIENT_ID,
   OWNER_EMAILS: 'Owner@gmail.com', NOTION_TOKEN: 'nt', NOTION_DATABASE_ID: 'db123', NOTION_VERSION: '2025-09-03',
-  NOTION_DREAM_DB: 'dreamdb', NOTION_MOOD_DB: 'mooddb',
+  NOTION_DREAM_DB: 'dreamdb', NOTION_MOOD_DB: 'mooddb', NOTION_PHOTO_DB: 'photodb',
   HASH_SECRET: 'x'.repeat(40), ALLOWED_ORIGINS: 'https://me.github.io,http://localhost:8000', KV,
 };
 const { default: worker } = await import('../src/index.js');
@@ -277,6 +288,25 @@ await test('夢境圖片：只轉送這兩個資料庫裡的圖片', async () =>
   assert.equal(other.status, 404);
   const bad = await worker.fetch(new Request('https://api.example/api/journal/img/..%2Fpages'), env, { waitUntil() {} });
   assert.equal(bad.status, 404);
+});
+await test('攝影作品：只列出勾了公開、有照片的；照片只轉送公開的那幾張', async () => {
+  const r = await call('GET', '/api/photos');
+  assert.equal(r.status, 200);
+  const { items } = r.data;
+  assert.deepEqual(items.map(x => [x.title, x.cap, x.kind]), [['海邊', '傍晚的光', 'image'], ['浪', '', 'video']]);
+  const img = id => worker.fetch(new Request('https://api.example/api/journal/img/' + id), env, { waitUntil() {} });
+  const ok = await img('33333333333333333333333333333333'); assert.equal(ok.status, 200); assert.equal(await ok.text(), 'PNGDATA');
+  assert.equal((await img('44444444444444444444444444444444')).status, 404);   // 沒公開的不給
+  assert.equal((await img('55555555555555555555555555555555')).status, 404);   // 沒有照片
+  assert.equal((await call('GET', '/api/photos', { origin: 'https://evil.example' })).status, 403);
+});
+await test('攝影作品短片：整支或分段讀取，只轉送公開的影片', async () => {
+  const vid = (id, range) => worker.fetch(new Request('https://api.example/api/photos/video/' + id, { headers: range ? { Range: range } : {} }), env, { waitUntil() {} });
+  const all = await vid('66666666666666666666666666666666'); assert.equal(all.status, 200); assert.equal(all.headers.get('Accept-Ranges'), 'bytes'); assert.equal(await all.text(), 'VIDEODATA12');
+  const part = await vid('66666666666666666666666666666666', 'bytes=2-5'); assert.equal(part.status, 206); assert.equal(part.headers.get('Content-Range'), 'bytes 2-5/11'); assert.equal(await part.text(), 'DEOD');
+  assert.equal((await vid('66666666666666666666666666666666', 'bytes=50-')).status, 416);
+  assert.equal((await vid('33333333333333333333333333333333')).status, 404);   // 照片不是影片
+  assert.equal((await vid('44444444444444444444444444444444')).status, 404);   // 沒公開
 });
 await test('夢境圖片壓縮版：房主存上來後訪客拿到小檔，換過圖就改回原始檔', async () => {
   const ID = '11111111111111111111111111111111', get = (q = '', origin) => worker.fetch(new Request('https://api.example/api/journal/img/' + ID + q, { headers: origin ? { Origin: origin } : {} }), env, { waitUntil() {} });

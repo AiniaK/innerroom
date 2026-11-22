@@ -4,6 +4,7 @@
      單張（海報）：柔軟的紙，兩個方向都微微彎、一角翹起，拿在手上時輕輕起伏。
      去背（春聯）：照圖案的形狀剪下的紙。
      折頁（寬幅）：右半邊往後折，拿出來會攤開，中間留一道折痕。
+     明信片：硬卡，有厚度、不會彎；正面是設計，背面是米白卡紙。
      迴紋針夾（齒盤蓋、logo）：幾張疊在一起，上緣用迴紋針夾住；點一下最上面那張換到最後。logo 直接用原圖，照各自的比例。
    用法：
      GraphicFolder.folder() → { root, meshes, height, tick(dt), held(e), put(id, g, F), pick(ndc, cam, layer), dragStart/dragMove/dragEnd }
@@ -11,9 +12,10 @@
    座標：x 往右、y 往上、z 朝向看的人；單位公尺。 */
 (function () {
   'use strict';
-  const V = '2026-11-20f';
+  const V = '2026-11-23d';
   const FW = 0.34, FH = 0.25, BOARD = 0.0016;   // 文件夾（橫式）寬、高、紙板厚
   const Z0 = -0.0068, DZ = 0.0008;                // 作品在文件夾裡的高度：最底下一張、每疊一張加多少
+  const GUS = 0.0148;                             // 封面（闔起來時）的位置＝文件夾的厚度：作品多了就加厚（2026-11-23 加了明信片，加厚 4 公釐）
   const PAPER = '#F3EEE4';
 
   // 作品清單：img 是 assets/graphic/ 裡的檔名；w 是印出來的寬（公尺）
@@ -27,6 +29,9 @@
     gd_spring: { type: 'cut', img: 'spring', w: 0.15 },
     gd_puppet: { type: 'fold', img: 'puppet', w: 0.44 },
     gd_cogs: { type: 'clip', imgs: ['cog1', 'cog2'], w: 0.11, pad: 0.06 },
+    gd_pc_newyear: { type: 'card', img: 'pc-newyear', w: 0.105 },   // 明信片：一般尺寸 10.5 × 14.8 公分
+    gd_pc_midautumn: { type: 'card', img: 'pc-midautumn', w: 0.105 },
+    gd_pc_dragonboat: { type: 'card', img: 'pc-dragonboat', w: 0.105 },
     gd_logos: { type: 'clip', imgs: ['logo-garden', 'logo-romanee', 'logo-life', 'logo-gotham', 'logo-medify'], w: 0.09, raw: true },
   };
 
@@ -65,13 +70,13 @@
     // 背板（裡面朝向 +z）與左邊的摺邊（夠厚，裝得下十來張作品）
     const back = new THREE.Group(); inner.add(back);
     const board = mesh(new THREE.BoxGeometry(FW, FH, BOARD), [edge, edge, edge, edge, insideM, outside], meshes, back); board.position.z = -0.008;
-    mesh(new THREE.BoxGeometry(BOARD, FH, 0.0196), edge, meshes, back).position.set(-FW / 2, 0.0, 0.001);   // 左邊的摺邊（夠厚，裝得下十來張作品）
+    mesh(new THREE.BoxGeometry(BOARD, FH, GUS + 0.0088), edge, meshes, back).position.set(-FW / 2, 0.0, (GUS - 0.0108) / 2 + 0.001);   // 左邊的摺邊（夠厚，裝得下十來張作品）
     // 上、下、右三邊也有窄窄的牛皮紙側邊（像風琴文件夾），闔起來從哪個角度都看不到裡面的作品
-    for (const [w, h, x, y] of [[FW, BOARD, 0, -FH / 2], [FW, BOARD, 0, FH / 2], [BOARD, FH, FW / 2, 0]]) mesh(new THREE.BoxGeometry(w, h, 0.0188), edge, meshes, back).position.set(x, y, 0.001);
+    for (const [w, h, x, y] of [[FW, BOARD, 0, -FH / 2], [FW, BOARD, 0, FH / 2], [BOARD, FH, FW / 2, 0]]) mesh(new THREE.BoxGeometry(w, h, GUS + 0.008), edge, meshes, back).position.set(x, y, (GUS - 0.0108) / 2 + 0.001);
     const btnM = mat({ color: 0x8A5A3A, roughness: 0.6 });
     const btnB = mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.0016, 24), btnM, meshes, back); btnB.rotation.x = Math.PI / 2; btnB.position.set(FW / 2 - 0.03, 0, -0.0092);
     // 封面：繞著左邊的摺邊翻開
-    const hinge = new THREE.Group(); hinge.position.set(-FW / 2, 0, 0.0108); inner.add(hinge);
+    const hinge = new THREE.Group(); hinge.position.set(-FW / 2, 0, GUS); inner.add(hinge);
     const cover = mesh(new THREE.BoxGeometry(FW, FH, BOARD), [edge, edge, edge, edge, outside, insideM], meshes, hinge); cover.position.x = FW / 2;
     const label = mesh(new THREE.PlaneGeometry(0.12, 0.06), mat({ map: labelTex(), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2 }), meshes, hinge); label.position.set(FW / 2 + 0.04, 0.05, BOARD / 2 + 0.0004); label.rotation.z = 0.03;
     const btnF = mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.0016, 24), btnM, meshes, hinge); btnF.rotation.x = Math.PI / 2; btnF.position.set(FW - 0.03, 0, BOARD / 2 + 0.0008);
@@ -90,9 +95,12 @@
     // 依疊放的順序排高度：每件佔一點厚度；迴紋針夾上下各多留迴紋針的空間，蓋在上面、墊在下面的作品都不會被穿過
     const restack = () => {
       let zb = Z0, zc = COVER_Z;
+      // 背板到封面內側只有 1.7 公分左右：疊得比這高時，每件之間的間距等比例壓緊，最上面那件也不會穿出封面
+      let need = 0; order.forEach((id) => { if (home[id] === back) { const d = items[id].depth || { below: 0, above: 0 }; need += DZ + d.below + d.above + (items[id].thick || 0); } });
+      const k = Math.min(1, (GUS - BOARD / 2 - 0.0008 - Z0) / Math.max(need, 1e-6));
       order.forEach((id) => {
         const R = items[id].root, d = items[id].depth || { below: 0, above: 0 };
-        if (home[id] === back) { zb += DZ / 2 + d.below; R.position.z = overEdge(id) && !closing ? 0.0108 + (zb - Z0) : zb; zb += d.above + DZ / 2; }
+        if (home[id] === back) { zb += (DZ / 2 + d.below) * k; R.position.z = overEdge(id) && !closing ? GUS + (zb - Z0) : zb; zb += (d.above + DZ / 2 + (items[id].thick || 0)) * k; }
         else { zc -= DZ / 2 + d.below; R.position.z = zc; zc -= d.above + DZ / 2; }   // 封面上的作品是翻面貼的：迴紋針背面那段朝著封面
       });
     };
@@ -257,6 +265,13 @@
       const im = await loadImg(S.img), h = S.w * im.height / im.width;
       const pp = paper(S.w, h, imgTex(im), { soft: true, corner: [1, -1] }); root.add(pp.grp); meshes.push(...pp.list);
       return { root, meshes, height: Math.max(S.w, h), tick: pp.tick, held: pp.held };
+    }
+    if (S.type === 'card') {   // 明信片：硬卡（約 0.5 公釐厚），平的、不會彎；正面是設計，背面和側邊是米白卡紙
+      const im = await loadImg(S.img), h = S.w * im.height / im.width, T = 0.0003;
+      const stock = mat({ color: PAPER, roughness: 0.85 }), front = mat({ map: imgTex(im), roughness: 0.55 });
+      const card = mesh(new THREE.BoxGeometry(S.w, h, T), [stock, stock, stock, stock, front, stock], meshes, root);
+      card.position.z = T / 2;
+      return { root, meshes, height: Math.max(S.w, h), thick: T, tick() {} };
     }
     if (S.type === 'cut') {   // 春聯：去背的剪紙，正反面都是同樣的形狀
       const im = await loadImg(S.img), h = S.w * im.height / im.width;

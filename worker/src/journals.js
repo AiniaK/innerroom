@@ -80,10 +80,84 @@ export async function listJournal(env, ctx, kind, request) {
   return out;
 }
 
-// 圖片區塊 → Notion 的原始檔網址；只接受這兩個資料庫裡的頁面上的圖片
+/* ---------- 攝影作品：書桌櫃最下層盒子裡的照片。資料庫裡一列一張照片，勾「公開」的才出現 ---------- */
+const PF = { title: '標題', photo: '照片', cap: '說明', pub: '公開' };   // 要和 Notion 裡的欄位名稱完全一樣
+const fileOf = pr => { const f = pr && pr.files && pr.files[0]; return f ? (f.type === 'file' ? f.file && f.file.url : f.external && f.external.url) : null; };
+const VIDEO_EXT = /\.(mp4|m4v|mov|webm)(\?|$)/i;
+const kindOf = pr => { const f = pr && pr.files && pr.files[0]; const n = (f && f.name) || fileOf(pr) || ''; return VIDEO_EXT.test(n) ? 'video' : 'image'; };
+export async function listPhotos(env, ctx) {
+  const cache = caches.default, key = new Request('https://cache.innerroom/photos');
+  const hit = await cache.match(key);
+  if (hit) return new Response(hit.body, hit);
+  const ds = await dataSourceOf(env, env.NOTION_PHOTO_DB, 'NOTION_PHOTO_DB');
+  const items = [];
+  let cursor, guard = 0;
+  do {
+    const body = { page_size: 100, filter: { property: PF.pub, checkbox: { equals: true } }, sorts: [{ timestamp: 'created_time', direction: 'ascending' }] };
+    if (cursor) body.start_cursor = cursor;
+    const r = await notion(env, `/data_sources/${ds}/query`, { method: 'POST', body });
+    for (const p of r.results || []) {
+      if (p.in_trash || p.archived) continue;
+      const pr = p.properties || {};
+      if (!fileOf(pr[PF.photo])) continue;   // 還沒放照片的列
+      items.push({ id: p.id, v: p.last_edited_time, kind: kindOf(pr[PF.photo]), title: plain(pr[PF.title] && pr[PF.title].title).trim(), cap: plain(pr[PF.cap] && pr[PF.cap].rich_text).trim() });
+    }
+    cursor = r.has_more ? r.next_cursor : null;
+  } while (cursor && ++guard < 10);
+  const res = json({ items });
+  const out = new Response(res.body, res);
+  out.headers.set('Cache-Control', `public, max-age=${LIST_TTL}`);
+  ctx.waitUntil(cache.put(key, out.clone()));
+  return out;
+}
+// 攝影作品的一頁 → 照片的原始檔網址（只接受攝影作品資料庫裡、勾了「公開」的）
+async function photoSource(env, pageId) {
+  if (!env.NOTION_PHOTO_DB) return null;
+  const page = await notion(env, '/pages/' + pageId, { notFoundOK: true });
+  if (!page || page.in_trash || page.archived) return null;
+  const parentDs = String((page.parent && (page.parent.data_source_id || page.parent.database_id)) || '').replace(/-/g, '');
+  const ok = [String(env.NOTION_PHOTO_DB).replace(/-/g, ''), String(await dataSourceOf(env, env.NOTION_PHOTO_DB, 'NOTION_PHOTO_DB')).replace(/-/g, '')];
+  if (!ok.includes(parentDs)) return null;
+  const pr = page.properties || {};
+  if (!(pr[PF.pub] && pr[PF.pub].checkbox)) return null;
+  const src = fileOf(pr[PF.photo]);
+  return src && /^https:\/\//.test(src) ? { src, v: page.last_edited_time, kind: kindOf(pr[PF.photo]) } : null;
+}
+
+// 攝影作品裡的短片（像會動的照片）：由這裡轉送，支援瀏覽器播影片時的分段讀取（Range）。整支在邊緣快取一天
+const VIDEO_MAX = 30 * 1024 * 1024;
+export async function photoVideo(env, ctx, pageId, request) {
+  if (!/^[0-9a-f-]{32,36}$/i.test(pageId)) fail(404, 'not_found');
+  const origin = request.headers.get('Origin');
+  const cors = origin && allowedOrigins(env).includes(origin) ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
+  const cache = caches.default, key = new Request('https://cache.innerroom/photo-video/' + pageId);
+  let hit = await cache.match(key);
+  if (!hit) {
+    const ph = await photoSource(env, pageId);
+    if (!ph || ph.kind !== 'video') fail(404, 'not_found');
+    const r = await fetch(ph.src);
+    if (!r.ok) fail(502, 'video_error');
+    const buf = await r.arrayBuffer();
+    if (buf.byteLength > VIDEO_MAX) fail(413, 'too_large');
+    let type = r.headers.get('Content-Type') || '';
+    if (!/^video\//.test(type)) type = /\.webm/i.test(ph.src) ? 'video/webm' : /\.mov/i.test(ph.src) ? 'video/quicktime' : 'video/mp4';
+    hit = new Response(buf, { headers: { 'Content-Type': type, 'Content-Length': String(buf.byteLength), 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' } });
+    ctx.waitUntil(cache.put(key, hit.clone()));
+  }
+  const buf = await hit.arrayBuffer(), n = buf.byteLength, type = hit.headers.get('Content-Type');
+  const base = { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff', ...cors };
+  const m = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('Range') || '');
+  if (!m || (m[1] === '' && m[2] === '')) return new Response(buf, { headers: { ...base, 'Content-Length': String(n) } });
+  let a = m[1] === '' ? Math.max(0, n - +m[2]) : +m[1], z = m[1] === '' || m[2] === '' ? n - 1 : Math.min(n - 1, +m[2]);
+  if (a >= n || a > z) return new Response(null, { status: 416, headers: { ...base, 'Content-Range': `bytes */${n}` } });
+  return new Response(buf.slice(a, z + 1), { status: 206, headers: { ...base, 'Content-Length': String(z - a + 1), 'Content-Range': `bytes ${a}-${z}/${n}` } });
+}
+
+// 圖片區塊 → Notion 的原始檔網址；只接受這兩個資料庫裡的頁面上的圖片（或攝影作品資料庫裡的照片）
 async function imageSource(env, blockId) {
   if (!/^[0-9a-f-]{32,36}$/i.test(blockId)) fail(404, 'not_found');
   const b = await notion(env, '/blocks/' + blockId, { notFoundOK: true });
+  if (!b || b.type !== 'image') { const ph = await photoSource(env, blockId); if (ph) return ph; fail(404, 'not_found'); }   // 攝影作品：id 是一列（頁面）
   if (!b || b.type !== 'image' || !b.parent || b.parent.type !== 'page_id') fail(404, 'not_found');
   const page = await notion(env, '/pages/' + b.parent.page_id, { notFoundOK: true });
   const parentDs = page && page.parent && (page.parent.data_source_id || page.parent.database_id);
