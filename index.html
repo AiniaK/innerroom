@@ -4516,8 +4516,17 @@ function spaceFrame(dt){const SP=window[spaceKey];
   if(pose&&pose.leave)exitSpace();
   inspTick(dt);   // the frame you were holding finishes going back to its pod
   SP.render(renderer,camera,pose,inp);}
+// ?fps=1 in the address: a small readout in the corner (frames a second, the slowest frame lately, draw calls and triangles per frame,
+// screen sharpness), for checking how a phone copes in each corner of the room. Visitors never see it.
+const PERF=/[?&]fps=1/.test(location.search)?{el:null,n:0,t0:0,worst:0,calls:0,tris:0}:null;
+if(PERF){PERF.el=document.createElement('div');PERF.el.style.cssText='position:fixed;left:8px;top:8px;z-index:60;font:12px/1.5 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,.62);padding:6px 9px;border-radius:6px;pointer-events:none;white-space:pre';
+  document.body.appendChild(PERF.el);renderer.info.autoReset=false;}
+function perfTick(now,ms){if(!PERF)return;PERF.n++;PERF.worst=Math.max(PERF.worst,ms);const i=renderer.info.render;PERF.calls=Math.max(PERF.calls,i.calls);PERF.tris=Math.max(PERF.tris,i.triangles);renderer.info.reset();
+  if(now-PERF.t0<1000)return;const fps=PERF.n*1000/(now-PERF.t0);
+  PERF.el.textContent=`${fps.toFixed(0)} fps　最慢 ${PERF.worst.toFixed(0)} ms\n繪製 ${PERF.calls} 次　${(PERF.tris/1e6).toFixed(2)}M 三角形\n畫質 ${renderer.getPixelRatio().toFixed(2)}×　${LOW?'手機模式':'電腦模式'}${inSpace?'　作品空間':''}`;
+  PERF.el.style.color=fps<30?'#ffb4a8':fps<50?'#ffe08a':'#fff';PERF.t0=now;PERF.n=0;PERF.worst=0;PERF.calls=0;PERF.tris=0;}
 function frame(now){
-  frame.n=(frame.n||0)+1;tickWorkLoads(now);adaptRes(now,now-last);mountainCull(now);
+  frame.n=(frame.n||0)+1;perfTick(now,now-last);tickWorkLoads(now);adaptRes(now,now-last);mountainCull(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(inSpace){spaceFrame(dt);requestAnimationFrame(frame);return;}   // inside a work's own space (see enterSpace): only that space is drawn
   // movement
