@@ -41,7 +41,7 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 #insp .pager{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 2px;font-size:13px;letter-spacing:.08em;opacity:.85}
 #insp .pager button{width:30px;height:30px;border-radius:50%;border:1px solid currentColor;background:transparent;color:inherit;font-size:18px;line-height:1;cursor:pointer;opacity:.75}
 #insp .pager button:hover{opacity:1}
-body.inspace #cross,body.inspace #sky,body.inspace #paper,body.inspace #vignette,body.inspace #hover{display:none!important}
+body.inspace #cross,body.inspace #sky,body.inspace #paper,body.inspace #vignette{display:none!important}
 #hover{position:fixed;left:50%;top:calc(50% + 20px);transform:translateX(-50%);z-index:4;pointer-events:none;text-align:center}
 #hover .n{font-family:var(--f-display);font-size:15px;color:#fffaf0;text-shadow:0 1px 6px rgba(40,30,20,.65)}
 #hover .h{font-size:11.5px;color:rgba(255,250,240,.85);text-shadow:0 1px 4px rgba(40,30,20,.6);margin-top:2px;letter-spacing:.06em}
@@ -3308,7 +3308,7 @@ let started=false,locked=false,noLock=isTouch,modalOpen=false;
 let inSpace=false,spaceKey=null,spaceSave=null,spaceOut=null,spaceBusy=false;   // walking inside a work's own space (see enterSpace)
 const joy={x:0,y:0,id:null};
 addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea,select'))return;keys[e.code]=true;
-  if(e.code==='Escape'&&inSpace){exitSpace();return;}
+  if(e.code==='Escape'&&inSpace){const S=window[spaceKey];if(S&&S.esc&&S.esc())return;exitSpace();return;}
   if(INSP.on&&INSP.cur===WK.photobox&&INSP.dir>0&&['ArrowRight','ArrowLeft','Space'].includes(e.code)){e.preventDefault();WK.photobox.obj.turn(e.code==='ArrowLeft'?-1:1);return;}
   if(e.code==='KeyE'&&started&&!modalOpen)interact(hovered);if(e.code==='Escape'&&INSP.on){inspClose();return;}if(e.code==='Escape'&&jrLB){jrUnzoom();return;}if(e.code==='Escape'&&modalOpen){if(gbBookCloser)gbBookCloser();else closeModal();}});
 addEventListener('keyup',e=>{keys[e.code]=false;});
@@ -3352,7 +3352,7 @@ function joyMove(e){const r=joyEl.getBoundingClientRect();let x=(e.clientX-r.lef
 /* ---------- picking ---------- */
 const ray=new THREE.Raycaster();ray.far=3.6;const center=new THREE.Vector2(0,0);
 let hovered=null;
-function pick(v){ray.setFromCamera(v,camera);const hits=ray.intersectObjects(targets,false);
+function pick(v){if(inSpace){const S=window[spaceKey];return S&&S.pick?S.pick(v,camera):null;}ray.setFromCamera(v,camera);const hits=ray.intersectObjects(targets,false);
   for(const h of hits){let o=h.object;while(o&&!o.userData.act)o=o.parent;if(o){pickPoint.copy(h.point);return o.userData.act;}return null;}return null;}
 const pickPoint=new THREE.Vector3();   // where the last pick landed, so the sofa knows where you chose to sit
 const HINT={cabdoor:()=>doorsOpen?'點擊關上櫃門':'點擊打開櫃門',work:()=>'點擊拿起來看',dlamp:()=>dlampOn?'點擊關燈':'點擊開燈',moonlamp:()=>moonLampOn?'點擊關燈':'點擊開燈',armchair:()=>seat.on?'點擊起身':'點擊坐下',rlamp:()=>((RL.on===null?lampOn:RL.on)?'點擊關燈':'點擊開燈'),hchair:()=>seat.on?'點擊起身':'點擊坐下',beanbag:()=>seat.on?'點擊起身':'點擊坐下',sunlamp:()=>SL.on?'點擊關燈':'點擊開燈',sunknob:()=>isTouch?'按住上下拖曳':'點一下抓住，上下移動調整',glassdoor:()=>doorTarget?'點擊關上':'點擊推開',lamp:()=>lampOn?'點擊關燈':'點擊開燈',blamp:()=>blampOn?'點擊關燈':'點擊開燈'};
@@ -3495,7 +3495,7 @@ modal.addEventListener('click',e=>{if(e.target===modal||e.target===card&&card.cl
 let toastT=0;function toast(s){const t=$('#toast');t.querySelector('span').textContent=s;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200);}
 const simple=(eyebrow,title,body,note)=>`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>${body}</p>${note?`<div class="note">${note}</div>`:''}`;
 
-function interact(a){if(inSpace)return;
+function interact(a){if(inSpace){const S=window[spaceKey];if(a&&S&&S.act&&!spaceBusy)S.act(a);return;}
   if(!a)return;startAudio();
   switch(a.type){
     case 'glassdoor':doorTarget=doorTarget?0:1;toast(doorTarget?'落地窗推開了，海的聲音靠近一些':'落地窗關上了');return;
@@ -4501,7 +4501,7 @@ function prewarm(){trimShadows();if(warmBusy)return;warmBusy=true;
 setTimeout(loadModels,1500);   // the heavier model data comes once the room is up
 /* ---------- a work you can walk into (收藏格 8 的聚光燈裝置): the room is set aside and only that space is drawn ---------- */
 // each work's space is its own file, fetched only when you go in (and let go of again when you come out), so the room never carries them all
-const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24f'};
+const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24r'};
 function loadSpace(key){if(window[key])return Promise.resolve(window[key]);
   return loadSpace[key]||(loadSpace[key]=new Promise((ok,no)=>{const sc=document.createElement('script');sc.src=SPACE_FILES[key];sc.onload=()=>window[key]?ok(window[key]):no(new Error('space'));sc.onerror=()=>{loadSpace[key]=null;no(new Error('space'));};document.head.appendChild(sc);}));}
 function enterSpace(key){if(inSpace||spaceBusy)return;if(!window[key]){spaceBusy=true;$('#spaceFade').style.opacity=1;loadSpace(key).then(()=>{spaceBusy=false;enterSpace(key);}).catch(()=>{spaceBusy=false;$('#spaceFade').style.opacity=0;toast('作品空間載入失敗，請再試一次');});return;}
@@ -4519,7 +4519,7 @@ function enterSpace(key){if(inSpace||spaceBusy)return;if(!window[key]){spaceBusy
     setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;tryLock();toast((SP.exitHint||['點「離開作品」回到房間','按 Esc 回到房間'])[isTouch?0:1]);
       const n=$('#spaceNote');n.style.opacity=1;clearTimeout(n.t);n.t=setTimeout(()=>n.style.opacity=0,5000);},250);},750);}
 function exitSpace(){if(!inSpace||spaceBusy)return;spaceBusy=true;$('#spaceFade').style.opacity=1;
-  setTimeout(()=>{const SPx=window[spaceKey];SPx.exit();if(SPx.dispose)SPx.dispose();inSpace=false;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
+  setTimeout(()=>{const SPx=window[spaceKey];SPx.exit();if(SPx.dispose)SPx.dispose();inSpace=false;hovered=null;$('#hover').hidden=true;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
     player.yaw=spaceSave.yaw;player.pitch=spaceSave.pitch;applySound();
     setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;},150);},750);}
 $('#spaceExit').addEventListener('click',e=>{e.stopPropagation();exitSpace();});
@@ -4529,7 +4529,9 @@ function spaceFrame(dt){const SP=window[spaceKey];
   const inp={mx,mz,yaw:player.yaw,pitch:player.pitch,crouch},pose=SP.tick(dt,inp);
   if(pose&&pose.leave)exitSpace();
   inspTick(dt);   // the frame you were holding finishes going back to its pod
-  SP.render(renderer,camera,pose,inp);}
+  SP.render(renderer,camera,pose,inp);
+  {const a=SP.pick&&!spaceBusy&&!modalOpen?(locked?pick(center):(!isTouch?pick(mouse):null)):null;hovered=a;const el=$('#hover');   // a work's space can have things to touch (e.g. the drawer in 「自由」)
+   if(!a)el.hidden=true;else{el.hidden=false;el.querySelector('.n').textContent=a.label;const he=el.querySelector('.h');he.textContent=a.hint||'';he.hidden=!a.hint;}}}
 // ?fps=1 in the address: a small readout in the corner (frames a second, the slowest frame lately, draw calls and triangles per frame,
 // screen sharpness), for checking how a phone copes in each corner of the room. Visitors never see it.
 const PERF=/[?&]fps=1/.test(location.search)?{el:null,n:0,t0:0,worst:0,calls:0,tris:0}:null;

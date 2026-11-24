@@ -112,7 +112,11 @@
     const headSec = new THREE.Group(); headSec.position.set(-0.27, 0.465, 0); headSec.rotation.z = -0.26; bed.add(headSec);   // 床頭那一段搖起來
     box(0.68, 0.02, 0.8, metal, -0.34, -0.005, 0, headSec);
     mesh(slab(0.68, 0.84, 0.13, 0.05), sheet, -0.34, 0.065, 0, headSec);
-    const pillow = mesh(new THREE.SphereGeometry(1, 28, 16), sheet, -0.43, 0.17, 0.03, headSec); pillow.scale.set(0.19, 0.06, 0.3); pillow.rotation.y = 0.12;
+    { const PW = 0.4, PD = 0.6, pg = new THREE.BoxGeometry(PW, 0.12, PD, 12, 4, 16), pp = pg.attributes.position;   // 枕頭：醫院那種長方形的枕頭，中間鼓、四邊壓扁收成一條縫
+      for (let i = 0; i < pp.count; i++) { const u = pp.getX(i) / (PW / 2), w = pp.getZ(i) / (PD / 2), e = Math.max(0, (1 - Math.pow(Math.abs(u), 3)) * (1 - Math.pow(Math.abs(w), 3)));
+        pp.setY(i, pp.getY(i) * (0.12 + 0.88 * Math.pow(e, 0.55)) + (pp.getY(i) > 0 ? Math.sin(u * 5 + w * 3) * 0.004 : 0));
+        pp.setX(i, pp.getX(i) * (1 - 0.04 * w * w)); pp.setZ(i, pp.getZ(i) * (1 - 0.03 * u * u)); }
+      pg.computeVertexNormals(); const pillow = mesh(pg, sheet, -0.42, 0.13, 0.02, headSec); pillow.rotation.set(0, 0.06, -0.05); }
     mesh(slab(1.24, 0.84, 0.13, 0.05), sheet, 0.35, 0.535, 0, bed);
     const crumple = new THREE.BoxGeometry(0.95, 0.05, 0.9, 16, 2, 12), cp = crumple.attributes.position;   // 掀開過、皺起來的床單
     for (let i = 0; i < cp.count; i++) { const x = cp.getX(i), z = cp.getZ(i); let y = cp.getY(i) + Math.sin(x * 9) * 0.02 + Math.cos(z * 11 + x * 3) * 0.016 + Math.max(0, x + 0.25) * 0.08 * (0.6 + 0.4 * Math.sin(z * 4));
@@ -137,7 +141,24 @@
     const cabM = std({ color: 0xa39f98, roughness: 0.7 }), cabF = std({ color: 0xb3afa8, roughness: 0.6 });
     box(0.4, 0.05, 0.36, dark, 0, 0.025, 0, cab); box(0.44, 0.65, 0.4, cabM, 0, 0.375, 0, cab);
     mesh(slab(0.47, 0.43, 0.03, 0.02), cabF, 0, 0.715, 0.005, cab);
-    for (const [y, h] of [[0.6, 0.13], [0.455, 0.13]]) {
+    {   // 上層抽屜：可以拉出來，裡面有一封用西式信封裝著的信
+      const dr = new THREE.Group(); dr.position.set(0, 0.6, 0); cab.add(dr); S.drawer = dr; S.drawerK = 0; S.drawerOpen = false;
+      const front = box(0.4, 0.13, 0.014, cabF, 0, 0, 0.205, dr);
+      box(0.13, 0.012, 0.012, metal, 0, 0.01, 0.228, dr); for (const hx of [-0.055, 0.055]) box(0.01, 0.01, 0.02, metal, hx, 0.01, 0.218, dr);
+      const inner = std({ color: 0x8d8981, roughness: 0.85 });
+      box(0.37, 0.008, 0.36, inner, 0, -0.05, 0.02, dr); box(0.008, 0.1, 0.36, inner, -0.181, -0.005, 0.02, dr); box(0.008, 0.1, 0.36, inner, 0.181, -0.005, 0.02, dr); box(0.37, 0.1, 0.008, inner, 0, -0.005, -0.156, dr);
+      const envTex = canvasTex(512, 352, (g, w, h) => {   // 信封：米白色的紙、背面三角形的封口、一點點紙紋
+        g.fillStyle = '#e9e1d0'; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '120,100,70' : '255,255,255'},${Math.random() * 0.06})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+        g.strokeStyle = 'rgba(120,104,80,.45)'; g.lineWidth = 3; g.beginPath(); g.moveTo(6, 6); g.lineTo(w / 2, h * 0.58); g.lineTo(w - 6, 6); g.stroke();
+        g.strokeStyle = 'rgba(120,104,80,.25)'; g.lineWidth = 2; g.beginPath(); g.moveTo(6, h - 6); g.lineTo(w * 0.42, h * 0.5); g.moveTo(w - 6, h - 6); g.lineTo(w * 0.58, h * 0.5); g.stroke();
+        g.fillStyle = '#8a3b33'; g.beginPath(); g.arc(w / 2, h * 0.56, 22, 0, Math.PI * 2); g.fill();   // 小小的封蠟
+        g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.arc(w / 2 - 6, h * 0.56 - 6, 9, 0, Math.PI * 2); g.fill();
+      });
+      const env = mesh(new THREE.BoxGeometry(0.22, 0.004, 0.15), [std({ color: 0xe9e1d0 }), std({ color: 0xe9e1d0 }), std({ map: envTex, roughness: 0.9 }), std({ color: 0xe2dac8 }), std({ color: 0xe9e1d0 }), std({ color: 0xe9e1d0 })], 0.01, -0.043, 0.03, dr);
+      env.rotation.y = 0.18; S.pickFront = front; S.pickEnv = env;
+    }
+    for (const [y, h] of [[0.455, 0.13]]) {
       box(0.4, h, 0.014, cabF, 0, y, 0.205, cab);
       box(0.13, 0.012, 0.012, metal, 0, y + 0.01, 0.228, cab); for (const hx of [-0.055, 0.055]) box(0.01, 0.01, 0.02, metal, hx, y + 0.01, 0.218, cab);
     }
@@ -176,10 +197,16 @@
       mesh(new THREE.SphereGeometry(0.007, 8, 6), ivM, c * 0.145, 1.957, sn * 0.145, iv); }
     const bagM = keepM(new THREE.MeshStandardMaterial({ color: 0xdfe3e0, roughness: 0.2, transparent: true, opacity: 0.55, depthWrite: false }));
     const tubeM = keepM(new THREE.MeshStandardMaterial({ color: 0xd6d9d6, roughness: 0.3, transparent: true, opacity: 0.6 }));
-    mesh(new THREE.TorusGeometry(0.012, 0.003, 6, 16), tubeM, 0.15, 1.905, 0, iv, { ry: Math.PI / 2 });   // 掛在鉤上的小孔
-    const bag = mesh(new THREE.SphereGeometry(1, 24, 16), bagM, 0.15, 1.78, 0, iv, { cast: false }); bag.scale.set(0.06, 0.105, 0.02);   // 點滴袋
-    mesh(new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, Math.PI * 0.45, Math.PI * 0.55), keepM(new THREE.MeshStandardMaterial({ color: 0xc8d2d2, roughness: 0.1, transparent: true, opacity: 0.5, depthWrite: false })), 0.15, 1.78, 0, iv, { cast: false }).scale.set(0.054, 0.1, 0.016);   // 袋裡剩一點藥水
-    box(0.05, 0.04, 0.002, std({ color: 0xe8e6e1 }), 0.15, 1.8, 0.021, iv, { cast: false });   // 標籤
+    mesh(new THREE.TorusGeometry(0.01, 0.003, 6, 16), tubeM, 0.15, 1.9, 0, iv);   // 掛在鉤上的小孔
+    { const pouch = (w, h, t, top) => { const g = new THREE.BoxGeometry(w, h, t, 10, 18, 2), q = g.attributes.position;   // 點滴袋：扁扁的長方形軟袋，四邊是壓平的封邊，中間微微鼓起
+        for (let k = 0; k < q.count; k++) { const u = q.getX(k) / (w / 2), v = q.getY(k) / (h / 2), e = Math.max(0, (1 - Math.pow(Math.abs(u), 6)) * (1 - Math.pow(Math.abs(v), 6)));
+          q.setZ(k, q.getZ(k) * (0.06 + 0.94 * Math.pow(e, 0.5)) * (1 + 0.25 * (1 - (v + 1) / 2))); if (top !== undefined && q.getY(k) > top) q.setY(k, top); }
+        g.computeVertexNormals(); return g; };
+      mesh(pouch(0.12, 0.2, 0.026), bagM, 0.15, 1.785, 0, iv, { cast: false });
+      mesh(pouch(0.104, 0.18, 0.02, -0.02), keepM(new THREE.MeshStandardMaterial({ color: 0xc8d2d2, roughness: 0.1, transparent: true, opacity: 0.5, depthWrite: false })), 0.15, 1.785, 0, iv, { cast: false });   // 袋裡剩下的藥水（下半袋）
+      box(0.07, 0.008, 0.003, bagM, 0.15, 1.889, 0, iv, { cast: false });   // 上面掛的那一段封邊
+      box(0.07, 0.06, 0.001, std({ color: 0xe8e6e1 }), 0.15, 1.8, 0.0135, iv, { cast: false });   // 標籤
+      cyl(0.007, 0.007, 0.02, tubeM, 0.135, 1.677, 0, iv); cyl(0.007, 0.007, 0.02, tubeM, 0.165, 1.677, 0, iv); }   // 底下兩個接口
     cyl(0.006, 0.006, 0.03, tubeM, 0.15, 1.663, 0, iv); cyl(0.011, 0.009, 0.06, bagM, 0.15, 1.62, 0, iv, { cast: false });   // 滴管
     const tubePts = [[0.15, 1.59, 0], [0.165, 1.25, 0.03], [0.14, 0.8, 0.07], [0.08, 0.45, 0.1], [0.03, 0.32, 0.08], [0.02, 0.4, 0.05]];
     bend(tubePts, 0.0035, tubeM, iv, { cast: false });
@@ -312,13 +339,18 @@
     for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < n; i++) { const t = i / ac.sampleRate; d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 2.6) * (0.7 + 0.3 * Math.sin(t * 2 * Math.PI * 1850)); } }
     return b;
   }
+  function farIR(ac) {   // 外面世界的回音：比玻璃瓶裡長（3.6 秒）、柔和、沒有玻璃的清脆共鳴，高音慢慢先消失
+    const n = Math.round(ac.sampleRate * 3.6), b = ac.createBuffer(2, n, ac.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let lp = 0; for (let i = 0; i < n; i++) { const t = i / ac.sampleRate, k = 0.35 + Math.min(0.6, t * 0.25); lp += ((Math.random() * 2 - 1) - lp) * (1 - k); d[i] = lp * Math.exp(-t * 1.5) * Math.min(1, t / 0.12); } }
+    return b;
+  }
   function panner(ac, x, y, z, ref = 1.2, roll = 1.4) {
     const p = ac.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = ref; p.rolloffFactor = roll;
     if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; } else p.setPosition(x, y, z);
     return p;
   }
   // 每種聲音有幾個版本，這裡選定要用哪一個（spaces/test-sound.html 可以試聽比較）
-  const SND = { drip: 'f', creak: 'd', warm: 'e', bird: 'a' };   // 房主選定：掛鐘、細鍊子、遠方啁啾、遠處有人彈琴
+  const SND = { drip: 'f', creak: 'd', warm: 'e', bird: 'a', paper: 'a' };   // 房主選定：掛鐘、細鍊子、遠方啁啾、遠處有人彈琴
   function audioStart(ac, out, quiet) {
     if (!ac) return;
     A.ac = ac; const t0 = ac.currentTime;
@@ -326,7 +358,12 @@
     A.dry = ac.createGain(); A.dry.connect(A.out);
     A.verb = ac.createConvolver(); A.verb.buffer = glassIR(ac); A.wet = ac.createGain(); A.wet.gain.value = 0.42; A.verb.connect(A.wet).connect(A.out);
     A.bus = ac.createGain(); A.bus.connect(A.dry); A.bus.connect(A.verb);
+    // 鳥叫和琴聲專用的回音：長長的空間殘響（不受走向瓶口影響）。鳥叫另外有一點從遠處反彈回來的回聲；琴聲只有殘響，不疊聲
+    A.echoIn = ac.createGain(); const fr = ac.createConvolver(); fr.buffer = farIR(ac); const frG = ac.createGain(); frG.gain.value = 0.7; A.echoIn.connect(fr).connect(frG).connect(A.out);
+    const dl = ac.createDelay(1.5); dl.delayTime.value = 0.38; const fb = ac.createGain(); fb.gain.value = 0.32; const dlp = ac.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 2200; const dG = ac.createGain(); dG.gain.value = 0.35;
+    A.birdEcho = ac.createGain(); A.birdEcho.connect(A.echoIn); A.birdEcho.connect(dl); dl.connect(dlp).connect(fb).connect(dl); dlp.connect(dG).connect(A.out); dlp.connect(fr);
     const nb = noiseBuf(ac, 4, true), wn = noiseBuf(ac, 3, false); A.pink = nb; A.white = wn;
+    if (!quiet) fetch(BASE + 'freedom/letter.m4a').then((r) => r.arrayBuffer()).then((b) => ac.decodeAudioData(b)).then((buf) => { if (A.ac === ac) A.rec = buf; }).catch(() => {});
     // 底噪：很低、悶悶的空氣聲（一直都在，很小聲）
     const tone = ac.createBufferSource(); tone.buffer = nb; tone.loop = true; const tl = ac.createBiquadFilter(); tl.type = 'lowpass'; tl.frequency.value = 170;
     A.tone = ac.createGain(); A.tone.gain.value = quiet ? 0 : TONE; tone.connect(tl).connect(A.tone).connect(A.dry); tone.start(); A.srcs = [tone];
@@ -334,13 +371,14 @@
     const wind = ac.createBufferSource(); wind.buffer = nb; wind.loop = true; wind.playbackRate.value = 0.6; const wb = ac.createBiquadFilter(); wb.type = 'bandpass'; wb.frequency.value = 420; wb.Q.value = 0.6;
     A.wind = ac.createGain(); A.wind.gain.value = quiet ? 0 : 0.05; wind.connect(wb).connect(A.wind).connect(panner(ac, 0.05, 1.7, -2.0, 0.9, 1.6)).connect(A.bus); wind.start(t0, 1.3); A.srcs.push(wind);
     // 走向瓶口：暖暖的聲音（從瓶口那邊）
-    A.warm = ac.createGain(); A.warm.gain.value = 0; A.warm.connect(panner(ac, W + 0.4, NECK.y, NECK.z, 1.0, 1.2)).connect(A.dry);
+    A.warm = ac.createGain(); A.warm.gain.value = 0; A.warm.connect(panner(ac, W + 0.4, NECK.y, NECK.z, 1.0, 1.2)).connect(A.dry); const wE = ac.createBiquadFilter(); wE.type = 'lowpass'; wE.frequency.value = 2600; A.warm.connect(wE).connect(A.echoIn);
     makeWarm(SND.warm);
     A.pDrip = panner(ac, 0.95 + 0.15, 1.6, -0.35, 0.7, 1.5); A.pDrip.connect(A.bus);
     A.pCage = panner(ac, 0.25, 2.25, -1.15, 0.9, 1.3); A.pCage.connect(A.bus);
+    A.pCab = panner(ac, -2.0, 0.6, -0.38, 0.8, 1.4); A.pCab.connect(A.bus);
     // 鳥：在瓶子外面很遠的地方。聲音悶一點、大部分只剩回音
     A.pBird = panner(ac, 16, 3.2, -1.5, 3, 1.0); const bl = ac.createBiquadFilter(); bl.type = 'lowpass'; bl.frequency.value = 2100;
-    const bDry = ac.createGain(); bDry.gain.value = 0.4; A.pBird.connect(bl); bl.connect(bDry).connect(A.dry); bl.connect(A.verb);
+    const bDry = ac.createGain(); bDry.gain.value = 0.4; A.pBird.connect(bl); bl.connect(bDry).connect(A.dry); bl.connect(A.verb); const bE = ac.createGain(); bE.gain.value = 1.3; bl.connect(bE).connect(A.birdEcho);
     A.next = quiet ? { drip: 1e9, cage: 1e9, bird: 1e9 } : { drip: t0 + 2.5, cage: t0 + 7, bird: t0 + 18 };
   }
   const TONE = 0.015;
@@ -405,7 +443,7 @@
     }
   }
   const PENTA = [523.3, 587.3, 659.3, 784, 880, 1046.5];
-  function pianoNote(t) { const f = PENTA[Math.floor(Math.random() * PENTA.length)], d = A.warmIn;
+  function pianoNote(t) { const f = PENTA[Math.floor(Math.random() * PENTA.length)], d = A.warmIn;   // 遠處的琴聲：簡單、柔和的音
     [[1, 0.16, 2.6], [2, 0.05, 1.4], [3, 0.02, 0.8]].forEach(([m, a, dc]) => tone1(f * m, t, a, 0.006, dc, d));
     if (Math.random() < 0.4) [[1, 0.1, 2.2], [2, 0.03, 1.2]].forEach(([m, a, dc]) => tone1(f * 0.75 * m, t + 0.25, a, 0.006, dc, d)); }
   function drip(t) {   // 點滴：很久才一滴
@@ -475,12 +513,13 @@
     start(ac) { if (!A.ac) audioStart(ac, ac.destination, true); const L = ac.listener; if (L.positionX) { L.positionX.value = 0.2; L.positionY.value = 1.6; L.positionZ.value = 0.8; } else L.setPosition(0.2, 1.6, 0.8); },
     play(kind, v) { const t = A.ac.currentTime + 0.05;
       if (kind === 'drip') { SND.drip = v; drip(t); } else if (kind === 'creak') { SND.creak = v; creak(t); } else if (kind === 'bird') { SND.bird = v; bird(t); }
+      else if (kind === 'paper') { SND.paper = v; paperFlap(t); paperSlide(t + 0.6, 0.85, 0.09); paperSlide(t + 1.6, 0.35, 0.04); paperSlide(t + 2.9, 0.5, 0.06); }
       else if (kind === 'warm') { SND.warm = v; makeWarm(v); A.warm.gain.setTargetAtTime(0.11, t, 0.3); if (v === 'c') { bird(t + 1, true); bird(t + 6, true); } if (v === 'e') { clearInterval(A.demo); pianoNote(t + 0.3); A.demo = setInterval(() => { if (A.music) pianoNote(A.ac.currentTime + 0.05); else clearInterval(A.demo); }, 2800); } } },
     stopWarm() { A.warm.gain.setTargetAtTime(0, A.ac.currentTime, 0.2); A.music = false; clearInterval(A.demo); },
     room(on) { const t = A.ac.currentTime; A.tone.gain.setTargetAtTime(on ? TONE : 0, t, 0.3); A.wind.gain.setTargetAtTime(on ? 0.05 : 0, t, 0.3); },
   };
   function audioStop() {
-    if (!A.ac) return;
+    if (!A.ac) return; A.rec = null;
     if (A.warmSrc) A.warmSrc.forEach((n) => { try { n.stop(); } catch (e) {} }); A.warmSrc = null; A.warmIn = null;
     const o = A.out, ac = A.ac; o.gain.setTargetAtTime(0, ac.currentTime, 0.3);
     setTimeout(() => { try { o.disconnect(); } catch (e) {} }, 1600);
@@ -492,7 +531,8 @@
   function tick(dt, inp) {
     if (!S.on) return null;
     S.t += dt;
-    const sp = (inp.crouch > 0.5 ? 0.55 : 1) * 1.2 * dt;
+    if (S.drawer) { S.drawerK = Math.min(1, Math.max(0, S.drawerK + ((S.drawerOpen ? 1 : 0) - S.drawerK) * (1 - Math.pow(0.004, Math.max(0, Math.min(0.1, dt)))))); S.drawer.position.z = S.drawerK * 0.27; }
+    const sp = (S.reading ? 0 : 1) * (inp.crouch > 0.5 ? 0.55 : 1) * 1.2 * dt;
     const fx = -Math.sin(inp.yaw), fz = -Math.cos(inp.yaw), rx = Math.cos(inp.yaw), rz = -Math.sin(inp.yaw);
     const nx = Math.max(-W + 0.3, Math.min(W - 0.3, S.x + (fx * inp.mz + rx * inp.mx) * sp)), nz = Math.max(-D + 0.3, Math.min(D - 0.3, S.z + (fz * inp.mz + rz * inp.mx) * sp));
     if (!blocked(nx, S.z)) S.x = nx; if (!blocked(S.x, nz)) S.z = nz;
@@ -514,16 +554,134 @@
     renderer.render(scene, camera);
     renderer.toneMapping = tm; renderer.useLegacyLights = legacy;
   }
+  /* ---------- 抽屜與信 ---------- */
+  const LETTER = ['今天，我終於決定出去了。', '外面還是很黑，我也還是會害怕。', '但鳥兒在等我，路燈也亮著。', '我想先走一小段看看。', '如果累了，就找個地方休息。', '如果害怕，也沒有關係。', '這次，我不想再等天亮了。'];
+  let ray, letterEl = null;
+  function pick(ndc, camera) {   // 房間每一格問：準心／滑鼠指著什麼？（只有抽屜和信可以互動，要走近才行）
+    if (!S.on || S.reading || !S.pickFront) return null;
+    ray = ray || new THREE.Raycaster(); ray.setFromCamera(ndc, camera); ray.far = 1.9;
+    const hit = ray.intersectObjects(S.drawerOpen ? [S.pickEnv, S.pickFront] : [S.pickFront], false)[0];
+    if (!hit) return null;
+    if (hit.object === S.pickEnv) return { kind: 'letter', label: '一封信', hint: '點擊拆開來讀' };
+    return { kind: 'drawer', label: '床頭櫃的抽屜', hint: S.drawerOpen ? '點擊關上抽屜' : '點擊拉開抽屜' };
+  }
+  function act(a) {
+    if (!a || S.reading) return;
+    if (a.kind === 'drawer') { S.drawerOpen = !S.drawerOpen; slide(); }
+    else if (a.kind === 'letter') openLetter();
+  }
+  function slide() { if (!A.ac) return; const t = A.ac.currentTime; noiseHit(t, 0.06, 0.35, 'bandpass', 700, 0.8, A.pCab); noiseHit(t + 0.3, 0.05, 0.05, 'lowpass', 300, 0.7, A.pCab); }   // 木頭抽屜滑動、輕輕碰到底
+  // 紙張的聲音（在手上，所以不放在空間裡的某個位置）
+  function paperSlide(t, dur, peak) { if (PAPER2[SND.paper]) return PAPER2[SND.paper].slide(t, dur, peak); if (PAPER[SND.paper]) return PAPER[SND.paper].slide(t, dur, peak); slideA(t, dur, peak); }
+  function paperFlap(t) { if (PAPER2[SND.paper]) return PAPER2[SND.paper].flap(t); if (PAPER[SND.paper]) return PAPER[SND.paper].flap(t); flapA(t); }
+  function crackle(t, dur, perSec, peak, f, q, dest) {   // 紙纖維互相摩擦的細碎聲：很多很小的「喀」，疏密隨時間起伏
+    const ac = A.ac, sr = ac.sampleRate, n = Math.round(sr * dur), b = ac.createBuffer(1, n, sr), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) { const x = i / n, rate = perSec * Math.sin(Math.PI * Math.pow(x, 0.7)); if (Math.random() < rate / sr) { const a = (Math.random() * 2 - 1) * (0.4 + Math.random() * 0.6), L = Math.round(sr * (0.0006 + Math.random() * 0.002)); for (let k = 0; k < L && i + k < n; k++) d[i + k] += a * Math.exp(-k / (L * 0.3)); } }
+    const s = ac.createBufferSource(), bp = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = b; bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q; g.gain.value = peak;
+    s.connect(bp).connect(g).connect(dest); s.start(t);
+  }
+  function hiss(t, dur, peak, type, f0, f1, q, buf, attackFrac = 0.3, dest) {   // 一段平滑的「唰」
+    const ac = A.ac, n = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); n.buffer = buf || A.white;
+    fl.type = type; fl.Q.value = q; fl.frequency.setValueAtTime(f0, t); fl.frequency.linearRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + dur * attackFrac); g.gain.linearRampToValueAtTime(0, t + dur);
+    n.connect(fl).connect(g).connect(dest || A.dry); n.start(t, Math.random() * 2); n.stop(t + dur + 0.05);
+  }
+  function crisp(t, dur, perSec, peak, hp, dest) {   // 薄紙的脆：很短很尖的小「喀」（每一下不到 0.5 毫秒），只留高頻
+    const ac = A.ac, sr = ac.sampleRate, n = Math.round(sr * dur), b = ac.createBuffer(1, n, sr), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) { const x = i / n, rate = perSec * Math.pow(Math.sin(Math.PI * Math.pow(x, 0.6)), 0.7); if (Math.random() < rate / sr) { const a = (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.7), L = Math.round(sr * (0.00008 + Math.random() * 0.0004)); for (let k = 0; k < L && i + k < n; k++) d[i + k] += a * (1 - k / L); } }
+    const s = ac.createBufferSource(), f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = b;
+    f1.type = 'highpass'; f1.frequency.value = hp; f1.Q.value = 0.7; f2.type = 'highpass'; f2.frequency.value = hp; f2.Q.value = 0.7; g.gain.value = peak;
+    s.connect(f1).connect(f2).connect(g).connect(dest || A.dry); s.start(t);
+  }
+  const airy = (t, dur, peak, hp) => hiss(t, dur, peak, 'highpass', hp, hp * 1.15, 0.5, null, 0.25);   // 很細、很高的一層「斯——」
+  const PAPER2 = {
+    f: { flap: (t) => { crisp(t, 0.16, 900, 0.5, 3000); crisp(t + 0.2, 0.1, 500, 0.3, 3500); },   // f：薄紙輕輕滑出來，細細的斯——加上少少的脆
+         slide: (t, dur, peak) => { airy(t, dur, peak * 0.5, 6000); crisp(t, dur, 220, peak * 4, 3500); } },
+    g: { flap: (t) => { crisp(t, 0.22, 2200, 0.55, 2500); },   // g：脆一點，像信紙邊緣刮過信封，有明顯的沙沙小顆粒
+         slide: (t, dur, peak) => { crisp(t, dur, 900, peak * 5, 2800); airy(t, dur, peak * 0.25, 7000); } },
+    h: { flap: (t) => { crisp(t, 0.12, 1500, 0.45, 2500); noiseHit(t + 0.13, 0.05, 0.012, 'highpass', 2500, 0.7, A.dry); },   // h：攤開時紙「啪」地輕輕一抖
+         slide: (t, dur, peak) => { airy(t, dur * 0.8, peak * 0.4, 5500); crisp(t, dur * 0.8, 350, peak * 4, 3000); if (dur < 0.4) { noiseHit(t + dur * 0.6, peak * 1.5, 0.015, 'highpass', 2200, 0.7, A.dry); crisp(t + dur * 0.6, 0.08, 2500, peak * 6, 2500); } } },
+  };
+  const PAPER = {   // 拆信紙聲的幾個版本（a 是第一版，寫在 slideA／flapA）
+    b: { flap: (t) => hiss(t, 0.25, 0.05, 'bandpass', 700, 1000, 0.5, A.pink, 0.4),   // b：輕柔、悶一點，像紙在紙上滑
+         slide: (t, dur, peak) => hiss(t, dur * 1.25, peak * 1.4, 'bandpass', 900, 1500, 0.45, A.pink, 0.35) },
+    c: { flap: (t) => crackle(t, 0.22, 260, 0.35, 3500, 0.9, A.dry),   // c：乾乾的、聽得到紙纖維細細的摩擦
+         slide: (t, dur, peak) => { crackle(t, dur, 520, peak * 4, 4200, 0.8, A.dry); hiss(t, dur, peak * 0.35, 'highpass', 3500, 4500, 0.5, null, 0.5); } },
+    d: { flap: (t) => { hiss(t, 0.12, 0.05, 'bandpass', 2600, 3000, 0.8, null, 0.1); noiseHit(t, 0.04, 0.05, 'lowpass', 350, 0.7, A.dry); },   // d：近一點、清楚的一聲「唰」，開頭有紙的厚度
+         slide: (t, dur, peak) => { hiss(t, dur * 0.8, peak * 1.2, 'bandpass', 3200, 5200, 0.5, null, 0.12); noiseHit(t, peak * 0.5, 0.08, 'lowpass', 400, 0.7, A.dry); crackle(t, dur * 0.7, 160, peak * 1.5, 3000, 1, A.dry); } },
+    e: { flap: (t) => hiss(t, 0.18, 0.015, 'bandpass', 1800, 2200, 0.6, A.pink, 0.4),   // e：很輕、很短，幾乎只是一點空氣聲
+         slide: (t, dur, peak) => hiss(t, dur * 0.7, peak * 0.35, 'bandpass', 1800, 2600, 0.5, A.pink, 0.3) },
+  };
+  function slideA(t, dur, peak) {   // a：第一版
+    const ac = A.ac, n = ac.createBufferSource(), bp = ac.createBiquadFilter(), hs = ac.createBiquadFilter(), g = ac.createGain();
+    n.buffer = A.white; bp.type = 'bandpass'; bp.Q.value = 0.6; bp.frequency.setValueAtTime(1600, t); bp.frequency.linearRampToValueAtTime(3200, t + dur);
+    hs.type = 'lowpass'; hs.frequency.value = 6500;
+    const N = 64, curve = new Float32Array(N);
+    for (let k = 0; k < N; k++) { const x = k / (N - 1), shape = Math.sin(Math.PI * Math.pow(x, 0.8)); curve[k] = peak * shape * (0.75 + 0.25 * Math.random()); }
+    curve[N - 1] = 0; g.gain.setValueAtTime(0, t); g.gain.setValueCurveAtTime(curve, t + 0.001, dur);
+    n.connect(bp).connect(hs).connect(g).connect(A.dry); n.start(t, Math.random() * 2); n.stop(t + dur + 0.05);
+  }
+  function flapA(t) { noiseHit(t, 0.018, 0.09, 'bandpass', 1400, 0.7, A.dry); noiseHit(t + 0.12, 0.012, 0.07, 'bandpass', 2200, 0.7, A.dry); }
+  const sfx = (f) => { if (A.ac) f(A.ac.currentTime + 0.02); };
+  // 拆信的聲音：房主錄的真實抽信聲（freedom/letter.m4a，1.77 秒：開頭是抽出信紙，1.32 秒處是攤開的那一下）。還沒載好就用合成的
+  function playRec(off, dur, gain = 0.12) {
+    if (!A.ac || !A.rec) return false; const ac = A.ac, t = ac.currentTime + 0.02, s = ac.createBufferSource(), g = ac.createGain();
+    s.buffer = A.rec; g.gain.value = gain; s.connect(g).connect(A.dry); s.start(t, off, dur); return true;
+  }
+  function openLetter() {
+    S.reading = true; if (document.pointerLockElement) document.exitPointerLock();
+    const sc = Math.min(1, (innerWidth - 32) / 330, (innerHeight - 40) / 440);
+    letterEl = document.createElement('div');
+    letterEl.style.cssText = 'position:fixed;inset:0;z-index:30;background:rgba(10,9,8,.55);opacity:0;transition:opacity .5s ease;overflow:hidden';
+    const paperBg = '#efe8d8 linear-gradient(180deg,rgba(255,255,255,.25),rgba(0,0,0,.04))';
+    letterEl.innerHTML = `
+      <div class="lv-stage" style="position:absolute;left:50%;top:50%;width:320px;height:210px;margin:-105px 0 0 -160px;perspective:900px;transform:scale(${sc}) translateY(70px);transition:transform .7s cubic-bezier(.3,.7,.2,1),opacity .6s ease">
+        <div style="position:absolute;inset:0;background:#d9ceb7;border-radius:3px;box-shadow:0 16px 40px rgba(0,0,0,.5);z-index:1"></div>
+        <div class="lv-paper" style="position:absolute;left:14px;right:14px;top:12px;height:186px;background:${paperBg};border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);z-index:3;transition:transform .9s cubic-bezier(.4,.1,.2,1)">
+          <div style="position:absolute;left:0;right:0;top:50%;border-top:1px solid rgba(120,100,70,.14)"></div></div>
+        <div style="position:absolute;inset:0;background:#e6dcc8;clip-path:polygon(0 0,50% 58%,100% 0,100% 100%,0 100%);border-radius:3px;z-index:4"></div>
+        <div class="lv-flap" style="position:absolute;left:0;right:0;top:0;height:62%;transform-origin:50% 0;transform-style:preserve-3d;z-index:5;transition:transform .6s cubic-bezier(.4,.1,.3,1)">
+          <div style="position:absolute;inset:0;background:#eae2d1;clip-path:polygon(0 0,100% 0,50% 100%);backface-visibility:hidden"></div>
+          <div style="position:absolute;left:50%;top:84%;width:30px;height:30px;margin:-15px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#a24c42,#7a3029);backface-visibility:hidden"></div>
+          <div style="position:absolute;inset:0;background:#d3c7ae;clip-path:polygon(0 0,100% 0,50% 100%);transform:rotateY(180deg);backface-visibility:hidden"></div></div>
+      </div>
+      <div class="lv-card" style="position:absolute;left:50%;top:50%;width:min(420px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box;padding:44px 40px 30px;
+        background:${paperBg};color:#3b342b;border-radius:3px;box-shadow:0 18px 50px rgba(0,0,0,.55);opacity:0;transform:translate(-50%,-46%) scale(.86);transition:opacity .7s ease,transform .8s cubic-bezier(.2,.7,.2,1);
+        font-family:'LXGW WenKai TC',serif;font-size:18px;line-height:2.1;letter-spacing:.06em;pointer-events:none">
+        ${LETTER.map((l) => `<p style="margin:0 0 .55em">${l}</p>`).join('')}
+        <div style="position:absolute;left:0;right:0;top:33%;border-top:1px solid rgba(120,100,70,.12)"></div><div style="position:absolute;left:0;right:0;top:66%;border-top:1px solid rgba(120,100,70,.12)"></div>
+        <button type="button" style="outline:none;display:block;margin:22px auto 0;font:inherit;font-size:15px;color:#5b5145;background:none;border:1px solid rgba(91,81,69,.35);border-radius:999px;padding:6px 20px;cursor:pointer">把信收好</button></div>`;
+    document.body.appendChild(letterEl);
+    const el = letterEl, $q = (c) => el.querySelector(c), stage = $q('.lv-stage'), flap = $q('.lv-flap'), pap = $q('.lv-paper'), card = $q('.lv-card');
+    const at = (ms, f) => setTimeout(() => { if (letterEl === el) f(); }, ms);
+    requestAnimationFrame(() => { el.style.opacity = 1; stage.style.transform = `scale(${sc}) translateY(30px)`; });
+    at(550, () => { flap.style.transform = 'rotateX(178deg)'; if (!A.rec) sfx(paperFlap); });   // 打開封口
+    at(1000, () => { flap.style.zIndex = 2; });                                      // 封口翻到後面去
+    at(1150, () => { pap.style.transform = 'translateY(-165px)'; if (!playRec(0)) sfx((t) => paperSlide(t, 0.85, 0.09)); });   // 抽出信紙（錄音會一路播到攤開那一下）
+    at(2450, () => { stage.style.transform = `scale(${sc}) translateY(260px)`; stage.style.opacity = 0;       // 信封放下，信紙攤開
+      card.style.opacity = 1; card.style.transform = 'translate(-50%,-50%)'; card.style.pointerEvents = 'auto'; if (!A.rec) sfx((t) => paperSlide(t, 0.35, 0.04)); });
+    at(2600, () => { const b = $q('button'); if (b) b.focus(); });
+    el.addEventListener('click', (e) => { if (card.style.pointerEvents === 'auto' && (e.target === el || e.target.closest('button'))) closeLetter(); });
+    el.addEventListener('pointerup', (e) => e.stopPropagation());
+  }
+  function closeLetter() {
+    if (!letterEl) return false;
+    const el = letterEl, card = el.querySelector('.lv-card'); if (card.style.pointerEvents !== 'auto') return true;   // 還在拆信的動畫中：先不關
+    letterEl = null; if (!playRec(1.2, 0.57, 0.1)) sfx((t) => paperSlide(t, 0.5, 0.06));
+    card.style.transform = 'translate(-50%,-44%) scale(.9)'; el.style.opacity = 0; setTimeout(() => el.remove(), 600);
+    setTimeout(() => { S.reading = false; }, 300); return true;
+  }
+  function esc() { return closeLetter(); }   // 讀信時按 Esc：先把信收好，不要直接離開作品
   function enter(o) {
     init(o.THREE); S.on = true; S.x = -0.8; S.z = 1.25; S.t = 0; S.shadowFrames = 3;
     audioStart(o.ac, o.out);
   }
-  function exit() { S.on = false; if (grain) grain.style.opacity = 0; if (warmGlow) warmGlow.style.opacity = 0; audioStop(); }
+  function exit() { if (letterEl) { letterEl.remove(); letterEl = null; } S.reading = false; S.on = false; if (grain) grain.style.opacity = 0; if (warmGlow) warmGlow.style.opacity = 0; audioStop(); }
   function dispose() {   // 離開後把這個空間從記憶體釋放（下次進來再建立）
     if (!scene) return;
     geos.forEach((g) => g.dispose()); mats.forEach((m) => m.dispose()); texs.forEach((t) => t.dispose());
     geos = []; mats = []; texs = []; solids.length = 0;
     if (grain) grain.remove(); if (warmGlow) warmGlow.remove(); grain = warmGlow = null; scene = null;
   }
-  window.FreedomSpace = { init, enter, exit, tick, render, dispose, audition, startYaw: -0.45, note: '空間裡有很輕的聲音，戴耳機聽得比較清楚', exitHint: ['走進瓶口照進來的光，或點「離開作品」回到房間', '走進瓶口照進來的光，或按 Esc 回到房間'], get on() { return S.on; }, state: S };
+  window.FreedomSpace = { init, enter, exit, tick, render, dispose, audition, pick, act, esc, startYaw: -0.45, note: '空間裡有很輕的聲音，戴耳機聽得比較清楚', exitHint: ['走進瓶口照進來的光，或點「離開作品」回到房間', '走進瓶口照進來的光，或按 Esc 回到房間'], get on() { return S.on; }, state: S };
 })();
