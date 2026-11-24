@@ -353,7 +353,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/keychains/room.js?v=2026-11-18w"></script>
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
-<script src="models/gashapon/room.js?v=2026-11-23y"></script>
+<script src="models/gashapon/room.js?v=2026-11-24z"></script>
 <script src="models/folder/room.js?v=2026-11-23d"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
@@ -891,15 +891,85 @@ const mountainMask=new THREE.Mesh(new THREE.PlaneGeometry(mwSpan,MW.y2-SILL_Y),n
 mountainMask.position.set((MW.x1+MW.x2)/2,(SILL_Y+MW.y2)/2,GLASS_Z+.004);mountainMask.renderOrder=-.5;scene.add(mountainMask);
 const ONLY_MOUNTAIN={stencilWrite:true,stencilRef:1,stencilFunc:THREE.EqualStencilFunc};
 const NOT_MOUNTAIN={stencilWrite:true,stencilRef:1,stencilFunc:THREE.NotEqualStencilFunc};
-// sill plants: flower pot, water glass, a trailing pothos and a small succulent
-function sillPot(x,z,kind,seed){const g=group(x,SILL_Y,z,seed,{type:kind,label:kind==='pothos'?'窗台・黃金葛':'窗台・多肉'});const a=g.userData.act;
-  add(new THREE.CylinderGeometry(kind==='pothos'?.07:.05,kind==='pothos'?.055:.042,kind==='pothos'?.11:.07,24),kind==='pothos'?M.ceramic:M.clay,0,kind==='pothos'?.055:.035,0,g,{act:a});
-  const R=rng(seed*13),lf=mat(kind==='pothos'?0x7C9460:0x93A57A,.8);
-  if(kind==='pothos'){for(let i=0;i<14;i++){const an=R()*6.28,r=.03+R()*.06,y=.1+R()*.07;const m=add(new THREE.SphereGeometry(.028,10,8),lf,Math.cos(an)*r,y,Math.sin(an)*r,g,{act:a});m.scale.set(1,.45,1.3);m.rotation.y=an;}
-    for(let i=0;i<4;i++){const an=-.4+i*.35;for(let j=0;j<4;j++){const m=add(new THREE.SphereGeometry(.022,8,6),lf,Math.cos(an)*(.08+j*.015),.09-j*.035,.06+Math.sin(an)*.02+j*.01,g,{act:a});m.scale.set(1,.45,1.2);}}}
-  else{for(let i=0;i<7;i++){const an=i/7*6.28;const m=add(new THREE.SphereGeometry(.022,10,8),lf,Math.cos(an)*.018,.08,Math.sin(an)*.018,g,{act:a});m.scale.set(.6,1.3,.6);m.rotation.set(Math.sin(an)*.6,0,-Math.cos(an)*.6);}}
+// sill plants: a golden pothos in a cream ceramic pot (vines trailing over the sill's edge) and a pot of white marguerites.
+// Each plant is built from many small parts (leaves, petals, stems) merged into one geometry per material, so it costs only a few draw calls.
+const PL={V:(x,y,z)=>new THREE.Vector3(x,y,z),
+  // one geometry from many [geometry, matrix, color?] parts; vertex colours come from the part's colour or the geometry's own
+  merge(parts){const qs=parts.map(([g,m,c])=>{const q=g.index?g.toNonIndexed():g.clone();q.applyMatrix4(m);const k=q.attributes.position.count;
+      if(c||!q.attributes.color){const a=new Float32Array(k*3),cc=c||new THREE.Color(1,1,1);for(let n=0;n<k;n++){a[n*3]=cc.r;a[n*3+1]=cc.g;a[n*3+2]=cc.b;}q.setAttribute('color',new THREE.BufferAttribute(a,3));}return q;});
+    let n=0;qs.forEach(q=>n+=q.attributes.position.count);const P=new Float32Array(n*3),N=new Float32Array(n*3),C=new Float32Array(n*3);let o=0;
+    for(const q of qs){const k=q.attributes.position.count;P.set(q.attributes.position.array,o*3);N.set(q.attributes.normal.array,o*3);C.set(q.attributes.color.array,o*3);o+=k;q.dispose();}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('normal',new THREE.BufferAttribute(N,3));g.setAttribute('color',new THREE.BufferAttribute(C,3));g.computeBoundingSphere();return g;},
+  // a leaf / petal: grows along +y from its base, faces +z. w(v) is the half-width along its length; the blade folds along the midrib and droops
+  leaf(L,W,o={}){const nu=o.nu||8,nv=o.nv||12,pos=[],col=[],idx=[];
+    for(let j=0;j<=nv;j++){const v=j/nv;let w=W*Math.sin(Math.PI*Math.pow(v,o.pw||.55))*(1-.12*v);if(o.lobes)w*=.5+.5*Math.pow(Math.abs(Math.sin(v*o.lobes*Math.PI)),.6);if(o.serr)w*=1-o.serr*Math.abs(Math.sin(v*Math.PI*o.serr2));
+      for(let i=0;i<=nu;i++){const u=i/nu*2-1,x=u*w,y=v*L-(o.notch||0)*L*Math.abs(u)*Math.pow(1-v,2.2),z=(o.fold||0)*Math.abs(x)-(o.droop||0)*v*v*L;pos.push(x,y,z);
+        const c=o.col?o.col(u,v):[1,1,1];col.push(c[0],c[1],c[2]);}}
+    for(let j=0;j<nv;j++)for(let i=0;i<nu;i++){const a=j*(nu+1)+i,b=a+1,c=a+nu+1,d=c+1;idx.push(a,b,c,b,d,c);}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);g.computeVertexNormals();return g;},
+  // where a part sits: base at p, its +y along dir, its face (+z) turned toward `face`
+  at(p,dir,face,s,sy){const Y=dir.clone().normalize(),X=new THREE.Vector3().crossVectors(Y,face).normalize(),Z=new THREE.Vector3().crossVectors(X,Y);
+    return new THREE.Matrix4().makeBasis(X.multiplyScalar(s),Y.multiplyScalar(sy||s),Z.multiplyScalar(s)).setPosition(p);},
+  tube(pts,r,seg){return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),seg||pts.length*8,r,5,false);},
+  I:new THREE.Matrix4(),
+  mat:(o={})=>mat(0xffffff,.8,Object.assign({vertexColors:true},o)),
+};
+// golden pothos: heart-shaped leaves marbled with cream-yellow, a few standing up from the pot and three vines arching over the rim,
+// two of them running along the sill and one hanging over its front edge
+function pothosPot(x,z){const g=group(x,SILL_Y,z,0,{type:'pothos',label:'窗台・黃金葛'}),a=g.userData.act,R=rng(52),V=PL.V;
+  // the pot: cream glazed ceramic with a rolled lip, dark soil a little below the rim
+  add(new THREE.LatheGeometry([[0,0],[.05,0],[.053,.004],[.064,.09],[.068,.104],[.071,.11],[.068,.114],[.062,.112],[.06,.1],[0,.1]].map(([r,y])=>new THREE.Vector2(r,y)),32),M.ceramic,0,0,0,g,{act:a});
+  add(new THREE.CircleGeometry(.06,24),mat(0x4a3a2c,1),0,.099,0,g,{rx:-Math.PI/2,act:a});
+  const green=new THREE.Color(0x58833f),cream=new THREE.Color(0xd8d07a),stemC=new THREE.Color(0x7a9150);
+  const leafCol=(seed)=>(u,v)=>{const s=Math.max(0,Math.sin((u*2.6+v*4.2+seed)*2.1)*Math.sin(v*7+seed*1.7+u*1.3));const k=Math.min(1,Math.pow(s,1.6)*1.6+(Math.abs(u)<.08?.25:0));
+    const c=green.clone().lerp(cream,k).multiplyScalar(.92+.12*v);return [c.r,c.g,c.b];};
+  const leaves=[],stems=[],up=V(0,1,0);
+  const addLeaf=(p,dir,face,size)=>{const L=.055*size;leaves.push([PL.leaf(L,L*.42,{notch:.22,fold:.35,droop:.18,col:leafCol(R()*9)}),PL.at(p.clone().addScaledVector(dir,.008),dir,face,1)]);
+    stems.push([new THREE.CylinderGeometry(.0013,.0013,.01,4),PL.at(p.clone().addScaledVector(dir,.004),dir,face,1),stemC]);};
+  // standing stems from the middle of the pot
+  for(let k=0;k<7;k++){const an=k/7*6.28+R()*.5,h=.06+R()*.07,r0=.012+R()*.02,top=V(Math.cos(an)*(r0+.03),.1+h,Math.sin(an)*(r0+.03));
+    stems.push([PL.tube([V(Math.cos(an)*r0,.1,Math.sin(an)*r0),V(Math.cos(an)*(r0+.01),.1+h*.6,Math.sin(an)*(r0+.01)),top],.0018,10),PL.I,stemC]);
+    const out=V(Math.cos(an),0,Math.sin(an));addLeaf(top,out.clone().multiplyScalar(.75).add(V(0,.55+R()*.3,0)),out.clone().add(V(0,1.2,0)),.85+R()*.35);}
+  // three vines over the rim: two along the sill to the sides, one over the sill's front edge (the sill ends 14 cm in front of the pot)
+  const vines=[[V(-.03,.1,.03),V(-.07,.115,.05),V(-.1,.06,.07),V(-.13,.01,.08),V(-.2,.005,.09),V(-.28,.005,.07)],
+               [V(.03,.1,.035),V(.07,.115,.06),V(.08,.07,.09),V(.07,.02,.12),V(.06,.006,.138),V(.055,-.03,.152),V(.05,-.11,.155),V(.045,-.19,.152)],
+               [V(.035,.1,-.01),V(.072,.112,-.005),V(.11,.05,.01),V(.15,.008,.03),V(.22,.005,.02),V(.26,.005,-.02)]];
+  for(const pts of vines){const cv=new THREE.CatmullRomCurve3(pts);stems.push([PL.tube(pts,.0017,40),PL.I,stemC]);
+    const n=Math.round(cv.getLength()/.035);for(let k=1;k<=n;k++){const t=k/(n+.3),p=cv.getPointAt(t),tan=cv.getTangentAt(t),side=(k%2?1:-1);
+      const hang=p.y<-.01,horiz=V(-tan.z,0,tan.x).normalize().multiplyScalar(side);
+      const dir=hang?V(horiz.x*.6,-.5,.55).normalize():horiz.clone().add(V(0,.35,0)).addScaledVector(tan,.4).normalize();
+      addLeaf(p,dir,hang?V(0,0,1):up,(1-.45*t)*(.8+R()*.3));}}
+  add(PL.merge(leaves),PL.mat({side:THREE.DoubleSide}),0,0,0,g,{act:a});add(PL.merge(stems),PL.mat(),0,0,0,g,{act:a});
   return g;}
-sillPot(3.12,-3.54,'pothos',4);   // (the small succulent was removed: it sat in the same spot as the water glass)
+pothosPot(3.12,-3.54);
+// a single powder-blue hydrangea in a terracotta pot on a saucer: one round head of four-petalled florets (blue, some paler or a little lilac),
+// big serrated leaves in opposite pairs up the stem
+function hydrangeaPot(x,z){const g=group(x,SILL_Y,z,0,{type:'plant',label:'窗台・繡球花'}),a=g.userData.act,R=rng(7),V=PL.V;
+  add(new THREE.LatheGeometry([[0,0],[.06,0],[.066,.004],[.07,.012],[.064,.012],[.06,.004],[0,.004]].map(([r,y])=>new THREE.Vector2(r,y)),32),M.clay,0,0,0,g,{act:a});   // saucer
+  add(new THREE.LatheGeometry([[0,.005],[.043,.005],[.045,.008],[.055,.078],[.062,.08],[.063,.1],[.06,.103],[.055,.1],[.053,.09],[0,.09]].map(([r,y])=>new THREE.Vector2(r,y)),32),M.clay,0,0,0,g,{act:a});   // the pot with its collar
+  add(new THREE.CircleGeometry(.052,24),mat(0x4a3a2c,1),0,.091,0,g,{rx:-Math.PI/2,act:a});
+  const stemC=new THREE.Color(0x6d8b4e),leafC=new THREE.Color(0x4f7d3c),up=V(0,1,0),leaves=[],stems=[],petals=[],eyes=[];
+  const blues=[0x86ade8,0x95baf0,0x7ea3e2,0xa6c4f0,0x9aa6e6,0xb6cff2].map(c=>new THREE.Color(c));
+  // the stem leans a little toward the room; the head sits on top of it
+  const s0=V(0,.091,0),s1=V(.004,.16,.008),top=V(.006,.205,.014);stems.push([PL.tube([s0,s1,top],.0035,16),PL.I,stemC]);
+  for(const [h,an,L] of [[.12,.3,.075],[.12,.3+Math.PI,.07],[.165,1.9,.062],[.165,1.9+Math.PI,.06],[.195,.9,.045],[.195,.9+Math.PI,.042]]){   // opposite pairs, each pair turned a quarter
+    const out=V(Math.cos(an),0,Math.sin(an)),p=V(.004*(h-.09)/.11,h,.008*(h-.09)/.11);
+    leaves.push([PL.leaf(L,L*.42,{pw:.62,fold:.3,droop:.45,serr:.06,serr2:11,nu:8,nv:14,col:(u,v)=>{const c=leafC.clone().multiplyScalar(.82+.3*v+(Math.abs(u)<.1?.12:0));return [c.r,c.g,c.b];}}),
+      PL.at(p.clone().addScaledVector(out,.006),out.clone().add(V(0,.55,0)).normalize(),up,1)]);
+    stems.push([new THREE.CylinderGeometry(.0018,.0018,.012,5),PL.at(p.clone().addScaledVector(out,.003),out,up,1),stemC]);}
+  // the head: florets spread evenly over a dome (golden-angle spiral), each facing outward
+  const C=V(.008,.25,.018),RAD=.056,N=86,petalG=PL.leaf(.014,.0085,{pw:.75,fold:.12,droop:-.12,nu:4,nv:5});
+  for(let k=0;k<N;k++){const yk=1-k/(N-1)*1.55;if(yk<-.55)break;const rr=Math.sqrt(Math.max(0,1-yk*yk)),th=k*2.39996;
+    const n=V(Math.cos(th)*rr,yk,Math.sin(th)*rr).normalize(),p=C.clone().addScaledVector(n,RAD*(.94+R()*.1));
+    const X=new THREE.Vector3().crossVectors(n,Math.abs(n.y)>.9?V(1,0,0):up).normalize(),Z=new THREE.Vector3().crossVectors(X,n),rot=R()*1.57,col=blues[Math.floor(R()*blues.length)].clone().multiplyScalar(.95+R()*.1);
+    for(let q=0;q<4;q++){const an=rot+q*Math.PI/2,rd=X.clone().multiplyScalar(Math.cos(an)).addScaledVector(Z,Math.sin(an)).addScaledVector(n,.18).normalize(),sz=.85+R()*.3;
+      petals.push([petalG,PL.at(p.clone().addScaledVector(rd,.0015),rd,n,sz),col]);}
+    eyes.push([new THREE.SphereGeometry(.0018,6,4),new THREE.Matrix4().setPosition(p.clone().addScaledVector(n,.0015)),new THREE.Color(0x5f82c4)]);}
+  eyes.push([new THREE.SphereGeometry(RAD*.86,16,12),new THREE.Matrix4().setPosition(C),new THREE.Color(0x6f92d0)]);   // inside the head, so no gaps show between the florets
+  add(PL.merge(leaves),PL.mat({side:THREE.DoubleSide}),0,0,0,g,{act:a});add(PL.merge(stems),PL.mat(),0,0,0,g,{act:a});
+  add(PL.merge(petals),PL.mat({side:THREE.DoubleSide}),0,0,0,g,{act:a});add(PL.merge(eyes),PL.mat(),0,0,0,g,{act:a});
+  return g;}
+hydrangeaPot(3.72,-3.55);
 // bedside lamp on the sill by the headboard: a round chrome foot, a slim chrome stem, and a frosted-glass shade of two soft stacked rings, like a macaron
 const BL={x:4.45,z:-3.56},blAct={type:'blamp',label:'床頭燈'};
 {const chrome=mat(0xE2E4E6,.18);
@@ -955,15 +1025,7 @@ let flOn=0;const flC=new THREE.Color();
 function fairyTick(now,want){flOn=lerp(flOn,want?1:0,.06);flU.uOn.value=flOn;flU.uTime.value=now/1000;
   FL.forEach((b,i)=>{const tw=.82+.18*Math.sin(now/1000*b.sp+b.ph);flC.setRGB(lerp(.5,2.2*tw,flOn),lerp(.45,1.75*tw,flOn),lerp(.38,1.05*tw,flOn));flBulbs.setColorAt(i,flC);});
   flBulbs.instanceColor.needsUpdate=true;}
-// sill: flower pot + water glass
-const potG=group(3.72,SILL_Y,-3.55,0,{type:'plant',label:'窗台小花盆'});
-add(new THREE.CylinderGeometry(.065,.05,.1,24),M.clay,0,.05,0,potG,{act:potG.userData.act});
-add(new THREE.CylinderGeometry(.058,.058,.01,24),mat(0x5a4636,1),0,.096,0,potG,{ray:false});
-const leaf=mat(0x7E9466,.8),bloom=mat(0xF3EBDC,.7),bud=mat(0xE7C66B,.6);
-const RP=rng(3);
-for(let i=0;i<9;i++){const a=i/9*6.28,h=.08+RP()*.1;const s=add(new THREE.CylinderGeometry(.003,.004,h,6),leaf,Math.cos(a)*.02,.1+h/2,Math.sin(a)*.02,potG,{rz:Math.cos(a)*.3,rx:Math.sin(a)*.3,act:potG.userData.act});
-  if(i%2===0){const f=add(new THREE.SphereGeometry(.018,10,8),bloom,Math.cos(a)*.045,.1+h,Math.sin(a)*.045,potG,{act:potG.userData.act});add(new THREE.SphereGeometry(.007,8,6),bud,Math.cos(a)*.045,.11+h,Math.sin(a)*.045,potG,{ray:false});}
-  else add(new THREE.SphereGeometry(.022,8,6),leaf,Math.cos(a)*.035,.08+h*.7,Math.sin(a)*.035,potG,{act:potG.userData.act});}
+// sill: water glass (the flower pot is built with the pothos above)
 const waterG=group(4.08,SILL_Y,-3.52,0,{type:'water',label:'一杯水'});
 add(new THREE.CylinderGeometry(.034,.03,.11,24,1,true),M.cupGlass,0,.055,0,waterG,{cast:false,act:waterG.userData.act});
 add(new THREE.CylinderGeometry(.031,.028,.075,24),mat(0xDDEBEF,.05,{transparent:true,opacity:.35}),0,.04,0,waterG,{cast:false,act:waterG.userData.act});
@@ -1889,6 +1951,36 @@ function captureEnv(w){   // what the room looks like from just in front of the 
  const g=photoStackObj();w.obj=g;w.s=1;w.sBig=w.HB/g.height;g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);}
 SHIRTS.forEach((st,si)=>{const w=WK['shirtstack'+si],g=shirtStackObj(si);w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the shirt stacks, filled as the shirts load
  g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);});
+// The works in the memory cabinet that were made to look real (glass drawn with its own fixed studio highlights, a goldfish and feathers
+// with a little glow of their own) would otherwise stay as bright as daylight when the room goes dark. Every half second this adds up the
+// light that actually reaches the cabinet (each lamp by its distance, the sun, the sky, the ambient light), compares it with a clear
+// afternoon, and dims and warms those works to match: their glass and liquids, their glow and their reflections.
+const RLT={ids:['goldfish','pills','wings'],P:new THREE.Vector3(2.85,1.38,3.2),REF:new THREE.Color(.74,.57,.47),lights:null,t:0,
+  cur:new THREE.Color(1,1,1),to:new THREE.Color(1,1,1),hooked:[],
+  measure(){if(!RLT.lights||Math.random()<.02){RLT.lights=[];scene.traverse(o=>{if(o.isLight&&o.layers.test(camera.layers))RLT.lights.push(o);});}
+    const tot=new THREE.Color(0,0,0),wp=new THREE.Vector3(),tg=new THREE.Vector3(),c=new THREE.Color();
+    for(const o of RLT.lights){if(!o.visible||o.intensity<=0)continue;let k=1;
+      if(o.isDirectionalLight)k=.25;   // the sun reaches the cabinet's pods only as light bounced off the room
+      else if(o.isPointLight||o.isSpotLight){o.getWorldPosition(wp);const d=wp.distanceTo(RLT.P);k=o.distance>0?Math.pow(Math.max(0,1-d/o.distance),o.decay||1):1;
+        if(o.isSpotLight){o.target.getWorldPosition(tg);if(tg.sub(wp).normalize().dot(RLT.P.clone().sub(wp).normalize())<Math.cos(o.angle))k=0;}}
+      if(o.isHemisphereLight)c.copy(o.color).add(o.groundColor).multiplyScalar(.5);else c.copy(o.color);tot.add(c.multiplyScalar(o.intensity*k));}
+    // compared with the afternoon, channel by channel (so a warm lamp light warms them); the toon room never goes fully dark, nor do they
+    // a little below how they were made even by day (they read too bright beside the soft room), and only gently lower at night
+    const f=(a,b)=>.85*Math.min(1.05,.72+.28*a/b);RLT.to.setRGB(f(tot.r,RLT.REF.r),f(tot.g,RLT.REF.g),f(tot.b,RLT.REF.b));},
+  hook(w){const mats=new Set(),c=RLT.cur.clone();w.obj.root.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>mats.add(m));});
+    const rec=[];mats.forEach(m=>{
+      if(m.isShaderMaterial&&!m.uniforms.uRoom){m.uniforms.uRoom={value:c};   // unlit glass and liquids: their colour is scaled by the room's light
+        m.fragmentShader='uniform vec3 uRoom;\n'+m.fragmentShader.replace(/}\s*$/,'  gl_FragColor.rgb*=uRoom;\n}');m.needsUpdate=true;}
+      else if(m.isMeshStandardMaterial)rec.push({m,em:m.emissive.clone(),ei:m.emissiveIntensity,env:m.envMapIntensity});});
+    RLT.hooked.push({w,rec,c});},
+  tick(dt){RLT.t-=dt;if(RLT.t<=0){RLT.t=.5;RLT.measure();}
+    const k=1-Math.pow(.02,dt);RLT.cur.r+=(RLT.to.r-RLT.cur.r)*k;RLT.cur.g+=(RLT.to.g-RLT.cur.g)*k;RLT.cur.b+=(RLT.to.b-RLT.cur.b)*k;
+    const lum=(RLT.cur.r+RLT.cur.g+RLT.cur.b)/3;
+    for(const h of RLT.hooked){const held=INSP.cur===h.w&&INSP.k>0;   // in your hands it has its own light (INSP.rig): back to how it was made
+      h.c.lerp(held?WHITE1:RLT.cur,held?1-Math.pow(.004,dt):1);
+      for(const r of h.rec){r.m.emissive.copy(r.em).multiply(held?WHITE1:RLT.cur);r.m.emissiveIntensity=r.ei*(held?1:.5*lum);if(!held&&r.env!==undefined)r.m.envMapIntensity=r.env*lum;}}},   // their own glow is halved on the shelf
+};
+const WHITE1=new THREE.Color(1,1,1);
 function loadWork(id){const w=WK[id],lib=window[w.lib];if(!lib)return;
   lib.load(w.url+'?v=2026-11-17f',{renderer}).then(g=>{
     clearTimeout(loadWork.pw);loadWork.pw=setTimeout(prewarm,1500);   // once things settle, get its shaders ready before anyone picks it up
@@ -1901,6 +1993,7 @@ function loadWork(id){const w=WK[id],lib=window[w.lib];if(!lib)return;
     if(w.fixed)g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});   // not in a pod: click the thing itself
     g.onChange=()=>{if(INSP.cur===w)inspCaption();};
     w.obj=g;w.s=w.H?w.H/g.height:1;w.sBig=w.HB/g.height;if(g.setMotion)g.setMotion(w.swimOn);   // H 0: life size
+    if(RLT.ids.includes(id))RLT.hook(w);
     g.root.position.copy(w.p);g.root.quaternion.copy(w.q);g.root.scale.setScalar(w.s);scene.add(g.root);
     setTimeout(()=>captureEnv(w),1500);
   }).catch(e=>console.warn('作品載入失敗：'+((WORKS[id]||{}).title||w.label),e));}
@@ -3423,7 +3516,7 @@ const TEXT={
   remote:['遙控器','電視遙控器，就放在熱可可旁邊，伸手就拿得到。'],
   pocky:['Pocky','一盒巧克力口味的 Pocky，放在點心桌上。'],
   door:['房門','這是進來的地方。現在先關著，門外的世界之後再開。'],
-  plant:['窗台小花盆','白色的小花朝著窗外長。土是濕的，今天有人澆過水了。'],
+  plant:['窗台・繡球花','一朵粉藍色的繡球花，圓圓地開著。土是濕的，今天有人澆過水了。'],
   pothos:['窗台・黃金葛','垂下來的藤蔓快要碰到床了。它好像也想靠近一點看山。'],
   succulent:['窗台・多肉','一小株胖胖的多肉，不太需要照顧，只要有光就好。'],
   water:['一杯水','一杯放在窗台上的水，被天光照得很透明。'],
@@ -4603,6 +4696,7 @@ function frame(now){
   if(now-hoverT>90){updateHover();hoverT=now;}
   updateAudio(dt,now);
   inspTick(dt);
+  RLT.tick(dt);
   renderer.render(scene,camera);
   if(INSP.on&&INSP.k>0){const au=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;renderer.autoClear=false;renderer.clearDepth();
     camera.layers.set(INSP.DIM);renderer.render(scene,camera);camera.layers.set(INSP.LAYER);renderer.render(scene,camera);camera.layers.set(0);renderer.autoClear=true;renderer.shadowMap.autoUpdate=au;}   // the glass in your hands, over the dimmed room

@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const T = () => window.THREE;
-  const V = '2026-11-23y';
+  const V = '2026-11-24z';
   function parseGlb(buf) {
     const THREE = T();
     const dv = new DataView(buf);
@@ -83,9 +83,9 @@
   function lensMat() {
     const THREE = T(), m = new THREE.MeshPhysicalMaterial({ color: 0xd2ecff, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, transparent: true, opacity: 0.13, depthWrite: false, side: THREE.DoubleSide, specularIntensity: 1 });
     m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `{ float f = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));
-        diffuseColor.a = clamp(diffuseColor.a + pow(f, 2.2) * 0.5, 0.0, 0.75); outgoingLight = mix(outgoingLight, vec3(0.6, 0.85, 1.0), pow(f, 2.0) * 0.7); }
+        diffuseColor.a = clamp(diffuseColor.a + pow(f, 2.2) * 0.5, 0.0, 0.75); outgoingLight = mix(outgoingLight, vec3(0.6, 0.85, 1.0) * (0.25 + 1.4 * dot(outgoingLight, vec3(0.333))), pow(f, 2.0) * 0.7); }   // 邊緣的淡藍跟著照到的光走，不自己發光
       #include <opaque_fragment>`); };
-    m.customProgramCacheKey = () => 'gacha-lens';
+    m.customProgramCacheKey = () => 'gacha-lens-2';
     return m;
   }
   // 毛氈：霧面＋絨毛光澤，再用細小的雜訊擾動法線，表面看起來毛茸茸的（不像光滑塑膠）
@@ -148,7 +148,7 @@
       EarPink: matte(0xF59A82), Eyes: vinyl(0xffffff, Object.assign({ map: tex('monkey_tex.jpg', true) }, { roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.5 })), Cheeks: matte(0xF6A0A0), Nose: vinyl(0x7A3E2A), Mouth: vinyl(0x9E2230), Tongue: vinyl(0xF08A8A),
       Band: matte(0xFBFBFB), Bow: matte(0xFBFBFB), Fists: matte(0xF8DDB8), Tail2: matte(0xC98A4E), Orn: vinyl(0xF8A51E, { roughness: 0.4 }), Cape: matte(0x3D7FD6, { side: T().DoubleSide }) }),
     Eye: () => ({ Body: vinyl(0xF4EEE2, { roughness: 0.45 }), Iris: vinyl(0x4D9AFF, { roughness: 0.45 }),
-      Pupil: vinyl(0x1E3566, { roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.5 }), Shine: vinyl(0xFFFFFF, { roughness: 0.4, clearcoat: 0.3, emissive: 0xFFFFFF, emissiveIntensity: 0.25 }),
+      Pupil: vinyl(0x1E3566, { roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.5 }), Shine: vinyl(0xFFFFFF, { roughness: 0.3, clearcoat: 0.5 }),   // 眼睛的反光點：不自帶發光，跟著房間的光亮暗
       Smile: vinyl(0x1E3566, { roughness: 0.5 }), Limbs: vinyl(0x4A6FB3, { roughness: 0.55, clearcoat: 0.15 }), Lens: lensMat(),
       Rim: new (T().MeshPhysicalMaterial)({ color: 0x8FD0F5, roughness: 0.1, clearcoat: 1, transparent: true, opacity: 0.75, depthWrite: false }) }),
   };
