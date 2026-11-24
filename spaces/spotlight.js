@@ -241,5 +241,10 @@
     audioStop();
   }
 
-  window.SpotlightSpace = { init, enter, exit, tick, render, get on() { return S.on; }, state: S };
+  function dispose() {   // 離開後把這個空間從記憶體釋放（下次進來再建立）
+    if (!scene) return;
+    scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); const m = o.material; if (m) { if (m.map) m.map.dispose(); m.dispose(); } });
+    if (glow) glow.remove(); glow = null; scene = null;
+  }
+  window.SpotlightSpace = { init, enter, exit, tick, render, dispose, startYaw: 0, exitHint: ['走回門口，或點「離開作品」回到房間', '走回門口，或按 Esc 回到房間'], note: '空間裡有低頻的聲音，喇叭可能聽不到', get on() { return S.on; }, state: S };
 })();

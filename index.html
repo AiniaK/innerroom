@@ -353,7 +353,6 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/keychains/room.js?v=2026-11-18w"></script>
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
-<script src="spaces/spotlight.js?v=2026-11-23a"></script>
 <script src="models/gashapon/room.js?v=2026-11-23y"></script>
 <script src="models/folder/room.js?v=2026-11-23d"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
@@ -555,13 +554,20 @@ const door=add(rbox(.98,2.13,.05,.01),doorMat,-0.95,1.07,3.45,scene,{act:{type:'
 add(new THREE.SphereGeometry(.03,16,12),M.metal,-0.55,1.0,3.41,scene,{ray:false});
 
 /* ---------- balcony (north-west) ---------- */
-box(-4.45,-1.15,-0.12,0,-4.78,-3.58,M.white);
-const rail=(x1,x2,z1,z2)=>{box(x1,x2,0.96,1.0,z1,z2,M.white);};
-rail(-4.45,-1.15,-4.78,-4.72);rail(-4.45,-4.39,-4.78,-3.58);rail(-1.21,-1.15,-4.78,-3.58);
-for(const x of[-4.42,-3.6,-2.8,-2.0,-1.18])box(x-.02,x+.02,0,.98,-4.77,-4.73,M.white,{ray:false});
-add(new THREE.PlaneGeometry(3.26,.9),M.glass,-2.8,.5,-4.75,scene,{cast:false,ray:false});
-add(new THREE.PlaneGeometry(1.18,.9),M.glass,-4.42,.5,-4.18,scene,{ry:Math.PI/2,cast:false,ray:false});
-add(new THREE.PlaneGeometry(1.18,.9),M.glass,-1.18,.5,-4.18,scene,{ry:Math.PI/2,cast:false,ray:false});
+// straight sides out from the wall, then the outer edge sweeps out in an arc (2026-11-24: pushed out, its rail curved): 2.2 m deep at the middle
+const BAL={x1:-4.45,x2:-1.15,zw:-3.58,zs:-4.75,dz:1.0};BAL.cx=(BAL.x1+BAL.x2)/2;BAL.a=(BAL.x2-BAL.x1)/2;
+{const sh=new THREE.Shape();sh.moveTo(BAL.x1,BAL.zw);sh.lineTo(BAL.x1,BAL.zs);
+ for(let i=1;i<=48;i++){const t=Math.PI-i/48*Math.PI;sh.lineTo(BAL.cx+BAL.a*Math.cos(t),BAL.zs-BAL.dz*Math.sin(t));}
+ sh.lineTo(BAL.x2,BAL.zw);sh.closePath();
+ const g=new THREE.ExtrudeGeometry(sh,{depth:.12,bevelEnabled:false,curveSegments:48});g.rotateX(Math.PI/2);g.computeVertexNormals();add(g,M.white,0,0,0,scene);}   // the slab (shape drawn in x/z, extruded downward)
+{const ri=.03,path=new THREE.CurvePath(),in_=BAL.x1+ri,ix=BAL.x2-ri,ia=BAL.a-ri,id=BAL.dz-ri;   // the rail's line, just inside the slab's edge
+ const arc=new THREE.Curve();arc.getPoint=(t,o=new THREE.Vector3())=>{const u=Math.PI*(1-t);return o.set(BAL.cx+ia*Math.cos(u),0,BAL.zs-id*Math.sin(u));};
+ path.add(new THREE.LineCurve3(new THREE.Vector3(in_,0,BAL.zw),new THREE.Vector3(in_,0,BAL.zs)));path.add(arc);path.add(new THREE.LineCurve3(new THREE.Vector3(ix,0,BAL.zs),new THREE.Vector3(ix,0,BAL.zw)));
+ const pts=path.getSpacedPoints(160);
+ const top=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(p.x,.98,p.z))),320,.025,10,false);add(top,M.white,0,0,0,scene);   // round handrail along the sides and the arc
+ const L=path.getLength(),n=Math.round(L/.75);for(let i=0;i<=n;i++){const p=path.getPointAt(i/n);add(new THREE.CylinderGeometry(.018,.018,.98,10),M.white,p.x,.49,p.z,scene,{ray:false});}   // posts, evenly along it
+ const gp=[],gi=[];pts.forEach((p,i)=>{gp.push(p.x,.06,p.z,p.x,.94,p.z);if(i)gi.push(2*i-2,2*i-1,2*i,2*i-1,2*i+1,2*i);});   // glass between, following the curve
+ const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.Float32BufferAttribute(gp,3));gg.setIndex(gi);gg.computeVertexNormals();add(gg,M.glass,0,0,0,scene,{cast:false,ray:false});}
 // sliding glass doors
 box(-4.0,-3.95,0,2.4,-3.6,-3.4,M.trim);box(-1.65,-1.6,0,2.4,-3.6,-3.4,M.trim);
 function glassPanel(cx,z){const g=new THREE.Group();g.position.set(cx,0,z);scene.add(g);
@@ -580,11 +586,11 @@ function chair(x,z,ry,parent=scene){const g=new THREE.Group();g.position.set(x,0
   add(rbox(.44,.42,.04,.02),M.white,0,.7,-.2,g,{rx:-.08,act});
   for(const sx of[-.19,.19])for(const sz of[-.18,.18])add(new THREE.CylinderGeometry(.014,.012,.45,10),M.white,sx,.225,sz,g,{act});
   return g;}
-const balT={x:-2.8,z:-4.2};
+const balT={x:-2.8,z:-4.55};
 add(new THREE.CylinderGeometry(.34,.34,.03,40),M.white,balT.x,.72,balT.z,scene,{act:{type:'btable',label:'白色小圓桌'}});
 add(new THREE.CylinderGeometry(.03,.03,.7,12),M.white,balT.x,.36,balT.z);
 add(new THREE.CylinderGeometry(.2,.22,.02,32),M.white,balT.x,.01,balT.z);
-chair(-3.45,-3.98,Math.PI*.78);chair(-2.15,-3.98,-Math.PI*.78);
+chair(-3.45,-4.33,Math.PI*.78);chair(-2.15,-4.33,-Math.PI*.78);
 function drink(x,z,liquid,idx){const g=new THREE.Group();g.position.set(x,.735,z);scene.add(g);
   const act={type:'drink',idx,label:idx===0?'夏日特調・柚子氣泡':'夏日特調・百香果冰茶'};
   add(new THREE.CylinderGeometry(.036,.03,.13,24,1,true),M.cupGlass,0,.065,0,g,{cast:false,act});
@@ -594,7 +600,7 @@ function drink(x,z,liquid,idx){const g=new THREE.Group();g.position.set(x,.735,z
   add(new THREE.CylinderGeometry(.004,.004,.2,8),mat(0xF2E9D8,.5),.012,.12,0,g,{rz:.22,ray:false});
   add(new THREE.CylinderGeometry(.03,.03,.005,20),mat(idx===0?0xF4D35E:0xE9B44C,.6),.034,.12,0,g,{rz:Math.PI/2.3,ray:false});
   return g;}
-drink(-2.92,-4.12,0xF2B98A,0);drink(-2.66,-4.3,0xE88A6A,1);
+drink(-2.92,-4.47,0xF2B98A,0);drink(-2.66,-4.65,0xE88A6A,1);
 
 /* ---------- bookshelf (north wall, centre) ---------- */
 const JOURNAL_CATS=[
@@ -1566,9 +1572,11 @@ function applyExhibits(d){const items=(d&&d.items)||{};Object.keys(items).forEac
   if(!modal.hidden&&card.querySelector('#exView'))openExhibit(card.querySelector('#exView').dataset.id,true);}
 // the enlarged view: the picture on one side, its title and story on the other; the owner gets the tools beneath
 let exDucked=false,exVid=null;
+const EX_SPACES={'ex-1119212736':'FreedomSpace'};   // wall works you can walk into (自由: into the glass bottle)
 function openExhibit(id,keep){const E=EXHIBITS[id],st=exState[id];if(!E)return;
   openModal(`<div id="exView" data-id="${id}" class="exhibit"><div class="pic">${E.video?`<video src="${exVideoURL(E)}" poster="${st.cover||E.img}" autoplay loop muted playsinline></video>`:`<img alt="" src="${E.img}">`}</div>
-    <div class="txt"><div class="eyebrow" id="exK"></div><h2 id="exT"></h2><p id="exD" style="white-space:pre-line"></p><div id="exOwner"></div></div></div>`,{wide:true});
+    <div class="txt"><div class="eyebrow" id="exK"></div><h2 id="exT"></h2><p id="exD" style="white-space:pre-line"></p>${EX_SPACES[id]?'<p style="margin-top:14px"><button class="btn" type="button" id="exEnter">進入作品</button><span style="font-size:12.5px;opacity:.7;margin-left:10px">建議戴耳機</span></p>':''}<div id="exOwner"></div></div></div>`,{wide:true});
+  {const b=card.querySelector('#exEnter');if(b)b.addEventListener('click',()=>enterSpace(EX_SPACES[id]));}
   {const im=card.querySelector('#exView img');if(im)im.alt=st.title;}
   {const v=card.querySelector('#exView video');if(v&&soundOn){   // opened up close, a clip plays with its own sound (the one on the wall stays silent); the room's sounds step back meanwhile
     if(IOS&&AC){const g=AC.createGain();g.gain.value=VOL_CLIP;g.connect(AC.destination);shadowFor(v).out=g;exVid=v;v.muted=true;v.play().catch(()=>{});}   // iPhone: its volume cannot be set, so a decoded copy of its sound plays at the same level
@@ -3281,13 +3289,13 @@ const tabTex=new THREE.CanvasTexture(tabCanvas);tabTex.colorSpace=THREE.SRGBColo
 })();
 const solids=[[-1.11,-0.37,-1.62,-0.92],[-0.95,0.98,-1.55,1.95],[2.56,3.44,-.5,1.1],[4.45,4.95,-.62,1.42],[4.8,4.95,-3.45,-1.2],[-.72,.97,-3.45,-2.79],
   [-3.75,-2.85,-.55,.35],[-4.9,-2.0,2.9,3.45],[-4.78,-4.32,-3.28,-2.82],[1.15,4.55,3.12,3.45],
-  [-3.14,-2.46,-4.54,-3.86],[-3.7,-3.2,-4.23,-3.73],[-2.4,-1.9,-4.23,-3.73],
+  [-3.14,-2.46,-4.89,-4.21],[-3.7,-3.2,-4.58,-4.08],[-2.4,-1.9,-4.58,-4.08],   // the balcony table and its two chairs
   [acTable.x-.24,acTable.x+.24,acTable.z-.24,acTable.z+.24],
   ];if(window.PENDING_SOLIDS)solids.push(...window.PENDING_SOLIDS);
 Object.keys(EXHIBITS).forEach(id=>{exSolid[id]=solids.push([99,99,99,99])-1;placeExhibit(id);});   // leaning exhibits block the way; hung ones don't   // the little round table by the armchair
 function walkable(x,z){const r=.24;
   const inRoom=x>-4.92+r&&x<4.92-r&&z>-3.42+r&&z<3.42-r;
-  const inBal=x>-4.38+r&&x<-1.22+r*0&&x<-1.22-r&&z>-4.7+r&&z<-3.58-r;
+  const inBal=x>BAL.x1+.07+r&&x<BAL.x2-.07-r&&z<BAL.zw-r&&(z>BAL.zs||((x-BAL.cx)/(BAL.a-.07-r))**2+((z-BAL.zs)/(BAL.dz-.07-r))**2<1);   // the straight part, then inside the arc
   const inGap=doorOpen>.85&&x>-4.0+r&&x<-2.85-r&&z>-4.7&&z<-3.0;
   if(!(inRoom||inBal||inGap))return false;
   for(const b of solids)if(x>b[0]-r&&x<b[1]+r&&z>b[2]-r&&z<b[3]+r)return false;
@@ -4492,20 +4500,26 @@ function prewarm(){trimShadows();if(warmBusy)return;warmBusy=true;
 [400,4000,10000,20000].forEach(ms=>setTimeout(prewarm,ms));
 setTimeout(loadModels,1500);   // the heavier model data comes once the room is up
 /* ---------- a work you can walk into (收藏格 8 的聚光燈裝置): the room is set aside and only that space is drawn ---------- */
-function enterSpace(key){const SP=window[key];if(inSpace||spaceBusy||!SP)return;spaceBusy=true;
+// each work's space is its own file, fetched only when you go in (and let go of again when you come out), so the room never carries them all
+const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24f'};
+function loadSpace(key){if(window[key])return Promise.resolve(window[key]);
+  return loadSpace[key]||(loadSpace[key]=new Promise((ok,no)=>{const sc=document.createElement('script');sc.src=SPACE_FILES[key];sc.onload=()=>window[key]?ok(window[key]):no(new Error('space'));sc.onerror=()=>{loadSpace[key]=null;no(new Error('space'));};document.head.appendChild(sc);}));}
+function enterSpace(key){if(inSpace||spaceBusy)return;if(!window[key]){spaceBusy=true;$('#spaceFade').style.opacity=1;loadSpace(key).then(()=>{spaceBusy=false;enterSpace(key);}).catch(()=>{spaceBusy=false;$('#spaceFade').style.opacity=0;toast('作品空間載入失敗，請再試一次');});return;}
+  const SP=window[key];spaceBusy=true;
   startAudio();
   $('#spaceFade').style.opacity=1;
-  setTimeout(()=>{inspClose();
-    spaceSave={yaw:player.yaw,pitch:player.pitch};player.yaw=0;player.pitch=0;
+  setTimeout(()=>{if(INSP.on)inspClose();if(modalOpen&&!INSP.on)closeModal();
+    spaceSave={yaw:player.yaw,pitch:player.pitch};player.yaw=SP.startYaw||0;player.pitch=0;
+    const nt=$('#spaceNote span');if(nt&&SP.note)nt.textContent=SP.note;
     if(AC&&au.master){au.master.gain.cancelScheduledValues(AC.currentTime);au.master.gain.setTargetAtTime(0,AC.currentTime,.3);}   // the room's own sounds fall away
     if(AC&&!spaceOut){spaceOut=AC.createGain();spaceOut.connect(AC.destination);}
     if(spaceOut)spaceOut.gain.value=soundOn?1:0;
     SP.enter({THREE,ac:AC,out:spaceOut});spaceKey=key;inSpace=true;document.body.classList.add('inspace');
     $('#spaceExit').hidden=false;$('#hover').hidden=true;
-    setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;tryLock();toast(isTouch?'走回門口，或點「離開作品」回到房間':'走回門口，或按 Esc 回到房間');
+    setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;tryLock();toast((SP.exitHint||['點「離開作品」回到房間','按 Esc 回到房間'])[isTouch?0:1]);
       const n=$('#spaceNote');n.style.opacity=1;clearTimeout(n.t);n.t=setTimeout(()=>n.style.opacity=0,5000);},250);},750);}
 function exitSpace(){if(!inSpace||spaceBusy)return;spaceBusy=true;$('#spaceFade').style.opacity=1;
-  setTimeout(()=>{window[spaceKey].exit();inSpace=false;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
+  setTimeout(()=>{const SPx=window[spaceKey];SPx.exit();if(SPx.dispose)SPx.dispose();inSpace=false;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
     player.yaw=spaceSave.yaw;player.pitch=spaceSave.pitch;applySound();
     setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;},150);},750);}
 $('#spaceExit').addEventListener('click',e=>{e.stopPropagation();exitSpace();});
