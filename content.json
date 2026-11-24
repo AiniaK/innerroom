@@ -506,6 +506,22 @@
         "img": "media/ex-free-20261119-212732.jpg",
         "W": 0.7,
         "H": 0.495
+      },
+      "ex-1124235003": {
+        "kind": "紀錄",
+        "title": "草原",
+        "desc": "",
+        "hidden": false,
+        "popup": true,
+        "hover": true,
+        "mode": "hang",
+        "along": -1.35,
+        "height": 1.5,
+        "scale": 1,
+        "custom": true,
+        "img": "media/ex-20261124-234956.jpg",
+        "W": 0.7,
+        "H": 0.392
       }
     }
   },
@@ -568,9 +584,9 @@
       }
     ]
   },
-  "savedAt": 1795369081215,
+  "savedAt": 1795535433546,
   "journalSnap": {
-    "at": 1795369083690,
+    "at": 1795535433729,
     "dream": [
       {
         "id": "4184acf6-5651-80f1-b5b2-eac095f5ca49",
