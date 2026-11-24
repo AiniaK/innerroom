@@ -522,6 +522,40 @@ const SKY_HOLE={x:0,z:.2,r:.95};
  // the skylight: a pane of glass at the top of the shaft, a slim oak ring where the shaft meets the ceiling
  add(new THREE.CircleGeometry(SKY_HOLE.r,64).rotateX(Math.PI/2),M.glass,SKY_HOLE.x,3.27,SKY_HOLE.z,scene,{cast:false,receive:false,ray:false});
  add(new THREE.TorusGeometry(SKY_HOLE.r+.012,.022,10,96).rotateX(Math.PI/2),M.oak,SKY_HOLE.x,2.9,SKY_HOLE.z,scene,{cast:false,ray:false});
+ // rain on the skylight, seen from below: drops of every size sitting on the glass like little lenses (a faint dark rim where they bend
+ // the sky, one small highlight), gathered in patches; each lands with a tiny splash, sits a while, slides a little and runs off.
+ // Only when it rains; more drops in heavier rain, the highlights warm at night (the room's light).
+ {const m=new THREE.Mesh(new THREE.CircleGeometry(SKY_HOLE.r,64).rotateX(Math.PI/2),new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,
+   uniforms:{uT:{value:0},uRain:{value:0},uDay:{value:1}},
+   vertexShader:`varying vec2 vP;void main(){vP=position.xz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+   fragmentShader:`uniform float uT,uRain,uDay;varying vec2 vP;
+     float h1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+     vec2 h2(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}
+     float vn(vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),u.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),u.x),u.y);}
+     void drops(vec2 uv,float cell,float seed,float chance,float rmin,float rmax,inout vec4 acc){
+       vec2 g=uv/cell,id=floor(g),f=fract(g);
+       for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){vec2 o=vec2(i,j),cid=id+o+seed;
+         float clump=vn((id+o)*cell*9.+seed);
+         if(h1(cid*1.7)>chance*(.35+.9*clump))continue;
+         float per=5.+h1(cid+3.)*9.,life=fract(uT/per+h1(cid+7.));
+         vec2 c=o+.25+.5*h2(cid);c.y+=life*life*.6;
+         float r=mix(rmin,rmax,pow(h1(cid+11.),2.2))/cell;
+         float d=length(f-c)/r;if(d>1.3)continue;
+         float fade=smoothstep(0.,.04,life)*(1.-smoothstep(.8,1.,life));
+         float body=smoothstep(1.,.8,d),rim=smoothstep(.55,.95,d)*body;
+         float hi=smoothstep(.32,.0,length(f-c+vec2(.32,.36)*r)/r);
+         float sp=smoothstep(.06,0.,life)*smoothstep(1.3,.2,d)*.5;
+         acc+=vec4(rim*.3,hi*.85+sp,body*.08,0.)*fade;}}
+     void main(){vec4 a=vec4(0.);
+       drops(vP,.09,0.,uRain*.65,.006,.017,a);
+       drops(vP,.035,17.,uRain*.9,.0025,.006,a);
+       drops(vP,.016,31.,uRain*.8,.001,.0025,a);
+       float edge=smoothstep(${(SKY_HOLE.r).toFixed(2)},${(SKY_HOLE.r-.04).toFixed(2)},length(vP))*smoothstep(.03,.25,uRain);
+       vec3 light=mix(vec3(1.,.85,.68),vec3(.9,.93,.97),uDay)*(.55+.45*uDay),dark=vec3(.05,.06,.08);
+       float ra=min(a.x,.35),ha=min(a.y,.8),ba=min(a.z,.2),al=ra+ha+ba;
+       vec3 col=(dark*ra+light*ha+light*.6*ba)/max(al,1e-4);
+       gl_FragColor=vec4(col,clamp(al,0.,1.)*edge);}`}));
+  m.position.set(SKY_HOLE.x,3.262,SKY_HOLE.z);m.renderOrder=3;m.frustumCulled=false;scene.add(m);window.__skyRain=m.material.uniforms;}
  add(new THREE.TorusGeometry(SKY_HOLE.r-.004,.012,8,96).rotateX(Math.PI/2),M.trim,SKY_HOLE.x,3.26,SKY_HOLE.z,scene,{cast:false,ray:false});}
 // house body below (seen from balcony)
 box(-5.22,5.22,-6.2,-0.01,-3.72,3.72,M.wall,{cast:false,ray:false});
@@ -1634,7 +1668,7 @@ function applyExhibits(d){const items=(d&&d.items)||{};Object.keys(items).forEac
   if(!modal.hidden&&card.querySelector('#exView'))openExhibit(card.querySelector('#exView').dataset.id,true);}
 // the enlarged view: the picture on one side, its title and story on the other; the owner gets the tools beneath
 let exDucked=false,exVid=null;
-const EX_SPACES={'ex-1119212736':'FreedomSpace'};   // wall works you can walk into (自由: into the glass bottle)
+const EX_SPACES={'ex-1119212736':'FreedomSpace','ex-1124235003':'GrasslandSpace'};   // wall works you can walk into (自由: into the glass bottle)
 function openExhibit(id,keep){const E=EXHIBITS[id],st=exState[id];if(!E)return;
   openModal(`<div id="exView" data-id="${id}" class="exhibit"><div class="pic">${E.video?`<video src="${exVideoURL(E)}" poster="${st.cover||E.img}" autoplay loop muted playsinline></video>`:`<img alt="" src="${E.img}">`}</div>
     <div class="txt"><div class="eyebrow" id="exK"></div><h2 id="exT"></h2><p id="exD" style="white-space:pre-line"></p>${EX_SPACES[id]?'<p style="margin-top:14px"><button class="btn" type="button" id="exEnter">進入作品</button><span style="font-size:12.5px;opacity:.7;margin-left:10px">建議戴耳機</span></p>':''}<div id="exOwner"></div></div></div>`,{wide:true});
@@ -4594,7 +4628,7 @@ function prewarm(){trimShadows();if(warmBusy)return;warmBusy=true;
 setTimeout(loadModels,1500);   // the heavier model data comes once the room is up
 /* ---------- a work you can walk into (收藏格 8 的聚光燈裝置): the room is set aside and only that space is drawn ---------- */
 // each work's space is its own file, fetched only when you go in (and let go of again when you come out), so the room never carries them all
-const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24r'};
+const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24r',GrasslandSpace:'spaces/grassland.js?v=2026-11-25w'};
 function loadSpace(key){if(window[key])return Promise.resolve(window[key]);
   return loadSpace[key]||(loadSpace[key]=new Promise((ok,no)=>{const sc=document.createElement('script');sc.src=SPACE_FILES[key];sc.onload=()=>window[key]?ok(window[key]):no(new Error('space'));sc.onerror=()=>{loadSpace[key]=null;no(new Error('space'));};document.head.appendChild(sc);}));}
 function enterSpace(key){if(inSpace||spaceBusy)return;if(!window[key]){spaceBusy=true;$('#spaceFade').style.opacity=1;loadSpace(key).then(()=>{spaceBusy=false;enterSpace(key);}).catch(()=>{spaceBusy=false;$('#spaceFade').style.opacity=0;toast('作品空間載入失敗，請再試一次');});return;}
@@ -4619,7 +4653,7 @@ $('#spaceExit').addEventListener('click',e=>{e.stopPropagation();exitSpace();});
 function spaceFrame(dt){const SP=window[spaceKey];
   let mx=0,mz=0;if(!spaceBusy){mx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+joy.x;mz=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y;const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l;}}
   crouch=lerp(crouch,(keys.KeyC||touchCrouch)?1:0,1-Math.pow(.006,dt));
-  const inp={mx,mz,yaw:player.yaw,pitch:player.pitch,crouch},pose=SP.tick(dt,inp);
+  const inp={mx,mz,yaw:player.yaw,pitch:player.pitch,crouch,run:!!(keys.ShiftLeft||keys.ShiftRight)},pose=SP.tick(dt,inp);
   if(pose&&pose.leave)exitSpace();
   inspTick(dt);   // the frame you were holding finishes going back to its pod
   SP.render(renderer,camera,pose,inp);
@@ -4683,6 +4717,7 @@ function frame(now){
   if(now-envT>100||envT===0){updateEnv(now);envT=now;}
   if(wx.rain>.02)for(let i=0;i<RAIN;i++){const s=rseed[i];s.y-=s.v*dt;if(s.y<-6)s.y+=22;const j=i*6;rpos[j]=s.x;rpos[j+1]=s.y;rpos[j+2]=s.z;rpos[j+3]=s.x+.02;rpos[j+4]=s.y+.38;rpos[j+5]=s.z;}
   if(wx.rain>.02)rgeo.attributes.position.needsUpdate=true;rain.visible=wx.rain>.02;
+  {const R=window.__skyRain;R.uT.value=now/1000;R.uRain.value=wx.rain;R.uDay.value=dayness;}   // drops on the skylight
   updateFire(dt,now);
   if(tvDoc&&!tvVideo.paused&&tvVideo.readyState>=2&&tvVideo.currentTime!==frame.tvT&&onScreen(TV_POS,.5)){frame.tvT=tvVideo.currentTime;drawTV(now);}   // only a new frame of the clip, only when the screen can be seen
   if(IOS&&now-(frame.shT||0)>200){frame.shT=now;shadowSync();}
