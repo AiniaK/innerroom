@@ -378,8 +378,16 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
 const canvas=$('#c');
 // phones and tablets get a lighter room (fewer pixels, coarser shadows refreshed a few times a second, a thinner forest and
 // fewer cherry blossoms): the same room, sized for a phone's GPU so it turns smoothly
-const LOW=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const MOBILE=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+// computers with a built-in graphics chip (Intel UHD / Iris and the like) get the same lighter room as phones
+const GPU_NAME=(()=>{try{const gl=renderer.getContext(),d=gl.getExtension('WEBGL_debug_renderer_info');return d?String(gl.getParameter(d.UNMASKED_RENDERER_WEBGL)):'';}catch(e){return '';}})();
+const LOW=MOBILE||/Intel|SwiftShader|llvmpipe|Mali|Adreno|PowerVR/i.test(GPU_NAME)||(navigator.hardwareConcurrency||8)<=4;
+// pictures are never uploaded larger than the screen can use: phones and light computers 1280 px on the long side, others 2048
+const TEXMAX=LOW?1280:2048;
+function capCanvas(im){const k=Math.min(1,TEXMAX/Math.max(im.width||1,im.height||1)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));return c;}
+{const _load=THREE.TextureLoader.prototype.load;THREE.TextureLoader.prototype.load=function(url,onLoad,onProg,onErr){
+  return _load.call(this,url,t=>{const im=t.image;if(im&&im.width&&Math.max(im.width,im.height)>TEXMAX){const c=capCanvas(im);c.getContext('2d').drawImage(im,0,0,c.width,c.height);t.image=c;t.needsUpdate=true;}if(onLoad)onLoad(t);},onProg,onErr);};}
 renderer.setPixelRatio(Math.min(devicePixelRatio,LOW?1.6:1.75));   // the same ceiling adaptRes walks with
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -555,7 +563,7 @@ const SKY_HOLE={x:0,z:.2,r:.95};
        float ra=min(a.x,.35),ha=min(a.y,.8),ba=min(a.z,.2),al=ra+ha+ba;
        vec3 col=(dark*ra+light*ha+light*.6*ba)/max(al,1e-4);
        gl_FragColor=vec4(col,clamp(al,0.,1.)*edge);}`}));
-  m.position.set(SKY_HOLE.x,3.262,SKY_HOLE.z);m.renderOrder=3;m.frustumCulled=false;scene.add(m);window.__skyRain=m.material.uniforms;}
+  m.position.set(SKY_HOLE.x,3.262,SKY_HOLE.z);m.renderOrder=3;m.frustumCulled=false;scene.add(m);window.__skyRain=m.material.uniforms;window.__skyRainMesh=m;}
  add(new THREE.TorusGeometry(SKY_HOLE.r-.004,.012,8,96).rotateX(Math.PI/2),M.trim,SKY_HOLE.x,3.26,SKY_HOLE.z,scene,{cast:false,ray:false});}
 // house body below (seen from balcony)
 box(-5.22,5.22,-6.2,-0.01,-3.72,3.72,M.wall,{cast:false,ray:false});
@@ -763,7 +771,7 @@ const figGeo=(D,idx,big)=>{const pos=new Uint16Array(unb64(D.pos)),n=pos.length/
   g.setIndex(new THREE.BufferAttribute(big?new Uint32Array(unb64(D[idx])):new Uint16Array(unb64(D[idx])),1));return g;};
 const figTex=(D)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
   {const c0=document.createElement('canvas');c0.width=c0.height=1;const g0=c0.getContext('2d');g0.fillStyle='#8f8178';g0.fillRect(0,0,1,1);t.image=c0;t.needsUpdate=true;}   /* a quiet bark-brown until the picture is decoded, never black */
-  im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);
+  im.onload=()=>{const c=capCanvas(im);const g=c.getContext('2d');g.drawImage(im,0,0,c.width,c.height);
     t.image=c;t.needsUpdate=true;};im.src=D.tex;return t;};
 // the figurines' colour harmony (less saturated, a touch of warm cream, softer contrast), done by the GPU as it draws, not pixel by pixel at load
 const figHarm=m=>{m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
@@ -1168,9 +1176,9 @@ let tvScreen=null;
    whenModels(()=>{   // the Pocky box waits for the model data
   {const D=MODEL_DATA.pocky,k=.17,tl=new THREE.TextureLoader();
    const soften=(src)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
-     im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');
-       if(typeof g.filter==='string'){g.filter='saturate(.6)';g.drawImage(im,0,0);g.filter='none';g.fillStyle='rgba(240,226,205,.06)';g.fillRect(0,0,c.width,c.height);}   // 40% desaturate, warm cream veil (done by the canvas: no pixel loop)
-       else{g.drawImage(im,0,0);const id=g.getImageData(0,0,c.width,c.height),px=id.data;
+     im.onload=()=>{const c=capCanvas(im);const g=c.getContext('2d');
+       if(typeof g.filter==='string'){g.filter='saturate(.6)';g.drawImage(im,0,0,c.width,c.height);g.filter='none';g.fillStyle='rgba(240,226,205,.06)';g.fillRect(0,0,c.width,c.height);}   // 40% desaturate, warm cream veil (done by the canvas: no pixel loop)
+       else{g.drawImage(im,0,0,c.width,c.height);const id=g.getImageData(0,0,c.width,c.height),px=id.data;
          for(let i=0;i<px.length;i+=4){const r=px[i],gg=px[i+1],b=px[i+2],l=.3*r+.59*gg+.11*b;px[i]=(r*.6+l*.4)*.94+240*.06;px[i+1]=(gg*.6+l*.4)*.94+226*.06;px[i+2]=(b*.6+l*.4)*.94+205*.06;}
          g.putImageData(id,0,0);}
        t.image=c;t.needsUpdate=true;};im.src=src;return t;};
@@ -4628,7 +4636,7 @@ function prewarm(){trimShadows();if(warmBusy)return;warmBusy=true;
 setTimeout(loadModels,1500);   // the heavier model data comes once the room is up
 /* ---------- a work you can walk into (收藏格 8 的聚光燈裝置): the room is set aside and only that space is drawn ---------- */
 // each work's space is its own file, fetched only when you go in (and let go of again when you come out), so the room never carries them all
-const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24r',GrasslandSpace:'spaces/grassland.js?v=2026-11-25w'};
+const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24r',GrasslandSpace:'spaces/grassland.js?v=2026-11-25x'};
 function loadSpace(key){if(window[key])return Promise.resolve(window[key]);
   return loadSpace[key]||(loadSpace[key]=new Promise((ok,no)=>{const sc=document.createElement('script');sc.src=SPACE_FILES[key];sc.onload=()=>window[key]?ok(window[key]):no(new Error('space'));sc.onerror=()=>{loadSpace[key]=null;no(new Error('space'));};document.head.appendChild(sc);}));}
 function enterSpace(key){if(inSpace||spaceBusy)return;if(!window[key]){spaceBusy=true;$('#spaceFade').style.opacity=1;loadSpace(key).then(()=>{spaceBusy=false;enterSpace(key);}).catch(()=>{spaceBusy=false;$('#spaceFade').style.opacity=0;toast('作品空間載入失敗，請再試一次');});return;}
@@ -4666,7 +4674,7 @@ if(PERF){PERF.el=document.createElement('div');PERF.el.style.cssText='position:f
   document.body.appendChild(PERF.el);renderer.info.autoReset=false;}
 function perfTick(now,ms){if(!PERF)return;PERF.n++;PERF.worst=Math.max(PERF.worst,ms);const i=renderer.info.render;PERF.calls=Math.max(PERF.calls,i.calls);PERF.tris=Math.max(PERF.tris,i.triangles);renderer.info.reset();
   if(now-PERF.t0<1000)return;const fps=PERF.n*1000/(now-PERF.t0);
-  PERF.el.textContent=`${fps.toFixed(0)} fps　最慢 ${PERF.worst.toFixed(0)} ms\n繪製 ${PERF.calls} 次　${(PERF.tris/1e6).toFixed(2)}M 三角形\n畫質 ${renderer.getPixelRatio().toFixed(2)}×　${LOW?'手機模式':'電腦模式'}${inSpace?'　作品空間':''}`;
+  PERF.el.textContent=`${fps.toFixed(0)} fps　最慢 ${PERF.worst.toFixed(0)} ms\n繪製 ${PERF.calls} 次　${(PERF.tris/1e6).toFixed(2)}M 三角形\n畫質 ${renderer.getPixelRatio().toFixed(2)}×　${LOW?'輕量模式':'完整模式'}　${GPU_NAME.replace(/^ANGLE \(|\)$/g,'').slice(0,40)}${inSpace?'　作品空間':''}`;
   PERF.el.style.color=fps<30?'#ffb4a8':fps<50?'#ffe08a':'#fff';PERF.t0=now;PERF.n=0;PERF.worst=0;PERF.calls=0;PERF.tris=0;}
 function frame(now){
   frame.n=(frame.n||0)+1;perfTick(now,now-last);tickWorkLoads(now);adaptRes(now,now-last);mountainCull(now);
@@ -4717,7 +4725,7 @@ function frame(now){
   if(now-envT>100||envT===0){updateEnv(now);envT=now;}
   if(wx.rain>.02)for(let i=0;i<RAIN;i++){const s=rseed[i];s.y-=s.v*dt;if(s.y<-6)s.y+=22;const j=i*6;rpos[j]=s.x;rpos[j+1]=s.y;rpos[j+2]=s.z;rpos[j+3]=s.x+.02;rpos[j+4]=s.y+.38;rpos[j+5]=s.z;}
   if(wx.rain>.02)rgeo.attributes.position.needsUpdate=true;rain.visible=wx.rain>.02;
-  {const R=window.__skyRain;R.uT.value=now/1000;R.uRain.value=wx.rain;R.uDay.value=dayness;}   // drops on the skylight
+  {const R=window.__skyRain;R.uT.value=now/1000;R.uRain.value=wx.rain;R.uDay.value=dayness;window.__skyRainMesh.visible=wx.rain>.01;}   // drops on the skylight
   updateFire(dt,now);
   if(tvDoc&&!tvVideo.paused&&tvVideo.readyState>=2&&tvVideo.currentTime!==frame.tvT&&onScreen(TV_POS,.5)){frame.tvT=tvVideo.currentTime;drawTV(now);}   // only a new frame of the clip, only when the screen can be seen
   if(IOS&&now-(frame.shT||0)>200){frame.shT=now;shadowSync();}

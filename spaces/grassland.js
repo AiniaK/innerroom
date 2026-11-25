@@ -16,7 +16,7 @@
   const START = { x: 6, z: 34, yaw: 0.3 };                   // 出發點：盆地靠近這一端，面向缺口與太陽那一側
   const MAXSLOPE = 0.85;                                     // 比這個更陡（約 40 度）的地方走不上去，也走不下去
   const S = { on: false, x: START.x, z: START.z, y: 0, t: 0 };
-  let THREE, scene, mats = [], geos = [], texs = [], U, HG = null, VG = null, TREE = null, F = null, CL = null, COL = null, CREEK = [], CREEK_OUT = [], RIVER = [], skyMesh, grass, flowers, stoneTex = null, coarse = false;
+  let THREE, scene, mats = [], geos = [], texs = [], U, HG = null, VG = null, TREE = null, F = null, CL = null, COL = null, CREEK = [], CREEK_OUT = [], RIVER = [], skyMesh, grass, flowers, stoneTex = null, LOD = [], QL = { q: 1, ft: 16, t: 0, gpu: false }, coarse = false;
   const keepM = (m) => (mats.push(m), m), keepG = (g) => (geos.push(g), g);
   const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -27,8 +27,17 @@
   function vnoise(x, y) { const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
     const a = hash(i, j), b = hash(i + 1, j), c = hash(i, j + 1), d = hash(i + 1, j + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
   function fbm(x, y, o = 5) { let s = 0, a = 0.5, f = 1, n = 0; for (let k = 0; k < o; k++) { s += a * vnoise(x * f, y * f); n += a; a *= 0.5; f *= 2.03; } return s / n; }
+  // 折線的格子索引：每條水路的線段先分到格子裡，查距離時只看附近那幾段（載入快很多）；超過 R 的距離只回傳「R 以外」
+  const PIDX = new WeakMap();
+  function pidx(P) { let g = PIDX.get(P); if (g) return g; const R = P === RIVER ? 90 : 14, C = R > 30 ? 120 : 16, m = new Map();
+    for (let k = 0; k < P.length - 1; k++) { const [ax, az] = P[k], [bx, bz] = P[k + 1];
+      for (let cx = Math.floor((Math.min(ax, bx) - R) / C); cx <= Math.floor((Math.max(ax, bx) + R) / C); cx++) for (let cz = Math.floor((Math.min(az, bz) - R) / C); cz <= Math.floor((Math.max(az, bz) + R) / C); cz++) {
+        const key = (cx + 32768) * 65536 + (cz + 32768); let l = m.get(key); if (!l) m.set(key, l = []); l.push(k); } }
+    g = { R, C, m }; PIDX.set(P, g); return g; }
+  const segsNear = (P, x, z) => { const g = pidx(P); return g.m.get((Math.floor(x / g.C) + 32768) * 65536 + (Math.floor(z / g.C) + 32768)); };
   function polyNear(P, x, z) {   // 離折線最近的距離，和在折線上的位置（第幾段 + 段內比例）
-    let best = 1e9, at = 0; for (let k = 0; k < P.length - 1; k++) { const [ax, az] = P[k], [bx, bz] = P[k + 1], dx = bx - ax, dz = bz - az;
+    const ks = segsNear(P, x, z); if (!ks) return [pidx(P).R + 1, 0];
+    let best = 1e9, at = 0; for (const k of ks) { const [ax, az] = P[k], [bx, bz] = P[k + 1], dx = bx - ax, dz = bz - az;
       const t = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1), d = Math.hypot(x - ax - dx * t, z - az - dz * t); if (d < best) { best = d; at = k + t; } } return [best, at]; }
   const lvlAt = (LV, at) => { const k = Math.min(LV.length - 2, Math.floor(at)); return lerp(LV[k], LV[k + 1], at - k); };
   // 小溪的河道：先照水位（只降不升）挖出淺淺的河床，兩岸再緩緩接回原本的地面
@@ -37,7 +46,7 @@
     const lv = lvlAt(LV, at), bed = lv - 0.55 * (1 - sstep(wid * 0.55, wid, d)) + 0.12, bank = lv + 0.15 + Math.max(0, d - wid) * 0.75;
     return Math.min(h, d < wid ? bed : bank);
   }
-  function polyDist(P, x, z) { let best = 1e9; for (let k = 0; k < P.length - 1; k++) { const [ax, az] = P[k], [bx, bz] = P[k + 1], dx = bx - ax, dz = bz - az;
+  function polyDist(P, x, z) { const ks = segsNear(P, x, z); if (!ks) return pidx(P).R + 1; let best = 1e9; for (const k of ks) { const [ax, az] = P[k], [bx, bz] = P[k + 1], dx = bx - ax, dz = bz - az;
       const t = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1); best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t)); } return best; }
 
   /* ---------- 地形 ---------- */
@@ -407,7 +416,7 @@
   /* ---------- 建立空間 ---------- */
   function init(T) {
     if (scene) return;
-    THREE = T; scene = new THREE.Scene();
+    THREE = T; scene = new THREE.Scene(); LOD = []; QL = { q: 1, ft: 16, t: 0, gpu: false };
     coarse = (typeof matchMedia !== 'undefined' && matchMedia('(pointer:coarse)').matches) || (navigator.hardwareConcurrency || 8) <= 4;
     const V = (a) => new THREE.Vector3(...a);
     U = { uSun: { value: V(SUN).normalize() }, uSunCol: { value: V([1.0, 0.8, 0.6]) }, uCam: { value: V([0, 0, 0]) }, uHaze: { value: V([0.77, 0.76, 0.8]) }, uHazeSun: { value: V([0.97, 0.82, 0.66]) },
@@ -497,23 +506,23 @@
       const m = new THREE.Mesh(g, shader(`attribute vec3 color; varying vec3 vC; varying vec3 vW; void main(){ vC = color; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`, groundFS, { opts: DERIV }));
       m.frustumCulled = false; scene.add(m);
       // 平原上的樹：一片片樹林和零散的樹，圓圓的闊葉樹和尖尖的針葉樹；不長在河邊和盆地的外坡上
-      const R = (s) => hash(s * 1.37, s * 7.11), pick = [], NT = coarse ? 1800 : 4200;
+      const R = (s) => hash(s * 1.37, s * 7.11), pick = [], NT = coarse ? 1000 : 2600;
       for (let s = 0; pick.length < NT && s < NT * 30; s++) { const ang = R(s) * Math.PI * 2, d = 230 + Math.pow(R(s + 0.5), 0.8) * 1900, x = Math.cos(ang) * d, z = Math.sin(ang) * d;
         if (qOf(x, z) < 1.62) continue; const wood = fbm(x * 0.0045 + 21, z * 0.0045 + 4, 4), dr = polyDist(RIVER, x, z);
         if (dr < 22) continue; const want = wood > 0.58 ? 0.85 : (dr < 60 ? 0.12 : 0.03); if (R(s + 0.25) > want) continue;
         pick.push([x, plainH(x, z), z, 7 + R(s + 0.7) * 9, R(s + 0.9) < (wood > 0.6 ? 0.45 : 0.15) ? 1 : 0, R(s + 0.3)]); }
-      for (let s2 = 0, nb = 0; nb < (coarse ? 1200 : 3200) && s2 < 90000; s2++) {   // 灌木：樹林邊緣多、草原上零散
+      for (let s2 = 0, nb = 0; nb < (coarse ? 500 : 1400) && s2 < 90000; s2++) {   // 灌木：樹林邊緣多、草原上零散
         const ang = R(s2 + 0.11) * Math.PI * 2, d = 200 + Math.pow(R(s2 + 0.61), 0.7) * 1500, x = Math.cos(ang) * d, z = Math.sin(ang) * d;
         if (qOf(x, z) < 1.6) continue; const wood = fbm(x * 0.0045 + 21, z * 0.0045 + 4, 4), dr = polyDist(RIVER, x, z); if (dr < 16) continue;
         const want = wood > 0.5 && wood < 0.62 ? 0.7 : (dr < 50 ? 0.25 : 0.05); if (R(s2 + 0.37) > want) continue;
         pick.push([x, plainH(x, z), z, 1.6 + R(s2 + 0.77) * 2.2, 2, R(s2 + 0.53)]); nb++; }
-      const lumpy = (r, seed) => { const g = new THREE.SphereGeometry(r, 14, 10), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + (fbm(x * 4 + seed, y * 4 + z * 3 + seed, 3) - 0.5) * 0.55; p.setXYZ(i, x * k, y * k, z * k); } g.computeVertexNormals(); return g; };
+      const lumpy = (r, seed) => { const g = new THREE.SphereGeometry(r, 8, 6), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + (fbm(x * 4 + seed, y * 4 + z * 3 + seed, 3) - 0.5) * 0.55; p.setXYZ(i, x * k, y * k, z * k); } g.computeVertexNormals(); return g; };
       const treeMesh = (kind) => {
         const parts = [];
         if (kind === 0) { [[0, 0.62, 0, 0.36], [0.2, 0.56, 0.08, 0.26], [-0.18, 0.58, -0.1, 0.27], [0.04, 0.8, -0.05, 0.25], [-0.08, 0.5, 0.18, 0.22]].forEach(([x, y, z, r], k) => parts.push([lumpy(r, k * 3.3).translate(x, y, z), [0.2, 0.33, 0.13]]));
-          parts.push([new THREE.CylinderGeometry(0.03, 0.05, 0.42, 6).translate(0, 0.21, 0), [0.27, 0.21, 0.15]]); }
-        else if (kind === 1) { [[0.42, 0.38, 0.45], [0.33, 0.36, 0.72], [0.22, 0.32, 0.96]].forEach(([r, h, y]) => parts.push([new THREE.ConeGeometry(r, h, 9, 2, true).translate(0, y, 0), [0.12, 0.22, 0.15]]));
-          parts.push([new THREE.CylinderGeometry(0.025, 0.04, 0.4, 6).translate(0, 0.2, 0), [0.25, 0.2, 0.15]]); }
+          parts.push([new THREE.CylinderGeometry(0.03, 0.05, 0.42, 4, 1, true).translate(0, 0.21, 0), [0.27, 0.21, 0.15]]); }
+        else if (kind === 1) { [[0.42, 0.38, 0.45], [0.33, 0.36, 0.72], [0.22, 0.32, 0.96]].forEach(([r, h, y]) => parts.push([new THREE.ConeGeometry(r, h, 6, 1, true).translate(0, y, 0), [0.12, 0.22, 0.15]]));
+          parts.push([new THREE.CylinderGeometry(0.025, 0.04, 0.4, 4, 1, true).translate(0, 0.2, 0), [0.25, 0.2, 0.15]]); }
         else { [[0, 0.32, 0, 0.42], [0.3, 0.24, 0.1, 0.3], [-0.28, 0.25, -0.06, 0.32]].forEach(([x, y, z, r], k) => parts.push([lumpy(r, k * 5.1 + 2).translate(x, y, z).scale(1, 0.75, 1), [0.24, 0.36, 0.15]])); }
         const P = [], Nn = [], C = [], LY = []; parts.forEach(([gg, col]) => { const q = gg.index ? gg.toNonIndexed() : gg; if (!q.attributes.normal) q.computeVertexNormals(); const pa = q.attributes.position, na = q.attributes.normal;
           for (let i = 0; i < pa.count; i++) { P.push(pa.getX(i), pa.getY(i), pa.getZ(i)); Nn.push(na.getX(i), na.getY(i), na.getZ(i)); C.push(...col); LY.push(pa.getY(i)); } gg.dispose(); });
@@ -582,7 +591,7 @@
       for (let s = 0; s < SEGB; s++) { const a = s * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
       blade.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); blade.setIndex(idx); }
     const inst = (g, n) => { const off = new Float32Array(n * 2), rnd = new Float32Array(n * 4); for (let k = 0; k < n; k++) { off[k * 2] = (Math.random() * 2 - 1) * R; off[k * 2 + 1] = (Math.random() * 2 - 1) * R; for (let c = 0; c < 4; c++) rnd[k * 4 + c] = Math.random(); }
-      g.setAttribute('aOff', new THREE.InstancedBufferAttribute(off, 2)); g.setAttribute('aRnd', new THREE.InstancedBufferAttribute(rnd, 4)); g.instanceCount = n; geos.push(g); return g; };
+      g.setAttribute('aOff', new THREE.InstancedBufferAttribute(off, 2)); g.setAttribute('aRnd', new THREE.InstancedBufferAttribute(rnd, 4)); g.instanceCount = n; geos.push(g); LOD.push([g, n]); return g; };
     const PLACE = `
       attribute vec2 aOff; attribute vec4 aRnd; uniform sampler2D uHF; uniform float uR;
       vec4 hfAt(vec2 wp){ return texture2D(uHF, (((wp + ${L.toFixed(1)}) / ${(2 * L).toFixed(1)}) * ${(N - 1).toFixed(1)} + 0.5) / ${N.toFixed(1)}); }
@@ -716,6 +725,10 @@
   function tick(dt, inp) {
     if (!S.on) return null;
     S.t += dt; U.uT.value = S.t; fauna(dt);
+    // 畫面跟不上時，草、花、穗的數量自動減少（最少到三成）；順了再慢慢加回來
+    if (dt > 0 && dt < 0.25) QL.ft += (dt * 1000 - QL.ft) * 0.06; QL.t += dt;
+    if (QL.t > 1.2) { QL.t = 0; const q0 = QL.q; if (QL.ft > 23) QL.q = Math.max(0.3, QL.q * 0.8); else if (QL.ft < 18) QL.q = Math.min(1, QL.q * 1.08);
+      if (QL.q !== q0) LOD.forEach(([g, n]) => { g.instanceCount = Math.round(n * QL.q); }); }
     const sp = (inp.run ? 4.2 : 1.9) * (inp.crouch > 0.5 ? 0.5 : 1) * dt;
     const fx = -Math.sin(inp.yaw), fz = -Math.cos(inp.yaw), rx = Math.cos(inp.yaw), rz = -Math.sin(inp.yaw);
     const dx = (fx * inp.mz + rx * inp.mx) * sp, dz = (fz * inp.mz + rz * inp.mx) * sp;
@@ -725,6 +738,8 @@
     return { x: S.x, y: S.y, z: S.z, leave: false };
   }
   function render(renderer, camera, pose, inp) {
+    if (!QL.gpu) { QL.gpu = true; try { const gl = renderer.getContext(), di = gl.getExtension('WEBGL_debug_renderer_info'), name = di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : '';   // 內建顯示卡、手機：一開始就用比較少的草
+        if (coarse || /Intel|Mali|Adreno|PowerVR|SwiftShader/i.test(name)) { QL.q = 0.5; LOD.forEach(([g, n]) => { g.instanceCount = Math.round(n * QL.q); }); } } catch (e) {} }
     camera.position.set(pose.x, pose.y, pose.z); camera.rotation.set(inp.pitch, inp.yaw, 0);
     const near = camera.near, far = camera.far; camera.near = 0.08; camera.far = 9000; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
     U.uCam.value.copy(camera.position); skyMesh.position.copy(camera.position); if (F && F.fluffMat) F.fluffMat.uniforms.uPR.value = renderer.domElement.height * camera.projectionMatrix.elements[5] * 0.5;
