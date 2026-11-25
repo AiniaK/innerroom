@@ -61,7 +61,9 @@
   }
   // 兩份模型：低解析度（房間一開始就先放，幾十 KB）和精細版（走近或過一會兒才載入，載好就把每個部位的形狀換掉）
   const glbs = {};
-  const glb = (lo) => glbs[lo ? 'lo' : 'hi'] || (glbs[lo ? 'lo' : 'hi'] = fetch(`models/gashapon/gashapon${lo ? '-lo' : ''}.glb?v=${V}`).then((r) => r.arrayBuffer()).then(parseGlb));
+  // 三份：lo（一開始）、mid（手機和內建顯示卡用的精細版，make_mid.py 產生）、hi（電腦用的精細版）
+  const glb = (kind) => glbs[kind] || (glbs[kind] = fetch(`models/gashapon/gashapon${kind === 'hi' ? '' : '-' + kind}.glb?v=${V}`).then((r) => r.arrayBuffer()).then(parseGlb));
+  let light = false;   // 輕量裝置：精細版用 mid、貼圖最大 1024
   const made = [];   // 放進房間的公仔：{ name, meshes }，換精細版時用
   let upP = null;
   function swap(all, { name, meshes }) {
@@ -71,9 +73,10 @@
     src.traverse((o) => { if (o.isMesh) by[o.name] = o.geometry; });
     meshes.forEach((m) => { const g = by[m.name]; if (g && m.geometry !== g) { m.geometry.dispose(); m.geometry = g; } });
   }
-  function upgrade() {
+  function upgrade(lightDev) {
+    if (lightDev) light = true;
     if (!fullNow) { fullNow = true; Object.values(texReg).forEach((R) => R.full && R.full()); }
-    return upP || (upP = glb(false).then((all) => { made.forEach((f) => swap(all, f)); return all; })
+    return upP || (upP = glb(light ? 'mid' : 'hi').then((all) => { made.forEach((f) => swap(all, f)); return all; })
       .catch((e) => { upP = null; console.warn('扭蛋公仔精細版載入失敗', e); }));
   }
 
@@ -123,7 +126,8 @@
       const img = new Image();
       img.onload = () => {
         if (R.level >= lvl) return;
-        const old = R.cur; R.level = lvl; R.cur = texObj(img, srgb); R.cur.userData.gfile = file;
+        let src = img; if (light && Math.max(img.width, img.height) > 1024) { const k = 1024 / Math.max(img.width, img.height), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); src = c; }   // 輕量裝置：貼圖縮到 1024
+        const old = R.cur; R.level = lvl; R.cur = texObj(src, srgb); R.cur.userData.gfile = file;
         R.users.forEach(([m, k]) => { m[k] = R.cur; m.needsUpdate = true; });
         old.dispose();
       };
@@ -155,7 +159,7 @@
 
   async function load(name) {
     name = String(name).split('?')[0];
-    const THREE = T(), lo = !upP, all = await glb(lo), src = all.getObjectByName('Fig_' + name);
+    const THREE = T(), lo = !upP, all = await glb(lo ? 'lo' : (light ? 'mid' : 'hi')), src = all.getObjectByName('Fig_' + name);
     if (!src) throw new Error('沒有這個公仔：' + name);
     const fig = src.clone(true), mats = MATS[name](), meshes = [];
     Object.values(mats).forEach(useTex);

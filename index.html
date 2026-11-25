@@ -353,7 +353,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/keychains/room.js?v=2026-11-18w"></script>
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
-<script src="models/gashapon/room.js?v=2026-11-24z"></script>
+<script src="models/gashapon/room.js?v=2026-11-25m"></script>
 <script src="models/folder/room.js?v=2026-11-23d"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
@@ -379,12 +379,12 @@ const canvas=$('#c');
 // phones and tablets get a lighter room (fewer pixels, coarser shadows refreshed a few times a second, a thinner forest and
 // fewer cherry blossoms): the same room, sized for a phone's GPU so it turns smoothly
 const MOBILE=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:!MOBILE,powerPreference:'high-performance'});   // phones: no multisample buffers (a large slice of graphics memory; at a phone's pixel density the edges hardly show)
 // computers with a built-in graphics chip (Intel UHD / Iris and the like) get the same lighter room as phones
 const GPU_NAME=(()=>{try{const gl=renderer.getContext(),d=gl.getExtension('WEBGL_debug_renderer_info');return d?String(gl.getParameter(d.UNMASKED_RENDERER_WEBGL)):'';}catch(e){return '';}})();
 const LOW=MOBILE||/Intel|SwiftShader|llvmpipe|Mali|Adreno|PowerVR/i.test(GPU_NAME)||(navigator.hardwareConcurrency||8)<=4;
 // pictures are never uploaded larger than the screen can use: phones and light computers 1280 px on the long side, others 2048
-const TEXMAX=LOW?1280:2048;
+const TEXMAX=MOBILE?1024:LOW?1280:2048;
 function capCanvas(im){const k=Math.min(1,TEXMAX/Math.max(im.width||1,im.height||1)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));return c;}
 {const _load=THREE.TextureLoader.prototype.load;THREE.TextureLoader.prototype.load=function(url,onLoad,onProg,onErr){
   return _load.call(this,url,t=>{const im=t.image;if(im&&im.width&&Math.max(im.width,im.height)>TEXMAX){const c=capCanvas(im);c.getContext('2d').drawImage(im,0,0,c.width,c.height);t.image=c;t.needsUpdate=true;}if(onLoad)onLoad(t);},onProg,onErr);};}
@@ -2109,7 +2109,7 @@ function photoStackObj(){
 setTimeout(loadPhotos,2500);
 function loadNowAll(test){for(let i=pendingWorks.length-1;i>=0;i--)if(test(pendingWorks[i]))loadWork(pendingWorks.splice(i,1)[0]);}   // picked up before its contents arrived: fetch them all at once
 function tickWorkLoads(now){
-  if(!tickWorkLoads.gh&&roomReadyAt!==null&&window.Gashapon&&KCBOX&&Math.hypot(player.x-KCBOX.x,player.z-KCBOX.z)<2.6){tickWorkLoads.gh=1;Gashapon.upgrade();}   // the fine figures (4.5 MB) only once you come near the hutch (or pick one up); until then the rough ones stand there
+  if(!tickWorkLoads.gh&&roomReadyAt!==null&&window.Gashapon&&KCBOX&&(Math.hypot(player.x-KCBOX.x,player.z-KCBOX.z)<2.6||(LOW&&now-roomReadyAt>8000))){tickWorkLoads.gh=1;Gashapon.upgrade(LOW);}   // the fine figures (4.5 MB) only once you come near the hutch (or pick one up); until then the rough ones stand there
   if(!pendingWorks.length||roomReadyAt===null||now-(tickWorkLoads.t||0)<400)return;tickWorkLoads.t=now;
   const near=id=>{const z=workZone(id);
     if(z.seg){const [a,b]=z.seg,dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((player.x-a[0])*dx+(player.z-a[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(player.x-a[0]-dx*t,player.z-a[1]-dz*t)<z.r;}
@@ -2176,7 +2176,7 @@ function inspOpen(id){
   if(!w.obj){toast('「'+(work(id).title||WORKS[id].title)+'」還在準備中，等一下再試一次');return;}
   scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held work too
   captureEnv(w);                                                      // its mirrors reflect the room as it is right now
-  if(id.startsWith('gacha_'))Gashapon.upgrade();if(id==='gfolder')loadNowAll(k=>k.startsWith('gd_'));if(id==='kcbox')loadNowAll(k=>k.startsWith('kc_')||k==='stickers');
+  if(id.startsWith('gacha_'))Gashapon.upgrade(LOW);if(id==='gfolder')loadNowAll(k=>k.startsWith('gd_'));if(id==='kcbox')loadNowAll(k=>k.startsWith('kc_')||k==='stickers');
   INSP.on=true;INSP.cur=w;INSP.dir=1;document.body.classList.add('holding');INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
   inspCaption();$('#inspSwim').hidden=!w.swim;if(w.swim)setSwim(w,w.swimOn,false);$('#inspEnter').hidden=!w.enter;
@@ -2698,9 +2698,9 @@ function plantTaiwanForest(){
         for(let k=0;k<3;k++){const t=k/2,px=ca*(.24+t*.2),py=1.23-t*t*.2;a.push({geo:new THREE.IcosahedronGeometry(1,0),c:k%2?0xA89E80:0x9C9274,x:px,y:py,z:sa*(.24+t*.2),sx:.032,sy:.1,sz:.032,rz:-ca*(.5+t*.6),rx:sa*(.5+t*.6),jitter:300+i*4+k});}}
       return a;})()),
   };
-  const COUNTS_HI=LOW?{broadA:170,broadB:70,cedar:90,fern:45,grass:160}:{broadA:320,broadB:130,cedar:170,fern:85,grass:260};   // phones: about half as many trees
+  const COUNTS_HI=MOBILE?{broadA:110,broadB:45,cedar:60,fern:30,grass:110}:LOW?{broadA:170,broadB:70,cedar:90,fern:45,grass:160}:{broadA:320,broadB:130,cedar:170,fern:85,grass:260};   // phones: about half as many trees
   TYPES.grass=TYPES_HI.grass;     // silvergrass only grows on the meadow just outside: all of it gets the fine tufts
-  const COUNTS=LOW?{broadA:450,broadB:220,cedar:450,fern:50,grass:160}:{broadA:900,broadB:450,cedar:900,fern:90,grass:260};
+  const COUNTS=MOBILE?{broadA:300,broadB:150,cedar:300,fern:35,grass:110}:LOW?{broadA:450,broadB:220,cedar:450,fern:50,grass:160}:{broadA:900,broadB:450,cedar:900,fern:90,grass:260};
   const meshes={},count={};
   for(const k in TYPES){meshes[k]=new THREE.InstancedMesh(TYPES[k],windMaterial(k,WIND_AMP[k]),COUNTS[k]);count[k]=0;}
   for(const k in TYPES_HI){const kk=k+'_hi';meshes[kk]=new THREE.InstancedMesh(TYPES_HI[k],windMaterial(kk,WIND_AMP[k]),COUNTS_HI[k]);count[kk]=0;COUNTS[kk]=COUNTS_HI[k];}
@@ -4404,8 +4404,10 @@ function jrLoad(kind){
 const jrImg=(id,v)=>GB_API+'/api/journal/img/'+encodeURIComponent(id)+(v?'?v='+encodeURIComponent(v):'');
 // a book's pictures start loading the moment it is opened, all of them, not only when their page turns up
 const jrPre=new Map();
-function jrPreload(entries){for(const e of entries||[])for(const b of e.blocks||[])if(b.t==='img'){const u=jrImg(b.id,b.v);
-  if(!jrPre.has(u)){const im=new Image();im.decoding='async';im.src=u;jrPre.set(u,im);}}}
+function jrPreload(entries){let n=0;for(const e of entries||[])for(const b of e.blocks||[])if(b.t==='img'){const u=jrImg(b.id,b.v);
+  if(LOW&&++n>4)return;   // light devices: only the first few pictures ahead of time; the rest load as their pages turn up
+  if(!jrPre.has(u)){const im=new Image();im.decoding='async';im.src=u;jrPre.set(u,im);
+    if(LOW)while(jrPre.size>8){const k=jrPre.keys().next().value;jrPre.delete(k);}}}}   // and never more than a handful held in memory
 const jrDate=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||'');return m?`${+m[1]} 年 ${+m[2]} 月 ${+m[3]} 日`:'';};
 function jrBlockHTML(b,text){
   const x=esc(text===undefined?b.x||'':text);
@@ -4741,6 +4743,8 @@ function frame(now){
   updateAudio(dt,now);
   inspTick(dt);
   RLT.tick(dt);
+  const bookUp=LOW&&modalOpen&&!INSP.on&&document.getElementById('bk');   // light devices: while a book or album lies open over the room, the room behind holds still (the last picture stays) instead of being redrawn
+  if(bookUp&&frame.held>2){requestAnimationFrame(frame);return;}frame.held=bookUp?(frame.held||0)+1:0;
   renderer.render(scene,camera);
   if(INSP.on&&INSP.k>0){const au=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;renderer.autoClear=false;renderer.clearDepth();
     camera.layers.set(INSP.DIM);renderer.render(scene,camera);camera.layers.set(INSP.LAYER);renderer.render(scene,camera);camera.layers.set(0);renderer.autoClear=true;renderer.shadowMap.autoUpdate=au;}   // the glass in your hands, over the dimmed room
