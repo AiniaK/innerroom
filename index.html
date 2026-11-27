@@ -398,7 +398,7 @@ renderer.shadowMap.type=THREE.PCFShadowMap;   // filtered over a wider footprint
 renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;   // (the very first render, whichever it is, makes the shadow maps) redrawn from the frame loop: 10 times a second on computers, 4 on phones (the sun moves slowly; nothing in the room moves fast)
 /* soft shadow edges: three's PCF takes 17 fixed taps, which turns into a dotted pattern when spread wide. Instead sample a dense grid
    over the radius, nudged per pixel by a little noise, so the penumbra is a smooth gradient (lighter grid on phones and tablets). */
-{const lo=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),N=lo?4:7;
+{const lo=/iP(hone|ad|od)|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),N=lo?3:7;
  const a=THREE.ShaderChunk.shadowmap_pars_fragment,i=a.indexOf('#if defined( SHADOWMAP_TYPE_PCF )'),j=a.indexOf('#elif defined( SHADOWMAP_TYPE_PCF_SOFT )');
  if(i>0&&j>i&&a.slice(i,j).includes('dx0'))THREE.ShaderChunk.shadowmap_pars_fragment=a.slice(0,i)+`#if defined( SHADOWMAP_TYPE_PCF )
       vec2 texelSize=vec2(1.)/shadowMapSize;float stp=2.*shadowRadius/${N-1}.;
@@ -438,7 +438,7 @@ const speckleTex=(seed,n,dot,alpha,blot=.04,size=256,blobs=40,rmin=30,rmax=80)=>
       const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,`rgba(175,152,125,${a})`);gr.addColorStop(.6,`rgba(175,152,125,${a*.45})`);gr.addColorStop(1,'rgba(175,152,125,0)');g.fillStyle=gr;g.fillRect(0,0,w,h);}}
   for(let i=0;i<n;i++){g.fillStyle=`rgba(${dot},${alpha*(.4+R()*.6)})`;g.beginPath();g.arc(R()*w,R()*h,.5+R()*.9,0,7);g.fill();}},[1,1]);
 // walls & ceiling: one big tile (~6 m) with a few broad, faint patches and an even fine speckle
-const plasterTex=speckleTex(201,26000,'150,128,105',.11,.028,2048,9,260,620);plasterTex.repeat.set(1/12,1/12);
+const plasterTex=MOBILE?speckleTex(201,6500,'150,128,105',.11,.028,1024,9,130,310):speckleTex(201,26000,'150,128,105',.11,.028,2048,9,260,620);   // phones: a quarter of the memory (the same speckle, a little coarser)plasterTex.repeat.set(1/12,1/12);
 const fabricTex=speckleTex(202,2800,'140,118,95',.12,.015,512,6,90,200);fabricTex.repeat.set(1/2,1/2);
 const speckTex=speckleTex(203,1100,'110,88,64',.32,.0);
 const rugTex=speckleTex(204,3600,'150,125,95',.16,.02,512,6,90,200);rugTex.repeat.set(1/2,1/2);
@@ -2175,7 +2175,7 @@ function inspOpen(id){
   const w=WK[id];if(!w||INSP.on)return;
   if(!w.obj){toast('「'+(work(id).title||WORKS[id].title)+'」還在準備中，等一下再試一次');return;}
   scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held work too
-  captureEnv(w);                                                      // its mirrors reflect the room as it is right now
+  if(!LOW||!w.cube)captureEnv(w);                                     // its mirrors reflect the room as it is right now (light devices: the picture taken when it arrived; a fresh one draws the whole room six times over, right at the moment of picking up)
   if(id.startsWith('gacha_'))Gashapon.upgrade(LOW);if(id==='gfolder')loadNowAll(k=>k.startsWith('gd_'));if(id==='kcbox')loadNowAll(k=>k.startsWith('kc_')||k==='stickers');
   INSP.on=true;INSP.cur=w;INSP.dir=1;document.body.classList.add('holding');INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
@@ -4615,10 +4615,10 @@ function setDpr(v){dprNow=v;renderer.setPixelRatio(v);renderer.setSize(innerWidt
   if(typeof flU!=='undefined')flU.uPR.value=v;if(typeof ffU!=='undefined')ffU.uPR.value=v;}
 function adaptRes(now,dtMs){if(dtMs>0&&dtMs<200)ftAvg+=(dtMs-ftAvg)*.05;
   const f=!!(INSP.on&&INSP.dir>=0),hi=f?DPR_FMAX:DPR_MAX,lo=f?DPR_FMIN:DPR_MIN;
-  if(f!==dprFocus){dprFocus=f;dprT=now;ftAvg=16;adaptRes.ok=0;const v=f?(LOW?Math.min(hi,Math.max(dprNow,lo)+.2):hi):Math.min(dprNow,hi);if(Math.abs(v-dprNow)>.01)setDpr(v);return;}   // light devices step up a little when picking up, then sharpen only if it keeps up   // picking up or putting down: switch straight away
+  if(f!==dprFocus){dprFocus=f;dprT=now;ftAvg=FRAME_MS||16;adaptRes.ok=0;const v=f?(LOW?Math.min(hi,Math.max(dprNow,lo)+.2):hi):Math.min(dprNow,hi);if(Math.abs(v-dprNow)>.01)setDpr(v);return;}   // light devices step up a little when picking up, then sharpen only if it keeps up   // picking up or putting down: switch straight away
   if(now-dprT<2000)return;dprT=now;
-  adaptRes.ok=ftAvg<19?(adaptRes.ok||0)+1:0;   // sharpen back only after a few calm checks in a row: every change reallocates the whole canvas
-  let next=dprNow;if(ftAvg>24)next=Math.max(lo,dprNow-.2);else if(adaptRes.ok>=(LOW?4:2))next=Math.min(hi,dprNow+.1);   // a 60 Hz screen never beats 16.7 ms, so "keeping up" is anything under 19
+  const T=FRAME_MS||16.7;adaptRes.ok=ftAvg<T*1.14?(adaptRes.ok||0)+1:0;   // sharpen back only after a few calm checks in a row: every change reallocates the whole canvas
+  let next=dprNow;if(ftAvg>T*1.44)next=Math.max(lo,dprNow-.2);else if(adaptRes.ok>=(LOW?4:2))next=Math.min(hi,dprNow+.1);   // a 60 Hz screen never beats 16.7 ms, so "keeping up" is anything under 19
   next=Math.min(hi,Math.max(lo,next));
   if(Math.abs(next-dprNow)>.01){setDpr(next);adaptRes.ok=0;}}
 // warm up the GPU ahead of time: compile every shader and upload every texture in the background (while the visitor is still reading
@@ -4642,6 +4642,11 @@ setTimeout(loadModels,1500);   // the heavier model data comes once the room is 
 const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24r',GrasslandSpace:'spaces/grassland.js?v=2026-11-25x'};
 function loadSpace(key){if(window[key])return Promise.resolve(window[key]);
   return loadSpace[key]||(loadSpace[key]=new Promise((ok,no)=>{const sc=document.createElement('script');sc.src=SPACE_FILES[key];sc.onload=()=>window[key]?ok(window[key]):no(new Error('space'));sc.onerror=()=>{loadSpace[key]=null;no(new Error('space'));};document.head.appendChild(sc);}));}
+// light devices: while you are inside a work, the room is not drawn at all; its pictures, shapes and shadow are let go from the graphics card
+// (the space gets that room instead) and come back on their own the first time the room is drawn again, under the fade
+function roomRelease(){if(!LOW)return;const T=new Set(),G=new Set();
+  scene.traverse(o=>{texOf(o,t=>{if(!t.isRenderTargetTexture)T.add(t);});if(o.geometry)G.add(o.geometry);});
+  T.forEach(t=>t.dispose());G.forEach(g=>g.dispose());scene.traverse(o=>{if(o.isLight&&o.shadow&&o.shadow.map){o.shadow.map.dispose();o.shadow.map=null;}});_warmTex.clear();}
 function enterSpace(key){if(inSpace||spaceBusy)return;if(!window[key]){spaceBusy=true;$('#spaceFade').style.opacity=1;loadSpace(key).then(()=>{spaceBusy=false;enterSpace(key);}).catch(()=>{spaceBusy=false;$('#spaceFade').style.opacity=0;toast('作品空間載入失敗，請再試一次');});return;}
   const SP=window[key];spaceBusy=true;
   startAudio();
@@ -4652,12 +4657,12 @@ function enterSpace(key){if(inSpace||spaceBusy)return;if(!window[key]){spaceBusy
     if(AC&&au.master){au.master.gain.cancelScheduledValues(AC.currentTime);au.master.gain.setTargetAtTime(0,AC.currentTime,.3);}   // the room's own sounds fall away
     if(AC&&!spaceOut){spaceOut=AC.createGain();spaceOut.connect(AC.destination);}
     if(spaceOut)spaceOut.gain.value=soundOn?1:0;
-    SP.enter({THREE,ac:AC,out:spaceOut});spaceKey=key;inSpace=true;document.body.classList.add('inspace');
+    roomRelease();SP.enter({THREE,ac:AC,out:spaceOut});spaceKey=key;inSpace=true;document.body.classList.add('inspace');
     $('#spaceExit').hidden=false;$('#hover').hidden=true;
     setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;tryLock();toast((SP.exitHint||['點「離開作品」回到房間','按 Esc 回到房間'])[isTouch?0:1]);
       const n=$('#spaceNote');n.style.opacity=1;clearTimeout(n.t);n.t=setTimeout(()=>n.style.opacity=0,5000);},250);},750);}
 function exitSpace(){if(!inSpace||spaceBusy)return;spaceBusy=true;$('#spaceFade').style.opacity=1;
-  setTimeout(()=>{const SPx=window[spaceKey];SPx.exit();if(SPx.dispose)SPx.dispose();inSpace=false;hovered=null;$('#hover').hidden=true;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
+  setTimeout(()=>{const SPx=window[spaceKey];SPx.exit();if(SPx.dispose)SPx.dispose();inSpace=false;renderer.shadowMap.needsUpdate=true;hovered=null;$('#hover').hidden=true;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
     player.yaw=spaceSave.yaw;player.pitch=spaceSave.pitch;applySound();
     setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;},150);},750);}
 $('#spaceExit').addEventListener('click',e=>{e.stopPropagation();exitSpace();});
@@ -4670,17 +4675,128 @@ function spaceFrame(dt){const SP=window[spaceKey];
   SP.render(renderer,camera,pose,inp);
   {const a=SP.pick&&!spaceBusy&&!modalOpen?(locked?pick(center):(!isTouch?pick(mouse):null)):null;hovered=a;const el=$('#hover');   // a work's space can have things to touch (e.g. the drawer in 「自由」)
    if(!a)el.hidden=true;else{el.hidden=false;el.querySelector('.n').textContent=a.label;const he=el.querySelector('.h');he.textContent=a.hint||'';he.hidden=!a.hint;}}}
+/* ---------- 作品的圖片分級（手機與內建顯示卡）：放在櫃子、盒子裡的作品，遠遠看只用小圖；拿起來才換成清楚的大圖，放下就把大圖還回去 ----------
+   the T-shirts, the photos, the graphic works and the cap alone held ~400 MB of pictures on a phone, which is what made Safari reload the page.
+   Each picture keeps its original (an <img> the browser can let go of, or the canvas its maker drew on); what goes to the graphics card
+   is a copy at the size it is needed: 256 px on the shelf, 512 px for a pile in your hands, 1024 px for the one thing you are looking at. */
+const TLOD=LOW?{small:MOBILE?256:512,mid:MOBILE?512:1024,full:Math.min(TEXMAX,1024*(MOBILE?1:1.5))}:null;
+const _texNU=Object.getOwnPropertyDescriptor(THREE.Texture.prototype,'needsUpdate').set;let _lodIn=false;
+function lodReg(t){const u=t.userData;if(u.lod)return true;if(u.noLod||t.isVideoTexture||t.isDataTexture||t.isCompressedTexture||t.isRenderTargetTexture||t.isCubeTexture)return false;
+  const im=t.image;if(!im||!(im.width>0)||!(im instanceof HTMLImageElement||im instanceof HTMLCanvasElement||(window.ImageBitmap&&im instanceof ImageBitmap)))return false;
+  if(im instanceof HTMLImageElement&&!im.complete)return false;
+  if(Math.max(im.width,im.height)<=TLOD.small){u.noLod=true;return false;}
+  const L=u.lod={src:im,max:0,cv:null,ext:0,off:false};
+  Object.defineProperty(t,'needsUpdate',{configurable:true,set(v){   // its maker redrew or replaced the picture: follow it
+    if(v===true&&!_lodIn&&!L.off){if(t.image!==L.cv&&t.image!==L.src){L.src=t.image;L.max=0;lodKey='';}   // a new picture (e.g. the real one after a placeholder)
+      else if(++L.ext>4){L.off=true;const ow=t.image.width,oh=t.image.height;t.image=L.src;if(ow!==L.src.width||oh!==L.src.height)t.dispose();}   // redrawn again and again (something that moves): leave it be
+      else if(t.image===L.cv&&L.max){const m=L.max;L.max=0;lodSet(t,m);return;}}
+    _texNU.call(t,v);}});
+  return true;}
+function lodSet(t,max){const L=t.userData.lod;if(!L||L.off||L.max===max)return;
+  const im=L.src,W=im.width,H=im.height;if(!(W>0))return;const k=Math.min(1,max/Math.max(W,H)),ow=t.image&&t.image.width,oh=t.image&&t.image.height;
+  let next=im;if(k<1){const w=Math.max(1,Math.round(W*k)),h=Math.max(1,Math.round(H*k));if(!L.cv)L.cv=document.createElement('canvas');
+    if(L.cv.width!==w||L.cv.height!==h){L.cv.width=w;L.cv.height=h;}else L.cv.getContext('2d').clearRect(0,0,w,h);
+    try{L.cv.getContext('2d').drawImage(im,0,0,w,h);}catch(e){return;}next=L.cv;}
+  else if(L.cv){L.cv.width=L.cv.height=1;L.cv=null;}   // full size: the copy is not needed any more
+  L.max=max;if(ow!==next.width||oh!==next.height)t.dispose();   // a different size needs a fresh slot on the graphics card (the old one is let go)
+  t.image=next;_lodIn=true;t.needsUpdate=true;_lodIn=false;}
+const texOf=(o,f)=>{const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];for(const m of ms){for(const k in m)if(m[k]&&m[k].isTexture)f(m[k]);if(m.uniforms)for(const k in m.uniforms){const v=m.uniforms[k].value;if(v&&v.isTexture)f(v);}}};
+let lodKey='',lodT=0;
+function lodTick(now){if(!TLOD||now-lodT<500)return;lodT=now;
+  const cur=INSP.on?INSP.cur:null,pb=WK.photobox&&WK.photobox.obj,top=cur===WK.photobox&&pb&&pb.cards?pb.cards.filter(c=>c.order<2).map(c=>c.id).join('+'):'';
+  const key=(cur?cur.id:'')+'|'+top+'|'+renderer.info.memory.textures;
+  if(key===lodKey&&now-(lodTick.all||0)<6000)return;lodKey=key;lodTick.all=now;
+  const want=new Map();
+  const roots=new Set();for(const id in WK){const w=WK[id];if(w.obj&&w.obj.root)roots.add(w.obj.root);}
+  const shared=new Set(),walk=o=>{if(roots.has(o))return;texOf(o,t=>shared.add(t));for(const c of o.children)walk(c);};walk(scene);   // also on the room's own things (the linen of the box is the linen of the cushions): left alone
+  for(const r of roots)r.traverse(o=>texOf(o,t=>{if(!want.has(t)&&!shared.has(t))want.set(t,TLOD.small);}));
+  if(cur&&cur.obj&&cur.obj.root){const set=new Set();cur.obj.root.traverse(o=>texOf(o,t=>{if(want.has(t))set.add(t);}));
+    const n=[...set].filter(t=>lodReg(t)).length,lv=n<=6?TLOD.full:TLOD.mid;set.forEach(t=>want.set(t,lv));
+    if(cur===WK.photobox&&pb.cards)pb.cards.forEach(c=>{if(c.order<2)c.g.root.traverse(o=>texOf(o,t=>want.set(t,TLOD.full)));});}   // the photo on top (and the next one) sharp
+  for(const [t,max] of want)if(lodReg(t))lodSet(t,max);}
+/* ---------- 合併不會動的家具（輕量模式）：同一種材質、不會動的東西，一起畫成一件，每格畫面要下的繪製指令少很多 ----------
+   The originals stay where they are, hidden (clicking and walking into them work as before); the merged copy draws them.
+   Every frame each original is checked: if something moves it (a cupboard door opening), swaps its look, or shows/hides it,
+   it leaves its batch and is drawn on its own again from then on. */
+const BATCH={groups:[],items:[],done:false,t:0};
+const MAT_OBC=THREE.Material.prototype.onBeforeCompile;
+function matSig(m){   // two materials that would look exactly the same get the same signature (most of the room's things each made their own copy)
+  if(m.onBeforeCompile!==MAT_OBC||m.customProgramCacheKey!==THREE.Material.prototype.customProgramCacheKey||m.isShaderMaterial)return m.uuid;
+  const t=x=>x&&x.isTexture?x.uuid:x&&x.isColor?x.getHexString():typeof x==='number'?+x.toFixed(4):x;
+  return [m.type,m.side,m.vertexColors,m.flatShading,m.transparent,m.opacity,m.alphaTest,m.depthWrite,m.depthTest,m.blending,m.fog,m.toneMapped,m.wireframe,m.polygonOffset,m.polygonOffsetFactor,m.polygonOffsetUnits,m.colorWrite,
+    'color','emissive','emissiveIntensity','roughness','metalness','map','normalMap','roughnessMap','metalnessMap','emissiveMap','bumpMap','bumpScale','alphaMap','aoMap','envMap','envMapIntensity','lightMap','specular','shininess','sheen','clearcoat','transmission','ior','normalScale'].map(k=>typeof k==='string'&&k in m?t(m[k]&&m[k].isVector2?m[k].x+','+m[k].y:m[k]):t(k)).join('|');}
+function batchStatic(){if(!LOW||BATCH.done)return;BATCH.done=true;
+  const roots=new Set();for(const id in WK){const w=WK[id];if(w.obj&&w.obj.root)roots.add(w.obj.root);}
+  const OBR=THREE.Object3D.prototype.onBeforeRender,OK_ATTR=['position','normal','uv','uv1','color'],cand=new Map();
+  scene.updateMatrixWorld(true);
+  const walk=o=>{if(roots.has(o)||!o.visible||o.userData.noBatch)return;
+    if(o.isMesh&&!o.isInstancedMesh&&!o.isSkinnedMesh&&o.layers.mask===1&&o.material&&!Array.isArray(o.material)&&!o.material.stencilWrite&&o.onBeforeRender===OBR&&o.frustumCulled&&!o.material.transparent){
+      const g=o.geometry,A=g&&g.attributes,names=A?Object.keys(A).sort():[];
+      if(A&&A.position&&A.normal&&!Object.keys(g.morphAttributes).length&&g.drawRange.start===0&&g.drawRange.count===Infinity&&names.every(n=>OK_ATTR.includes(n))&&A.position.count<20000){
+        const key=matSig(o.material)+'|'+names.map(n=>n+A[n].itemSize).join(',')+'|'+(g.index?1:0)+'|'+o.castShadow+o.receiveShadow+'|'+o.renderOrder;
+        if(!cand.has(key))cand.set(key,[]);cand.get(key).push(o);}}
+    for(const c of o.children)walk(c);};
+  walk(scene);
+  for(const list of cand.values()){if(list.length<2)continue;
+    const G={mat:list[0].material.clone(),mesh:null,items:[]};G.mat.name='batch';   // its own copy: changing any one original's look never changes the others
+    for(const o of list){const it={o,G,mat:o.material,sig:matSig(o.material),mw:o.matrixWorld.clone(),geo:o.geometry,chain:[]};for(let p=o.parent;p&&p!==scene;p=p.parent)it.chain.push(p);G.items.push(it);BATCH.items.push(it);}
+    batchBuild(G);BATCH.groups.push(G);}}
+function batchBuild(G){
+  if(G.mesh){scene.remove(G.mesh);G.mesh.geometry.dispose();G.mesh=null;}
+  const its=G.items.filter(it=>!it.out);if(its.length<2){its.forEach(batchOut);return;}
+  const g0=its[0].geo,names=Object.keys(g0.attributes),indexed=!!g0.index;let nv=0,ni=0;
+  for(const it of its){nv+=it.geo.attributes.position.count;ni+=indexed?it.geo.index.count:0;}
+  const out={};for(const n of names)out[n]=new Float32Array(nv*g0.attributes[n].itemSize);
+  const idx=indexed?(nv>65535?new Uint32Array(ni):new Uint16Array(ni)):null,v=new THREE.Vector3(),nm=new THREE.Matrix3();let vo=0,io=0;
+  for(const it of its){const g=it.geo,M=it.o.matrixWorld,c=g.attributes.position.count,flip=M.determinant()<0;nm.getNormalMatrix(M);
+    for(const n of names){const a=g.attributes[n],sz=a.itemSize,arr=out[n];
+      for(let i=0;i<c;i++){const j=(vo+i)*sz;
+        if(n==='position'){v.fromBufferAttribute(a,i).applyMatrix4(M);arr[j]=v.x;arr[j+1]=v.y;arr[j+2]=v.z;}
+        else if(n==='normal'){v.fromBufferAttribute(a,i).applyMatrix3(nm).normalize();arr[j]=v.x;arr[j+1]=v.y;arr[j+2]=v.z;}
+        else{arr[j]=a.getX(i);if(sz>1)arr[j+1]=a.getY(i);if(sz>2)arr[j+2]=a.getZ(i);if(sz>3)arr[j+3]=a.getW(i);}}}
+    if(indexed){const I=g.index;for(let k=0;k<I.count;k+=3){const a0=I.getX(k)+vo,a1=I.getX(k+1)+vo,a2=I.getX(k+2)+vo;idx[io++]=a0;idx[io++]=flip?a2:a1;idx[io++]=flip?a1:a2;}}
+    else if(flip){for(const n of names){const sz=g.attributes[n].itemSize,arr=out[n];for(let t=0;t+2<c;t+=3)for(let k=0;k<sz;k++){const p1=(vo+t+1)*sz+k,p2=(vo+t+2)*sz+k,x=arr[p1];arr[p1]=arr[p2];arr[p2]=x;}}}   // mirrored: turn the triangles back the right way round
+    vo+=c;}
+  const geo=new THREE.BufferGeometry();for(const n of names){const a0=g0.attributes[n];geo.setAttribute(n,new THREE.BufferAttribute(out[n],a0.itemSize));}
+  if(idx)geo.setIndex(new THREE.BufferAttribute(idx,1));geo.computeBoundingSphere();
+  const m=new THREE.Mesh(geo,G.mat),o0=its[0].o;m.castShadow=o0.castShadow;m.receiveShadow=o0.receiveShadow;m.renderOrder=o0.renderOrder;
+  m.matrixAutoUpdate=false;m.updateMatrix();m.raycast=()=>{};m.userData.noBatch=true;scene.add(m);G.mesh=m;
+  for(const it of its){it.o.visible=false;it.mw.copy(it.o.matrixWorld);it.vis=it.chain.map(p=>p.visible);it.geo.dispose();}}   // the originals' own copies on the graphics card are let go (they come back by themselves if one is drawn alone again)
+function batchOut(it){if(it.out)return;it.out=true;it.o.visible=true;}
+function batchCheck(){if(!BATCH.items.length)return;let dirty=null;
+  for(const it of BATCH.items){if(it.out)continue;const o=it.o;
+    let moved=o.visible||!o.parent||o.material!==it.mat||o.geometry!==it.geo||o.layers.mask!==1||!o.matrixWorld.equals(it.mw);
+    if(!moved)for(let k=0;k<it.chain.length;k++)if(it.chain[k].visible!==it.vis[k]){moved=true;break;}
+    if(moved){const wasShown=o.visible;batchOut(it);if(!wasShown&&o.parent){let v=true;for(const p of it.chain)if(!p.visible){v=false;break;}o.visible=true;}(dirty||(dirty=new Set())).add(it.G);}}
+  if(performance.now()-BATCH.t>400){BATCH.t=performance.now();   // its look changed (a lamp's shade glowing when switched on): it leaves the batch
+    for(const it of BATCH.items)if(!it.out&&matSig(it.mat)!==it.sig){batchOut(it);(dirty||(dirty=new Set())).add(it.G);}}
+  if(dirty)dirty.forEach(batchBuild);}
 // ?fps=1 in the address: a small readout in the corner (frames a second, the slowest frame lately, draw calls and triangles per frame,
 // screen sharpness), for checking how a phone copes in each corner of the room. Visitors never see it.
-const PERF=/[?&]fps=1/.test(location.search)?{el:null,n:0,t0:0,worst:0,calls:0,tris:0}:null;
+const PERF=/[?&](fps=1|perf)\b/.test(location.search)?{el:null,n:0,t0:0,worst:0,calls:0,tris:0,memT:0,mem:''}:null;
+// how much the room is holding in graphics memory (pictures and shapes), worked out now and then: shown in the readout, to see which step makes it jump
+function gpuMem(){const seen=new Set();let tb=0,gb=0;const P=renderer.properties;
+  const tex=t=>{if(!t||!t.isTexture||seen.has(t))return;seen.add(t);if(!P.get(t).__webglInit)return;const im=t.image;let w=0,h=0,d=1;
+    if(im){if(Array.isArray(im)){w=(im[0]||{}).width||0;h=(im[0]||{}).height||0;d=6;}else{w=im.width||im.videoWidth||0;h=im.height||im.videoHeight||0;}}
+    const bpp=t.type===THREE.HalfFloatType?8:t.type===THREE.FloatType?16:t.format===THREE.RedFormat?1:4;tb+=w*h*bpp*d*(t.generateMipmaps&&t.minFilter!==THREE.LinearFilter&&t.minFilter!==THREE.NearestFilter?1.33:1);};
+  scene.traverse(o=>{const g=o.geometry;if(g&&!seen.has(g)){seen.add(g);for(const k in g.attributes)gb+=g.attributes[k].array.byteLength;if(g.index)gb+=g.index.array.byteLength;}
+    const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];for(const m of ms){for(const k in m)if(m[k]&&m[k].isTexture)tex(m[k]);if(m.uniforms)for(const k in m.uniforms){const v=m.uniforms[k].value;if(v&&v.isTexture)tex(v);}}});
+  return {tex:tb/1e6,geo:gb/1e6};}
+if(PERF)window.__room={interact,BATCH,batchStatic,renderer,scene,camera,WK,player,inspOpen,inspClose,enterSpace,exitSpace,gpuMem,get inSpace(){return inSpace;},get INSP(){return INSP;}};   // for checking from the browser's console
 if(PERF){PERF.el=document.createElement('div');PERF.el.style.cssText='position:fixed;left:8px;top:8px;z-index:60;font:12px/1.5 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,.62);padding:6px 9px;border-radius:6px;pointer-events:none;white-space:pre';
   document.body.appendChild(PERF.el);renderer.info.autoReset=false;}
 function perfTick(now,ms){if(!PERF)return;PERF.n++;PERF.worst=Math.max(PERF.worst,ms);const i=renderer.info.render;PERF.calls=Math.max(PERF.calls,i.calls);PERF.tris=Math.max(PERF.tris,i.triangles);renderer.info.reset();
   if(now-PERF.t0<1000)return;const fps=PERF.n*1000/(now-PERF.t0);
-  PERF.el.textContent=`${fps.toFixed(0)} fps　最慢 ${PERF.worst.toFixed(0)} ms\n繪製 ${PERF.calls} 次　${(PERF.tris/1e6).toFixed(2)}M 三角形\n畫質 ${renderer.getPixelRatio().toFixed(2)}×　${LOW?'輕量模式':'完整模式'}　${GPU_NAME.replace(/^ANGLE \(|\)$/g,'').slice(0,40)}${inSpace?'　作品空間':''}`;
+  PERF.el.textContent=`${fps.toFixed(0)} fps　最慢 ${PERF.worst.toFixed(0)} ms\n繪製 ${PERF.calls} 次　${(PERF.tris/1e6).toFixed(2)}M 三角形\n畫質 ${renderer.getPixelRatio().toFixed(2)}×　${LOW?'輕量模式':'完整模式'}　${GPU_NAME.replace(/^ANGLE \(|\)$/g,'').slice(0,40)}${inSpace?'　作品空間':''}\n${PERF.mem}`;
+  if(now-PERF.memT>3000){PERF.memT=now;const m=gpuMem(),M=renderer.info.memory,hp=performance.memory?'　JS '+Math.round(performance.memory.usedJSHeapSize/1e6)+' MB':'';PERF.mem=`圖片 ${M.textures} 張 約 ${m.tex.toFixed(0)} MB　形狀 ${M.geometries} 個 約 ${m.geo.toFixed(0)} MB${hp}`;}
   PERF.el.style.color=fps<30?'#ffb4a8':fps<50?'#ffe08a':'#fff';PERF.t0=now;PERF.n=0;PERF.worst=0;PERF.calls=0;PERF.tris=0;}
+// phones draw at most 30 times a second (half the work, half the heat: a hot iPhone slows down and Safari runs out of room sooner);
+// when nobody has touched the screen for a while (reading, looking), 20 times a second. Computers keep their full rate.
+const FRAME_MS=MOBILE?1000/30:0,IDLE_MS=1000/20;
 function frame(now){
-  frame.n=(frame.n||0)+1;perfTick(now,now-last);tickWorkLoads(now);adaptRes(now,now-last);mountainCull(now);
+  if(FRAME_MS){if(joy.x||joy.y)frame.live=now;const idle=now-(frame.live||0)>15000&&!INSP.on&&!inSpace,gap=now-(frame.drawT||0);
+    if(gap<(idle?IDLE_MS:FRAME_MS)-4){requestAnimationFrame(frame);return;}frame.drawT=now;frame.idle=idle;}
+  frame.n=(frame.n||0)+1;perfTick(now,now-last);tickWorkLoads(now);lodTick(now);if(LOW&&!BATCH.done&&roomReadyAt!==null&&now-roomReadyAt>6000&&!/[?&]nobatch/.test(location.search))batchStatic();adaptRes(now,frame.idle?0:now-last);mountainCull(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(inSpace){spaceFrame(dt);requestAnimationFrame(frame);return;}   // inside a work's own space (see enterSpace): only that space is drawn
   // movement
@@ -4732,7 +4848,7 @@ function frame(now){
   updateFire(dt,now);
   if(tvDoc&&!tvVideo.paused&&tvVideo.readyState>=2&&tvVideo.currentTime!==frame.tvT&&onScreen(TV_POS,.5)){frame.tvT=tvVideo.currentTime;drawTV(now);}   // only a new frame of the clip, only when the screen can be seen
   if(IOS&&now-(frame.shT||0)>200){frame.shT=now;shadowSync();}
-  if(now-(frame.sdT||0)>(LOW?250:100)){frame.sdT=now;renderer.shadowMap.needsUpdate=true;}   // shadows follow the sun and moving things a few times a second, not every frame
+  if(now-(frame.sdT||0)>(LOW?(now-(frame.act||-1e9)<3000?250:2500):100)&&!(LOW&&INSP.on)){frame.sdT=now;renderer.shadowMap.needsUpdate=true;}   // light devices: every 2.5 s (the sun creeps; a few times a second just after a tap, while a door or drawer moves), and not at all while a work is in your hands   // shadows follow the sun and moving things a few times a second, not every frame
   sunLampTick(dt);
   DUST.tick(dt,now);
   if(natureTick)natureTick(dt,now);
@@ -4745,11 +4861,13 @@ function frame(now){
   RLT.tick(dt);
   const bookUp=LOW&&modalOpen&&!INSP.on&&document.getElementById('bk');   // light devices: while a book or album lies open over the room, the room behind holds still (the last picture stays) instead of being redrawn
   if(bookUp&&frame.held>2){requestAnimationFrame(frame);return;}frame.held=bookUp?(frame.held||0)+1:0;
-  renderer.render(scene,camera);
+  batchCheck();renderer.render(scene,camera);
   if(INSP.on&&INSP.k>0){const au=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;renderer.autoClear=false;renderer.clearDepth();
     camera.layers.set(INSP.DIM);renderer.render(scene,camera);camera.layers.set(INSP.LAYER);renderer.render(scene,camera);camera.layers.set(0);renderer.autoClear=true;renderer.shadowMap.autoUpdate=au;}   // the glass in your hands, over the dimmed room
   requestAnimationFrame(frame);
 }
+addEventListener('pointerdown',()=>{frame.act=frame.live=performance.now();},{capture:true,passive:true});addEventListener('keydown',()=>{frame.act=frame.live=performance.now();},{capture:true,passive:true});
+addEventListener('pointermove',()=>{frame.live=performance.now();},{capture:true,passive:true});addEventListener('wheel',()=>{frame.live=performance.now();},{capture:true,passive:true});
 requestAnimationFrame(frame);
 
 /* ---------- catalog for admin.html: object names, default texts, exhibit sizes (read by tools/build-catalog.mjs; no effect on the room) ---------- */
@@ -4764,7 +4882,12 @@ window.__roomCatalog=()=>{const hover={};targets.forEach(m=>{const a=m.userData&
 if(isTouch){$('#keys').innerHTML='<kbd>左下搖桿</kbd><span>走動</span><kbd>右下「蹲下」</kbd><span>切換蹲下／站起</span><kbd>拖曳畫面</kbd><span>環顧四周</span><kbd>輕點</kbd><span>與物件互動</span>';}
 $('#crouchBtn').addEventListener('click',e=>{touchCrouch=!touchCrouch;e.currentTarget.setAttribute('aria-pressed',touchCrouch);e.currentTarget.textContent=touchCrouch?'站起':'蹲下';});
 $('#enter').addEventListener('click',()=>{if(!window.__roomReady)return;prewarm();loadModels();$('#intro').hidden=true;started=true;startAudio();if(isTouch){$('#joy').hidden=false;$('#crouchBtn').hidden=false;}else tryLock();canvas.focus();updateCursorUI();
-  setTimeout(()=>toast(isTouch?'輕點物件就能互動':'準心對準物件時，點擊就能互動'),600);});
+  const back=RESUME&&walkable(RESUME.x,RESUME.z)?RESUME:null;   // the page reloaded itself a moment ago (a phone ran short of memory): carry on from where you were
+  if(back){player.x=back.x;player.z=back.z;player.yaw=back.yaw;player.pitch=back.pitch;}
+  setTimeout(()=>toast(back?'畫面剛剛重新載入了，已帶你回到剛才的位置':(isTouch?'輕點物件就能互動':'準心對準物件時，點擊就能互動')),600);});
+// where you are, kept for this tab only (sessionStorage) every couple of seconds: if Safari reloads the page, you come back to the same spot
+const RESUME=(()=>{try{const v=JSON.parse(sessionStorage.getItem('ir.pos')||'null');return v&&Date.now()-v.t<20*60*1000&&isFinite(v.x)&&isFinite(v.z)?v:null;}catch(e){return null;}})();
+setInterval(()=>{if(!started||inSpace||seat.on)return;try{sessionStorage.setItem('ir.pos',JSON.stringify({x:+player.x.toFixed(3),z:+player.z.toFixed(3),yaw:+player.yaw.toFixed(3),pitch:+player.pitch.toFixed(3),t:Date.now()}));}catch(e){}},2000);
 window.__roomReady=true;roomReadyAt=performance.now();if(window.__enterQueued){const b=$('#enter');b.disabled=false;b.textContent='進入房間';b.click();}   // clicked while the room was still being set up: go straight in
 })();
 </script>
