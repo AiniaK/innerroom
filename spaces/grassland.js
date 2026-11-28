@@ -650,6 +650,12 @@
         vec3 gc = vGround * (1.0 - 0.22 * cloudSh(vW)); vec3 col = mix(gc, a * light, 1.0 - vRootK * (1.0 - smoothstep(0.0, 0.5, vY)));   // 根部慢慢融進地面的顏色
         gl_FragColor = vec4(atmos(col, vW), 1.0); }`, { uniforms: ext, opts: { side: THREE.DoubleSide } }));
     grass.frustumCulled = false; scene.add(grass);
+    if (coarse) {   // 手機：草的總量少一點，但訪客腳邊（約一步半內）另外補一圈密草，兩步多之後淡出、接上外圍的草，低頭看還是茂密的
+      const RN = 2.4, NN = Math.round(NB * (RN / R) * (RN / R)), ng = new THREE.InstancedBufferGeometry(); ng.setAttribute('position', blade.attributes.position); ng.setIndex(blade.index);
+      const off = new Float32Array(NN * 2), rnd = new Float32Array(NN * 4); for (let k = 0; k < NN; k++) { off[k * 2] = (Math.random() * 2 - 1) * RN; off[k * 2 + 1] = (Math.random() * 2 - 1) * RN; for (let c = 0; c < 4; c++) rnd[k * 4 + c] = Math.random(); }
+      ng.setAttribute('aOff', new THREE.InstancedBufferAttribute(off, 2)); ng.setAttribute('aRnd', new THREE.InstancedBufferAttribute(rnd, 4)); ng.instanceCount = NN; geos.push(ng);
+      const nm = keepM(grass.material.clone()); nm.uniforms = Object.assign({}, grass.material.uniforms, { uR: { value: RN } });   // 其他設定（時間、風、光）跟外圍的草共用
+      const near = new THREE.Mesh(ng, nm); near.frustumCulled = false; scene.add(near); }
     // 草裡的白色小花：細細的莖、六片小小的白色花瓣、黃色的花心；花朝上、微微朝外，跟著風搖
     const fg = new THREE.InstancedBufferGeometry(); { const P = [], C = [], PT = [];
       const tri = (a, b, c, col, part) => { P.push(...a, ...b, ...c); for (let i = 0; i < 3; i++) { C.push(...col); PT.push(part); } };
@@ -727,7 +733,7 @@
     S.t += dt; U.uT.value = S.t; fauna(dt);
     // 畫面跟不上時，草、花、穗的數量自動減少（最少到三成）；順了再慢慢加回來
     if (dt > 0 && dt < 0.25) QL.ft += (dt * 1000 - QL.ft) * 0.06; QL.t += dt;
-    if (QL.t > 1.2) { QL.t = 0; const q0 = QL.q; if (QL.ft > 23) QL.q = Math.max(0.3, QL.q * 0.8); else if (QL.ft < 18) QL.q = Math.min(1, QL.q * 1.08);
+    if (QL.t > 1.2) { QL.t = 0; const q0 = QL.q; const T = window.__FRAME_MS || 16.7; if (QL.ft > T * 1.38) QL.q = Math.max(0.3, QL.q * 0.8); else if (QL.ft < T * 1.08) QL.q = Math.min(1, QL.q * 1.08);   // 手機每秒畫 30 次：以 33 ms 為準，不會誤以為太慢而一直減草
       if (QL.q !== q0) LOD.forEach(([g, n]) => { g.instanceCount = Math.round(n * QL.q); }); }
     const sp = (inp.run ? 4.2 : 1.9) * (inp.crouch > 0.5 ? 0.5 : 1) * dt;
     const fx = -Math.sin(inp.yaw), fz = -Math.cos(inp.yaw), rx = Math.cos(inp.yaw), rz = -Math.sin(inp.yaw);

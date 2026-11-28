@@ -354,7 +354,7 @@ form.gb .gb-whisper input,.gb-whisper input{width:auto;margin:0;padding:0;flex:n
 <script src="models/shirts/room.js?v=2026-11-18w"></script>
 <script src="models/pill-jar/room.js?v=2026-11-18q"></script>
 <script src="models/gashapon/room.js?v=2026-11-25m"></script>
-<script src="models/folder/room.js?v=2026-11-23d"></script>
+<script src="models/folder/room.js?v=2026-11-28a"></script>
 <script src="models/caps/room.js?v=2026-11-18w"></script>
 <script>
 (()=>{
@@ -772,7 +772,7 @@ const figGeo=(D,idx,big)=>{const pos=new Uint16Array(unb64(D.pos)),n=pos.length/
 const figTex=(D)=>{const t=new THREE.Texture();t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;const im=new Image();
   {const c0=document.createElement('canvas');c0.width=c0.height=1;const g0=c0.getContext('2d');g0.fillStyle='#8f8178';g0.fillRect(0,0,1,1);t.image=c0;t.needsUpdate=true;}   /* a quiet bark-brown until the picture is decoded, never black */
   im.onload=()=>{const c=capCanvas(im);const g=c.getContext('2d');g.drawImage(im,0,0,c.width,c.height);
-    t.image=c;t.needsUpdate=true;};im.src=D.tex;return t;};
+    t.dispose();t.image=c;t.needsUpdate=true;};im.src=D.tex;return t;};   // dispose first: the brown 1-px stand-in may already be on the graphics card, and a bigger picture does not fit in its slot (on phones the animals stayed brown)
 // the figurines' colour harmony (less saturated, a touch of warm cream, softer contrast), done by the GPU as it draws, not pixel by pixel at load
 const figHarm=m=>{m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
   { vec3 c=diffuseColor.rgb; float l=dot(c,vec3(.3,.55,.15)); vec3 v=vec3(l)+(c-vec3(l))*.72; v=v*.86+vec3(.62,.55,.46)*.14; diffuseColor.rgb=pow(max(v,vec3(0.)),vec3(.94)); }`);};m.customProgramCacheKey=()=>'figHarm';return m;};
@@ -1181,7 +1181,7 @@ let tvScreen=null;
        else{g.drawImage(im,0,0,c.width,c.height);const id=g.getImageData(0,0,c.width,c.height),px=id.data;
          for(let i=0;i<px.length;i+=4){const r=px[i],gg=px[i+1],b=px[i+2],l=.3*r+.59*gg+.11*b;px[i]=(r*.6+l*.4)*.94+240*.06;px[i+1]=(gg*.6+l*.4)*.94+226*.06;px[i+2]=(b*.6+l*.4)*.94+205*.06;}
          g.putImageData(id,0,0);}
-       t.image=c;t.needsUpdate=true;};im.src=src;return t;};
+       t.dispose();t.image=c;t.needsUpdate=true;};im.src=src;return t;};
    const mats=D.faces.map(u=>mat(0xffffff,.6,{map:soften(u)}));
    const m=new THREE.Mesh(new THREE.BoxGeometry(D.size[0]*k,D.size[1]*k,D.size[2]*k),mats);
    m.position.set(.045,top+D.size[1]*k/2,.002);m.rotation.y=-.35;m.castShadow=m.receiveShadow=true;m.userData.act=A.pocky;T.add(m);targets.push(m);}
@@ -1980,10 +1980,10 @@ function wPlace(id,pod){   // stand work `id` in pod `pod`; that pod's click pla
   if(w.obj&&!(INSP.on&&INSP.cur===w)){const R=w.obj.root;R.position.copy(w.p);R.quaternion.copy(w.q);}}
 Object.keys(WK).forEach(id=>wPlace(id,WORKS[id]?WORKS[id].pod:0));
 function captureEnv(w){   // what the room looks like from just in front of the work, for its mirrors to reflect
-  if(!w.obj||!w.obj.setEnvMap||w.ownEnv)return;   // ownEnv: keeps its own neutral studio (the warm room made the mirrors look copper, not silver)
+  if(!w.obj||!w.obj.setEnvMap||w.ownEnv||inSpace)return;   // ownEnv: keeps its own neutral studio (the warm room made the mirrors look copper, not silver)
   if(!w.cube){w.rt=new THREE.WebGLCubeRenderTarget(LOW?128:256,{type:LOW?THREE.UnsignedByteType:THREE.HalfFloatType});w.cube=new THREE.CubeCamera(.05,40,w.rt);}
   w.cube.position.copy(w.p).addScaledVector(w.out,.35);w.cube.updateMatrixWorld();
-  const vis=w.obj.root.visible;w.obj.root.visible=false;w.cube.update(renderer,scene);w.obj.root.visible=vis;w.obj.setEnvMap(w.rt.texture);}
+  w.envT=performance.now();const vis=w.obj.root.visible;w.obj.root.visible=false;w.cube.update(renderer,scene);w.obj.root.visible=vis;w.obj.setEnvMap(w.rt.texture);}
 {const w=WK.gfolder,g=GraphicFolder.folder();w.obj=g;w.s=1;w.sBig=w.HB/g.height;g.onClosed=()=>{if(INSP.cur===w)inspClose();};   // the graphic design folder, also built here (put back: it tidies and closes in your hands first, then goes home)
  g.root.position.copy(w.p);g.root.quaternion.copy(w.q);scene.add(g.root);g.meshes.forEach(m=>{m.userData.act=w.act;targets.push(m);});}
 {const w=WK.kcbox,g=kcBoxObj();w.obj=g;w.s=1;w.sBig=w.HB/g.height;   // the keychain box is built here, not loaded
@@ -2086,8 +2086,11 @@ function photoStackObj(){
   const root=new THREE.Group(),meshes=[],cards=[],SPC=.0009,HT=.13;
   const layout=dt=>{cards.forEach(c=>{
       c.flip=Math.max(0,c.flip-(dt||0)/.8);
-      const f=c.flip,e=f*f*(3-2*f),lift=Math.sin(Math.PI*e)*HT*.75*(c.dir||1);   // out over the top, then in at the back (or the other way, going back)
-      c.g.root.position.set(c.off.x,c.off.y+lift,-SPC*c.order);c.g.root.rotation.set(0,0,c.off.a);});};
+      const f=c.flip,e=f*f*(3-2*f),p=1-e,lift=Math.sin(Math.PI*p)*HT*1.3;   // p: how far along (0 → 1); it rises clear of the pile, then comes down on the other side
+      let z=-SPC*c.order;
+      if(f>0){const front=SPC*1.5+.003*Math.sin(Math.PI*p),back=-SPC*cards.length;   // next: up in front of the pile, then down behind it; back: up from behind, then down in front
+        z=(c.dir>0)===(p<.5)?front:back;}
+      c.g.root.position.set(c.off.x,c.off.y+lift,z);c.g.root.rotation.set(0,0,c.off.a);});};
   const top=()=>cards.find(c=>c.order===0);
   const o={root,meshes,height:HT,cards,tick(dt){if(cards.some(c=>c.flip>0))layout(dt);
       const held=INSP.on&&INSP.cur===WK.photobox&&INSP.dir>0;
@@ -2109,6 +2112,7 @@ function photoStackObj(){
 setTimeout(loadPhotos,2500);
 function loadNowAll(test){for(let i=pendingWorks.length-1;i>=0;i--)if(test(pendingWorks[i]))loadWork(pendingWorks.splice(i,1)[0]);}   // picked up before its contents arrived: fetch them all at once
 function tickWorkLoads(now){
+  if(LOW&&inSpace)return;   // light devices: nothing more of the room is fetched or readied while you are inside a work (it was let go to make room for the space)
   if(!tickWorkLoads.gh&&roomReadyAt!==null&&window.Gashapon&&KCBOX&&(Math.hypot(player.x-KCBOX.x,player.z-KCBOX.z)<2.6||(LOW&&now-roomReadyAt>8000))){tickWorkLoads.gh=1;Gashapon.upgrade(LOW);}   // the fine figures (4.5 MB) only once you come near the hutch (or pick one up); until then the rough ones stand there
   if(!pendingWorks.length||roomReadyAt===null||now-(tickWorkLoads.t||0)<400)return;tickWorkLoads.t=now;
   const near=id=>{const z=workZone(id);
@@ -2175,7 +2179,7 @@ function inspOpen(id){
   const w=WK[id];if(!w||INSP.on)return;
   if(!w.obj){toast('「'+(work(id).title||WORKS[id].title)+'」還在準備中，等一下再試一次');return;}
   scene.traverse(o=>{if(o.isLight)o.layers.enable(INSP.LAYER);});   // the room's lights light the held work too
-  if(!LOW||!w.cube)captureEnv(w);                                     // its mirrors reflect the room as it is right now (light devices: the picture taken when it arrived; a fresh one draws the whole room six times over, right at the moment of picking up)
+  if(!w.cube||(!LOW&&performance.now()-(w.envT||0)>180000))captureEnv(w);   // its mirrors reflect the room: the picture taken when it arrived (a fresh one draws the whole room six times over, right at the moment of picking up); computers take a new one if that is over 3 minutes old (the light has moved on)
   if(id.startsWith('gacha_'))Gashapon.upgrade(LOW);if(id==='gfolder')loadNowAll(k=>k.startsWith('gd_'));if(id==='kcbox')loadNowAll(k=>k.startsWith('kc_')||k==='stickers');
   INSP.on=true;INSP.cur=w;INSP.dir=1;document.body.classList.add('holding');INSP.user.identity();INSP.face=false;INSP.vx=INSP.vy=0;INSP.dist=.62;INSP.pts.clear();
   modalOpen=true;if(locked)document.exitPointerLock();updateCursorUI();$('#hover').hidden=true;
@@ -4423,7 +4427,7 @@ function jrFlow(docs){
   const ms=document.createElement('div');ms.className='bk-page bk-measure';ms.style.width=bk.pw+'px';ms.style.height=bk.ph+'px';
   ms.style.setProperty('--ph',bk.ph+'px');document.body.appendChild(ms);
   const inner=document.createElement('div');inner.className='bk-inner bk-j';ms.appendChild(inner);
-  const fits=html=>{inner.innerHTML=html;return inner.scrollHeight<=inner.clientHeight+1;};
+  const fits=html=>{inner.innerHTML=html.replace(/<img src="[^"]*"/g,'<img');return inner.scrollHeight<=inner.clientHeight+1;};   // measured without the pictures' addresses (their box has a fixed height): otherwise working out the pages fetched and decoded every photo in the book at once, which made phones reload
   const pages=[];
   for(const doc of docs){
     let cur=doc.head||'';doc.firstPage=pages.length;
@@ -4629,7 +4633,7 @@ function trimShadows(){   // things smaller than a cup (under 5 cm across the mi
   scene.traverse(o=>{if(!o.isMesh||!o.castShadow||o.isInstancedMesh||o.userData.keepShadow)return;const g=o.geometry;if(!g||!g.attributes.position)return;if(!g.boundingSphere)g.computeBoundingSphere();
     _shSp.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);if(_shSp.radius<.05)o.castShadow=false;});
   renderer.shadowMap.needsUpdate=true;}
-function prewarm(){trimShadows();if(warmBusy)return;warmBusy=true;
+function prewarm(){if(LOW&&inSpace)return;trimShadows();if(warmBusy)return;warmBusy=true;
   const par=renderer.compileAsync&&renderer.extensions.has('KHR_parallel_shader_compile'),p=par?renderer.compileAsync(scene,camera):new Promise(res=>{renderer.compile(scene,camera);res();});   // in parallel where the GPU driver allows it
   p.catch(()=>{}).then(()=>{const todo=[];scene.traverse(o=>{const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
       for(const m of ms)for(const k of ['map','alphaMap','bumpMap','normalMap','emissiveMap','gradientMap'])if(m[k]&&m[k].isTexture&&!_warmTex.has(m[k])&&m[k].image&&!m[k].isVideoTexture){_warmTex.add(m[k]);todo.push(m[k]);}});
@@ -4639,7 +4643,7 @@ function prewarm(){trimShadows();if(warmBusy)return;warmBusy=true;
 setTimeout(loadModels,1500);   // the heavier model data comes once the room is up
 /* ---------- a work you can walk into (收藏格 8 的聚光燈裝置): the room is set aside and only that space is drawn ---------- */
 // each work's space is its own file, fetched only when you go in (and let go of again when you come out), so the room never carries them all
-const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24r',GrasslandSpace:'spaces/grassland.js?v=2026-11-25x'};
+const SPACE_FILES={SpotlightSpace:'spaces/spotlight.js?v=2026-11-24b',FreedomSpace:'spaces/freedom.js?v=2026-11-24r',GrasslandSpace:'spaces/grassland.js?v=2026-11-28a'};
 function loadSpace(key){if(window[key])return Promise.resolve(window[key]);
   return loadSpace[key]||(loadSpace[key]=new Promise((ok,no)=>{const sc=document.createElement('script');sc.src=SPACE_FILES[key];sc.onload=()=>window[key]?ok(window[key]):no(new Error('space'));sc.onerror=()=>{loadSpace[key]=null;no(new Error('space'));};document.head.appendChild(sc);}));}
 // light devices: while you are inside a work, the room is not drawn at all; its pictures, shapes and shadow are let go from the graphics card
@@ -4662,7 +4666,7 @@ function enterSpace(key){if(inSpace||spaceBusy)return;if(!window[key]){spaceBusy
     setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;tryLock();toast((SP.exitHint||['點「離開作品」回到房間','按 Esc 回到房間'])[isTouch?0:1]);
       const n=$('#spaceNote');n.style.opacity=1;clearTimeout(n.t);n.t=setTimeout(()=>n.style.opacity=0,5000);},250);},750);}
 function exitSpace(){if(!inSpace||spaceBusy)return;spaceBusy=true;$('#spaceFade').style.opacity=1;
-  setTimeout(()=>{const SPx=window[spaceKey];SPx.exit();if(SPx.dispose)SPx.dispose();inSpace=false;renderer.shadowMap.needsUpdate=true;hovered=null;$('#hover').hidden=true;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
+  setTimeout(()=>{const SPx=window[spaceKey];SPx.exit();if(SPx.dispose)SPx.dispose();inSpace=false;renderer.shadowMap.needsUpdate=true;setTimeout(prewarm,1200);hovered=null;$('#hover').hidden=true;$('#spaceNote').style.opacity=0;spaceKey=null;document.body.classList.remove('inspace');$('#spaceExit').hidden=true;
     player.yaw=spaceSave.yaw;player.pitch=spaceSave.pitch;applySound();
     setTimeout(()=>{$('#spaceFade').style.opacity=0;spaceBusy=false;},150);},750);}
 $('#spaceExit').addEventListener('click',e=>{e.stopPropagation();exitSpace();});
@@ -4687,7 +4691,7 @@ function lodReg(t){const u=t.userData;if(u.lod)return true;if(u.noLod||t.isVideo
   if(Math.max(im.width,im.height)<=TLOD.small){u.noLod=true;return false;}
   const L=u.lod={src:im,max:0,cv:null,ext:0,off:false};
   Object.defineProperty(t,'needsUpdate',{configurable:true,set(v){   // its maker redrew or replaced the picture: follow it
-    if(v===true&&!_lodIn&&!L.off){if(t.image!==L.cv&&t.image!==L.src){L.src=t.image;L.max=0;lodKey='';}   // a new picture (e.g. the real one after a placeholder)
+    if(v===true&&!_lodIn&&!L.off){if(t.image!==L.cv&&t.image!==L.src){const o=L.cv||L.src;if(!o||o.width!==t.image.width||o.height!==t.image.height)t.dispose();L.src=t.image;L.max=0;lodKey='';}   // a new picture (e.g. the real one after a placeholder)
       else if(++L.ext>4){L.off=true;const ow=t.image.width,oh=t.image.height;t.image=L.src;if(ow!==L.src.width||oh!==L.src.height)t.dispose();}   // redrawn again and again (something that moves): leave it be
       else if(t.image===L.cv&&L.max){const m=L.max;L.max=0;lodSet(t,m);return;}}
     _texNU.call(t,v);}});
@@ -4792,7 +4796,7 @@ function perfTick(now,ms){if(!PERF)return;PERF.n++;PERF.worst=Math.max(PERF.wors
   PERF.el.style.color=fps<30?'#ffb4a8':fps<50?'#ffe08a':'#fff';PERF.t0=now;PERF.n=0;PERF.worst=0;PERF.calls=0;PERF.tris=0;}
 // phones draw at most 30 times a second (half the work, half the heat: a hot iPhone slows down and Safari runs out of room sooner);
 // when nobody has touched the screen for a while (reading, looking), 20 times a second. Computers keep their full rate.
-const FRAME_MS=MOBILE?1000/30:0,IDLE_MS=1000/20;
+const FRAME_MS=MOBILE?1000/30:0,IDLE_MS=1000/20;window.__FRAME_MS=FRAME_MS||1000/60;   // the walk-in spaces judge their own frame time against this
 function frame(now){
   if(FRAME_MS){if(joy.x||joy.y)frame.live=now;const idle=now-(frame.live||0)>15000&&!INSP.on&&!inSpace,gap=now-(frame.drawT||0);
     if(gap<(idle?IDLE_MS:FRAME_MS)-4){requestAnimationFrame(frame);return;}frame.drawT=now;frame.idle=idle;}
@@ -4884,10 +4888,14 @@ $('#crouchBtn').addEventListener('click',e=>{touchCrouch=!touchCrouch;e.currentT
 $('#enter').addEventListener('click',()=>{if(!window.__roomReady)return;prewarm();loadModels();$('#intro').hidden=true;started=true;startAudio();if(isTouch){$('#joy').hidden=false;$('#crouchBtn').hidden=false;}else tryLock();canvas.focus();updateCursorUI();
   const back=RESUME&&walkable(RESUME.x,RESUME.z)?RESUME:null;   // the page reloaded itself a moment ago (a phone ran short of memory): carry on from where you were
   if(back){player.x=back.x;player.z=back.z;player.yaw=back.yaw;player.pitch=back.pitch;}
-  setTimeout(()=>toast(back?'畫面剛剛重新載入了，已帶你回到剛才的位置':(isTouch?'輕點物件就能互動':'準心對準物件時，點擊就能互動')),600);});
+  setTimeout(()=>toast(back?'已帶你回到剛才所在的位置':(isTouch?'輕點物件就能互動':'準心對準物件時，點擊就能互動')),600);});
 // where you are, kept for this tab only (sessionStorage) every couple of seconds: if Safari reloads the page, you come back to the same spot
-const RESUME=(()=>{try{const v=JSON.parse(sessionStorage.getItem('ir.pos')||'null');return v&&Date.now()-v.t<20*60*1000&&isFinite(v.x)&&isFinite(v.z)?v:null;}catch(e){return null;}})();
-setInterval(()=>{if(!started||inSpace||seat.on)return;try{sessionStorage.setItem('ir.pos',JSON.stringify({x:+player.x.toFixed(3),z:+player.z.toFixed(3),yaw:+player.yaw.toFixed(3),pitch:+player.pitch.toFixed(3),t:Date.now()}));}catch(e){}},2000);
+// kept in both stores: when Safari throws the page away for memory, this tab's own store does not always survive; the other one (10 minutes) does
+const RESUME=(()=>{const rd=(st,ms)=>{try{const v=JSON.parse(st.getItem('ir.pos')||'null');return v&&Date.now()-v.t<ms&&isFinite(v.x)&&isFinite(v.z)?v:null;}catch(e){return null;}};
+  return rd(sessionStorage,20*60*1000)||rd(localStorage,10*60*1000);})();
+function savePos(){if(!started||inSpace||seat.on)return;const v=JSON.stringify({x:+player.x.toFixed(3),z:+player.z.toFixed(3),yaw:+player.yaw.toFixed(3),pitch:+player.pitch.toFixed(3),t:Date.now()});
+  try{sessionStorage.setItem('ir.pos',v);}catch(e){}try{localStorage.setItem('ir.pos',v);}catch(e){}}
+setInterval(savePos,2000);addEventListener('pointerdown',savePos,{capture:true,passive:true});   // also the moment something is tapped (opening a book, picking a work up), before anything heavy starts
 window.__roomReady=true;roomReadyAt=performance.now();if(window.__enterQueued){const b=$('#enter');b.disabled=false;b.textContent='進入房間';b.click();}   // clicked while the room was still being set up: go straight in
 })();
 </script>

@@ -308,8 +308,9 @@
       const layout = (dt) => {
         sheets.forEach((s) => {
           s.flip = Math.max(0, s.flip - (dt || 0) / 0.6);
-          const lift = Math.sin(Math.PI * s.flip) * topY * 1.7;   // 抽出去再塞回最後面
-          s.grp.position.set(s.off.x, s.off.y - lift, -SPC * s.order);
+          const f = s.flip, e = f * f * (3 - 2 * f), p = 1 - e, lift = Math.sin(Math.PI * p) * topY * 2.15;   // p：進行到哪（0 → 1）；先在最前面往下抽出、整張離開這疊，再從後面塞回去
+          const z = f > 0 && p < 0.5 ? SPC * 1.5 + 0.0015 * Math.sin(Math.PI * p) : f > 0 ? -SPC * n : -SPC * s.order;
+          s.grp.position.set(s.off.x, s.off.y - lift, z);
           s.grp.rotation.z = s.off.a;
         });
       };
